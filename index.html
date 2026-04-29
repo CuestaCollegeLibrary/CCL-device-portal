@@ -1977,90 +1977,158 @@ function handleFileSelect(e) {
 
 async function processInventoryFile(file) {
   document.getElementById('upload-preview').innerHTML = `<div class="alert alert-info">📂 Processing: <strong>${file.name}</strong>...</div>`;
+  document.getElementById('upload-result').innerHTML = '';
+
+  // Load SheetJS dynamically
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
   const reader = new FileReader();
   reader.onload = async (e) => {
-    const text = e.target.result;
-    const lines = text.split('\n').filter(l => l.trim());
-    if (lines.length < 2) {
-      document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">File appears empty or has no data rows.</div>`;
-      return;
-    }
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
-
-    // Try to detect columns
-    const deviceCol = headers.findIndex(h => h.includes('title') || h.includes('material') || h.includes('item') || h.includes('description'));
-    const locationCol = headers.findIndex(h => h.includes('location') || h.includes('campus') || h.includes('library'));
-    const statusCol = headers.findIndex(h => h.includes('status') || h.includes('process'));
-
-    // Count by device type and campus
-    const counts = {};
-    const DEVICE_KEYWORDS = {
-      hotspot: ['hotspot', 'hot spot', 'wifi', 'wireless'],
-      chromebook: ['chromebook', 'chrome book'],
-      laptop: ['laptop', 'lenovo', 't14', 't490', 'specialty'],
-      calculator: ['calculator', 'ti-30', 'ti-83', 'ti 30', 'ti 83']
-    };
-    const CAMPUS_KEYWORDS = {
-      SLO: ['slo', 'san luis', 'main'],
-      NCC: ['ncc', 'north county', 'paso robles', 'paso']
-    };
-
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim().replace(/"/g,''));
-      const row = cols.join(' ').toLowerCase();
-
-      let device = null;
-      for (const [did, keywords] of Object.entries(DEVICE_KEYWORDS)) {
-        if (keywords.some(kw => row.includes(kw))) { device = did; break; }
-      }
-      let campus = null;
-      for (const [c, keywords] of Object.entries(CAMPUS_KEYWORDS)) {
-        if (keywords.some(kw => row.includes(kw))) { campus = c; break; }
-      }
-
-      if (device) {
-        const key = device === 'laptop' ? 'laptop_shared' : `${device}_${campus || 'SLO'}`;
-        counts[key] = (counts[key] || 0) + 1;
-      }
-    }
-
-    // Preview
-    let prevHtml = '<div class="form-label" style="margin-bottom:8px">Detected Inventory</div><table><thead><tr><th>Device</th><th>Campus</th><th>Count</th></tr></thead><tbody>';
-    for (const [key, count] of Object.entries(counts)) {
-      const [did, campus] = key.split('_');
-      prevHtml += `<tr><td>${deviceLabel(did)}</td><td>${campus === 'shared' ? 'All' : campus.toUpperCase()}</td><td><strong>${count}</strong></td></tr>`;
-    }
-    prevHtml += '</tbody></table>';
-    document.getElementById('upload-preview').innerHTML = prevHtml;
-
-    // Save to Supabase
     try {
-      for (const [key, count] of Object.entries(counts)) {
-        const [did, campus] = key.split('_');
-        await fetch(`${SUPABASE_URL}/rest/v1/inventory`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates,return=minimal'
-          },
-          body: JSON.stringify({
-            device_type: did,
-            campus: campus,
-            available_count: count,
-            total_count: count,
-            last_updated: new Date().toISOString()
-          })
-        });
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (rows.length === 0) {
+        document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">No data rows found in file.</div>`;
+        return;
       }
-      document.getElementById('upload-result').innerHTML = `<div class="alert alert-success">✓ Inventory updated successfully. ${Object.keys(counts).length} device categories imported.</div>`;
-      loadInventory();
-    } catch(err) {
-      document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">Error saving to database: ${err.message}</div>`;
+
+      // Normalize column names — handle both Alma export formats
+      function getCol(row, ...candidates) {
+        for (const key of Object.keys(row)) {
+          const k = key.toLowerCase().trim();
+          if (candidates.some(c => k === c || k.includes(c))) return (row[key] || '').toString().trim();
+        }
+        return '';
+      }
+
+      // Counters: available, on_loan, missing, lost, total per device+campus
+      const counts = {};
+      function addCount(device, campus, field) {
+        const key = device === 'laptop' ? 'laptop_shared' : `${device}_${campus}`;
+        if (!counts[key]) counts[key] = { device, campus: device === 'laptop' ? 'shared' : campus, available: 0, on_loan: 0, missing: 0, lost: 0, total: 0 };
+        counts[key][field]++;
+        counts[key].total++;
+      }
+
+      for (const row of rows) {
+        // Get relevant fields using flexible column name matching
+        const callNum    = getCol(row, 'call number', 'permanent call number', 'title');
+        const itemCall   = getCol(row, 'item call number');
+        const library    = getCol(row, 'library', 'library name');
+        const status     = getCol(row, 'status', 'base status');
+        const procType   = getCol(row, 'process type', 'process_type');
+
+        const callLower  = (callNum + ' ' + itemCall).toLowerCase();
+        const libLower   = library.toLowerCase();
+
+        // Skip deactivated devices
+        if (callLower.includes('deactivated')) continue;
+
+        // Detect device type
+        let device = null;
+        if (callLower.includes('hotspot') || callLower.includes('hot spot')) {
+          device = 'hotspot';
+        } else if (callLower.includes('chromebook') || callLower.includes('chrome book')) {
+          device = 'chromebook';
+        } else if (callLower.includes('thinkpad') || callLower.includes('lenovo') ||
+                   callLower.includes('t14') || callLower.includes('t490') ||
+                   callLower.includes('laptop')) {
+          device = 'laptop';
+        } else if (callLower.includes('calculator') || callLower.includes('ti-30') ||
+                   callLower.includes('ti-83') || callLower.includes('ti 30') ||
+                   callLower.includes('ti 83')) {
+          device = 'calculator';
+        }
+        if (!device) continue;
+
+        // Detect campus
+        let campus = 'SLO';
+        if (libLower.includes('ncc') || libLower.includes('north county') || libLower.includes('paso')) {
+          campus = 'NCC';
+        }
+
+        // Determine availability status
+        // Available = "Item in place" (process type will be blank/None)
+        // On loan = process type "Loan"
+        // Lost/Missing = everything else
+        const statusLower = status.toLowerCase();
+        const procLower   = procType.toLowerCase();
+
+        if (statusLower === 'item in place') {
+          addCount(device, campus, 'available');
+        } else if (procLower === 'loan') {
+          addCount(device, campus, 'on_loan');
+        } else if (procLower === 'lost' || procLower === 'lost and paid') {
+          addCount(device, campus, 'lost');
+        } else {
+          addCount(device, campus, 'missing');
+        }
+      }
+
+      if (Object.keys(counts).length === 0) {
+        document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">No recognizable devices found. Make sure this is an Alma inventory export with Call Number and Status columns.</div>`;
+        return;
+      }
+
+      // Show preview table
+      let prevHtml = `
+        <div class="form-label" style="margin-bottom:8px">Detected Inventory (${rows.length} rows processed)</div>
+        <table><thead><tr><th>Device</th><th>Campus</th><th>Available</th><th>On Loan</th><th>Missing</th><th>Lost</th><th>Total</th></tr></thead><tbody>`;
+      for (const c of Object.values(counts)) {
+        const campusLabel = c.campus === 'shared' ? 'All Campuses' : c.campus;
+        prevHtml += `<tr>
+          <td>${deviceLabel(c.device)}</td>
+          <td>${campusLabel}</td>
+          <td><strong style="color:var(--success)">${c.available}</strong></td>
+          <td>${c.on_loan}</td>
+          <td>${c.missing}</td>
+          <td>${c.lost}</td>
+          <td>${c.total}</td>
+        </tr>`;
+      }
+      prevHtml += '</tbody></table>';
+      document.getElementById('upload-preview').innerHTML = prevHtml;
+
+      // Save available counts to Supabase
+      try {
+        for (const c of Object.values(counts)) {
+          await fetch(`${SUPABASE_URL}/rest/v1/inventory`, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates,return=minimal'
+            },
+            body: JSON.stringify({
+              device_type: c.device,
+              campus: c.campus,
+              available_count: c.available,
+              total_count: c.total,
+              last_updated: new Date().toISOString()
+            })
+          });
+        }
+        document.getElementById('upload-result').innerHTML = `<div class="alert alert-success">✓ Inventory updated successfully. ${Object.keys(counts).length} device categories imported.</div>`;
+        loadInventory();
+      } catch(err) {
+        document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">Error saving to database: ${err.message}</div>`;
+      }
+    } catch(parseErr) {
+      document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">Error reading file: ${parseErr.message}</div>`;
     }
   };
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
 }
 
 // ── EMAIL SETTINGS ────────────────────────────────────────────────────────────
