@@ -1438,14 +1438,25 @@ function toggleAGHS() {
 }
 
 async function loadDeviceStep() {
-  // Load inventory counts
+  // Calculate available counts directly from items table
   try {
-    const inv = await sbGet('inventory', '?select=*');
+    const items = await sbGet('items', '?status=eq.available&select=device_type,campus');
     inventoryData = {};
-    inv.forEach(row => {
-      inventoryData[`${row.device_type}_${row.campus}`] = row.available_count;
+    items.forEach(item => {
+      const campus = item.device_type === 'laptop' ? 'shared' : item.campus;
+      const key = `${item.device_type}_${campus}`;
+      inventoryData[key] = (inventoryData[key] || 0) + 1;
     });
-  } catch(e) { /* inventory may be empty */ }
+  } catch(e) {
+    // Fall back to inventory table if items table not populated yet
+    try {
+      const inv = await sbGet('inventory', '?select=*');
+      inventoryData = {};
+      inv.forEach(row => {
+        inventoryData[`${row.device_type}_${row.campus}`] = row.available_count;
+      });
+    } catch(e2) { /* truly empty */ }
+  }
 }
 
 async function renderDeviceGrid() {
@@ -2666,7 +2677,8 @@ function applyTranslations() {
     document.querySelectorAll('[data-i18n]').forEach(function(el) {
       var key = el.getAttribute('data-i18n');
       var val = T[currentLang][key] || T['en'][key];
-      if (val) el.textContent = val;
+      // Skip elements handled separately (those with child HTML elements)
+      if (val && !el.querySelector('em,strong,a')) el.textContent = val;
     });
 
     // Update placeholders
@@ -2676,7 +2688,16 @@ function applyTranslations() {
     setPlaceholder('s-signature', t('signPlaceholder'));
 
     // Update agreement text
-    setHTML('#portal-step-2 .agreement-scroll', currentLang === 'es' ? AGREEMENT_ES : AGREEMENT_EN);
+    // Capture EN agreement text lazily if not yet stored
+    if (!AGREEMENT_EN) {
+      var scrollEl = document.querySelector('#portal-step-2 .agreement-scroll');
+      if (scrollEl) AGREEMENT_EN = scrollEl.innerHTML;
+    }
+    if (currentLang === 'es') {
+      setHTML('#portal-step-2 .agreement-scroll', AGREEMENT_ES);
+    } else if (AGREEMENT_EN) {
+      setHTML('#portal-step-2 .agreement-scroll', AGREEMENT_EN);
+    }
 
     // Update step2 card sub (has <em> tag so needs innerHTML)
     setHTML('#portal-step-2 .card-sub', t('step2Sub') + ' <em>Summer 2026</em>');
