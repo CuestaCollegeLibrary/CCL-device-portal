@@ -944,29 +944,120 @@ tr:hover td { background: #faf8f4; }
         <!-- Inventory Upload Panel -->
         <div id="panel-inventory" class="tab-panel">
           <div class="page-header">
-            <div class="page-title">Upload Inventory Report</div>
-            <div class="page-sub">Upload an Alma inventory export to update device availability counts.</div>
+            <div class="page-title">Inventory Management</div>
+            <div class="page-sub">Upload Alma reports to sync device inventory. Each upload is matched by barcode — new barcodes are added automatically.</div>
           </div>
+
+          <!-- Upload card -->
           <div class="card">
-            <div class="card-title">Alma Inventory Export</div>
-            <div class="card-sub">Upload a CSV or Excel file exported from Alma. The system will read available counts per device type per campus.</div>
+            <div class="card-title">Upload Alma Inventory Report</div>
+            <div class="card-sub">Upload one device type at a time. The system matches by barcode, detects changes, and logs everything.</div>
             <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
                  ondragover="event.preventDefault();this.classList.add('dragging')"
                  ondragleave="this.classList.remove('dragging')"
                  ondrop="handleFileDrop(event)">
               <div class="upload-icon">📂</div>
               <div class="upload-text">Click to browse or drag &amp; drop</div>
-              <div class="upload-sub">Accepts .csv or .xlsx files from Alma</div>
+              <div class="upload-sub">Accepts .xlsx files exported from Alma</div>
             </div>
             <input type="file" id="file-input" accept=".csv,.xlsx" style="display:none" onchange="handleFileSelect(event)">
             <div id="upload-preview" style="margin-top:16px"></div>
             <div id="upload-result" style="margin-top:12px"></div>
           </div>
+
+          <!-- Add device manually -->
+          <div class="card">
+            <div class="card-title">Add Device Manually</div>
+            <div class="card-sub">Add a single new device — for purchases or items not in an Alma report yet.</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Barcode *</label>
+                <input class="form-input" id="add-barcode" placeholder="Item barcode">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Device Type *</label>
+                <select class="form-input" id="add-device-type">
+                  <option value="hotspot">WiFi Hotspot</option>
+                  <option value="chromebook">Chromebook</option>
+                  <option value="laptop">Specialty Laptop</option>
+                  <option value="calculator">Calculator</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Campus *</label>
+                <select class="form-input" id="add-campus">
+                  <option value="SLO">SLO Library</option>
+                  <option value="NCC">NCC Library</option>
+                  <option value="shared">Both / Shared</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-input" id="add-status">
+                  <option value="available">Available</option>
+                  <option value="on_loan">On Loan</option>
+                  <option value="missing">Missing</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description / Call Number</label>
+              <input class="form-input" id="add-description" placeholder="e.g. T10 HOTSPOT c. 101">
+            </div>
+            <div id="add-device-result"></div>
+            <button class="btn btn-primary" onclick="addDeviceManually()">Add Device</button>
+          </div>
+
+          <!-- Current inventory summary -->
           <div class="card">
             <div class="card-title">Current Inventory</div>
-            <div class="card-sub">Last updated from Alma upload.</div>
+            <div class="card-sub">Live counts from item records. Updated automatically on each upload.</div>
             <div id="inventory-table">
               <div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No inventory loaded yet</div></div>
+            </div>
+          </div>
+
+          <!-- Upload history / change log -->
+          <div class="card">
+            <div class="card-title">Upload History</div>
+            <div class="card-sub">Change log from all previous uploads.</div>
+            <div id="upload-history-table">
+              <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No uploads yet</div></div>
+            </div>
+          </div>
+
+          <!-- Item browser -->
+          <div class="card">
+            <div class="card-title">Browse All Items</div>
+            <div class="card-sub">Search and filter individual device records.</div>
+            <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+              <input class="form-input" style="width:200px" id="item-search" placeholder="Barcode or description..." oninput="filterItems()">
+              <select class="form-input" style="width:150px" id="item-filter-type" onchange="filterItems()">
+                <option value="">All device types</option>
+                <option value="hotspot">Hotspots</option>
+                <option value="chromebook">Chromebooks</option>
+                <option value="laptop">Laptops</option>
+                <option value="calculator">Calculators</option>
+              </select>
+              <select class="form-input" style="width:130px" id="item-filter-campus" onchange="filterItems()">
+                <option value="">All campuses</option>
+                <option value="SLO">SLO</option>
+                <option value="NCC">NCC</option>
+              </select>
+              <select class="form-input" style="width:140px" id="item-filter-status" onchange="filterItems()">
+                <option value="">All statuses</option>
+                <option value="available">Available</option>
+                <option value="on_loan">On Loan</option>
+                <option value="missing">Missing</option>
+                <option value="lost">Lost</option>
+                <option value="deactivated">Deactivated</option>
+              </select>
+            </div>
+            <div id="items-browser-table">
+              <div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Loading items...</div></div>
             </div>
           </div>
         </div>
@@ -1597,7 +1688,7 @@ function showDashPanel(panel, btn) {
   if (panel === 'agreements') loadAgreements();
   else if (panel.startsWith('wl-')) loadWaitlist(panel);
   else if (panel === 'aghs') loadAGHS();
-  else if (panel === 'inventory') loadInventory();
+  else if (panel === 'inventory') { loadInventory(); loadUploadHistory(); loadItemsBrowser(); }
   else if (panel === 'overview') loadOverview();
 }
 
@@ -1807,24 +1898,185 @@ async function loadAGHS() {
 
 async function loadInventory() {
   try {
-    const data = await sbGet('inventory', '?select=*&order=device_type.asc,campus.asc');
-    if (data.length === 0) {
+    // Recalculate counts from items table
+    const items = await sbGet('items', '?select=device_type,campus,status');
+    if (items.length === 0) {
       document.getElementById('inventory-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No inventory loaded yet</div><div class="empty-sub">Upload an Alma report to get started</div></div>`;
       return;
     }
-    let html = `<table><thead><tr><th>Device</th><th>Campus</th><th>Available</th><th>Total</th><th>Last Updated</th></tr></thead><tbody>`;
-    data.forEach(r => {
+
+    // Build counts
+    const counts = {};
+    items.forEach(item => {
+      const campus = item.device_type === 'laptop' ? 'shared' : item.campus;
+      const key = `${item.device_type}_${campus}`;
+      if (!counts[key]) counts[key] = { device_type: item.device_type, campus, available: 0, on_loan: 0, missing: 0, lost: 0, total: 0 };
+      counts[key].total++;
+      if (item.status === 'available') counts[key].available++;
+      else if (item.status === 'on_loan') counts[key].on_loan++;
+      else if (item.status === 'missing') counts[key].missing++;
+      else if (item.status === 'lost') counts[key].lost++;
+    });
+
+    let html = `<table><thead><tr><th>Device</th><th>Campus</th><th>Available</th><th>On Loan</th><th>Missing</th><th>Lost</th><th>Total</th></tr></thead><tbody>`;
+    Object.values(counts).sort((a,b) => a.device_type.localeCompare(b.device_type)).forEach(c => {
       html += `<tr>
-        <td>${deviceLabel(r.device_type)}</td>
-        <td>${r.campus === 'shared' ? 'All Campuses' : r.campus}</td>
-        <td><strong style="color:${r.available_count > 0 ? 'var(--success)' : 'var(--danger)'}">${r.available_count}</strong></td>
-        <td>${r.total_count}</td>
-        <td>${formatDate(r.last_updated)}</td>
+        <td>${deviceLabel(c.device_type)}</td>
+        <td>${c.campus === 'shared' ? 'All Campuses' : c.campus}</td>
+        <td><strong style="color:${c.available > 0 ? 'var(--success)' : 'var(--danger)'}">${c.available}</strong></td>
+        <td>${c.on_loan}</td>
+        <td>${c.missing}</td>
+        <td>${c.lost}</td>
+        <td>${c.total}</td>
       </tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('inventory-table').innerHTML = html;
-  } catch(e) {}
+
+    // Also update the inventory table counts for waitlist logic
+    for (const c of Object.values(counts)) {
+      await fetch(`${SUPABASE_URL}/rest/v1/inventory`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ device_type: c.device_type, campus: c.campus,
+          available_count: c.available, total_count: c.total, last_updated: new Date().toISOString() })
+      });
+    }
+  } catch(e) {
+    console.error('loadInventory error:', e);
+  }
+}
+
+async function loadUploadHistory() {
+  try {
+    const logs = await sbGet('upload_log', '?order=uploaded_at.desc&limit=20&select=*');
+    if (!logs.length) {
+      document.getElementById('upload-history-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No uploads yet</div></div>`;
+      return;
+    }
+    let html = `<table><thead><tr><th>Date</th><th>Device Type</th><th>Total</th><th>New</th><th>Status Changes</th><th>Campus Changes</th><th></th></tr></thead><tbody>`;
+    logs.forEach(l => {
+      html += `<tr>
+        <td>${formatDateTime(l.uploaded_at)}</td>
+        <td>${deviceLabel(l.device_type)}</td>
+        <td>${l.total_in_file}</td>
+        <td><span style="color:var(--success);font-weight:600">+${l.new_devices}</span></td>
+        <td>${l.status_changes}</td>
+        <td>${l.campus_changes}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="showUploadDetail('${l.id}')">Details</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('upload-history-table').innerHTML = html;
+  } catch(e) { console.error('loadUploadHistory:', e); }
+}
+
+async function showUploadDetail(logId) {
+  const logs = await sbGet('upload_log', `?id=eq.${logId}&select=*`);
+  if (!logs.length) return;
+  const log = logs[0];
+  const changes = log.changes_detail || [];
+  let html = `<div style="max-height:400px;overflow-y:auto">`;
+  if (changes.length === 0) {
+    html += `<p style="color:var(--text-light);font-size:13px">No changes detected in this upload.</p>`;
+  } else {
+    html += `<table><thead><tr><th>Barcode</th><th>Change</th><th>Detail</th></tr></thead><tbody>`;
+    changes.forEach(c => {
+      const color = c.type === 'new' ? 'var(--success)' : c.type === 'status_change' ? 'var(--warning)' : '#3b82f6';
+      html += `<tr>
+        <td class="td-id">${c.barcode}</td>
+        <td><span style="color:${color};font-weight:600">${c.type === 'new' ? '+ New' : c.type === 'status_change' ? '↕ Status' : '📍 Campus'}</span></td>
+        <td style="font-size:12px">${c.detail}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  document.getElementById('modal-student-name').textContent = `Upload Detail — ${deviceLabel(log.device_type)}`;
+  document.getElementById('modal-student-id').textContent = formatDateTime(log.uploaded_at);
+  document.getElementById('modal-student-body').innerHTML = html;
+  openModal('modal-student');
+}
+
+let allItems = [];
+async function loadItemsBrowser() {
+  try {
+    allItems = await sbGet('items', '?order=device_type.asc,campus.asc,barcode.asc&select=*');
+    renderItemsTable(allItems);
+  } catch(e) { console.error('loadItemsBrowser:', e); }
+}
+
+function filterItems() {
+  const q = document.getElementById('item-search').value.toLowerCase();
+  const typeF = document.getElementById('item-filter-type').value;
+  const campusF = document.getElementById('item-filter-campus').value;
+  const statusF = document.getElementById('item-filter-status').value;
+  const filtered = allItems.filter(item =>
+    (!q || item.barcode?.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q) || item.call_number?.toLowerCase().includes(q)) &&
+    (!typeF || item.device_type === typeF) &&
+    (!campusF || item.campus === campusF) &&
+    (!statusF || item.status === statusF)
+  );
+  renderItemsTable(filtered);
+}
+
+function renderItemsTable(items) {
+  if (items.length === 0) {
+    document.getElementById('items-browser-table').innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">No items match your filters</div></div>`;
+    return;
+  }
+  const statusColors = { available: 'var(--success)', on_loan: '#3b82f6', missing: 'var(--warning)', lost: 'var(--danger)', deactivated: 'var(--text-light)' };
+  let html = `<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">Showing ${items.length} items</div>
+    <table><thead><tr><th>Barcode</th><th>Device</th><th>Campus</th><th>Status</th><th>Description</th><th>Last Seen</th></tr></thead><tbody>`;
+  items.slice(0, 200).forEach(item => {
+    const color = statusColors[item.status] || 'var(--text)';
+    html += `<tr>
+      <td class="td-id">${item.barcode}</td>
+      <td>${deviceLabel(item.device_type)}</td>
+      <td>${item.campus}</td>
+      <td><span style="color:${color};font-weight:600">${item.status}</span></td>
+      <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.description || item.call_number || '—'}</td>
+      <td style="font-size:12px">${formatDate(item.last_seen_upload)}</td>
+    </tr>`;
+  });
+  if (items.length > 200) html += `<tr><td colspan="6" style="text-align:center;color:var(--text-light);font-size:12px">Showing first 200 of ${items.length} items. Use filters to narrow results.</td></tr>`;
+  html += '</tbody></table>';
+  document.getElementById('items-browser-table').innerHTML = html;
+}
+
+async function addDeviceManually() {
+  const barcode = document.getElementById('add-barcode').value.trim();
+  const deviceType = document.getElementById('add-device-type').value;
+  const campus = document.getElementById('add-campus').value;
+  const status = document.getElementById('add-status').value;
+  const description = document.getElementById('add-description').value.trim();
+  const resultEl = document.getElementById('add-device-result');
+
+  if (!barcode) { resultEl.innerHTML = `<div class="alert alert-danger">Barcode is required.</div>`; return; }
+
+  try {
+    // Check if barcode already exists
+    const existing = await sbGet('items', `?barcode=eq.${barcode}&select=id`);
+    if (existing.length > 0) {
+      resultEl.innerHTML = `<div class="alert alert-warning">A device with this barcode already exists.</div>`;
+      return;
+    }
+    await sbPost('items', {
+      barcode, device_type: deviceType,
+      campus: deviceType === 'laptop' ? 'shared' : campus,
+      status, description, call_number: description,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    resultEl.innerHTML = `<div class="alert alert-success">✓ Device added successfully.</div>`;
+    document.getElementById('add-barcode').value = '';
+    document.getElementById('add-description').value = '';
+    loadInventory();
+    loadItemsBrowser();
+  } catch(e) {
+    resultEl.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+  }
 }
 
 // ── NOTIFY MODAL ──────────────────────────────────────────────────────────────
@@ -1979,7 +2231,7 @@ async function processInventoryFile(file) {
   document.getElementById('upload-preview').innerHTML = `<div class="alert alert-info">📂 Processing: <strong>${file.name}</strong>...</div>`;
   document.getElementById('upload-result').innerHTML = '';
 
-  // Load SheetJS dynamically
+  // Load SheetJS dynamically if needed
   if (!window.XLSX) {
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -2002,7 +2254,7 @@ async function processInventoryFile(file) {
         return;
       }
 
-      // Normalize column names — handle both Alma export formats
+      // Flexible column getter — handles both Alma export formats
       function getCol(row, ...candidates) {
         for (const key of Object.keys(row)) {
           const k = key.toLowerCase().trim();
@@ -2011,125 +2263,190 @@ async function processInventoryFile(file) {
         return '';
       }
 
-      // Counters: available, on_loan, missing, lost, total per device+campus
-      const counts = {};
-      function addCount(device, campus, field) {
-        const key = device === 'laptop' ? 'laptop_shared' : `${device}_${campus}`;
-        if (!counts[key]) counts[key] = { device, campus: device === 'laptop' ? 'shared' : campus, available: 0, on_loan: 0, missing: 0, lost: 0, total: 0 };
-        counts[key][field]++;
-        counts[key].total++;
+      // Detect device type from a row
+      function detectDevice(callNum, itemCall) {
+        const s = (callNum + ' ' + itemCall).toLowerCase();
+        if (s.includes('deactivated')) return null;
+        if (s.includes('hotspot') || s.includes('hot spot')) return 'hotspot';
+        if (s.includes('chromebook') || s.includes('chrome book')) return 'chromebook';
+        if (s.includes('thinkpad') || s.includes('lenovo') || s.includes('t14') || s.includes('t490') || s.includes('laptop')) return 'laptop';
+        if (s.includes('calculator') || s.includes('ti-30') || s.includes('ti-83') || s.includes('ti 30') || s.includes('ti 83')) return 'calculator';
+        return null;
       }
+
+      // Detect campus
+      function detectCampus(library) {
+        const l = library.toLowerCase();
+        if (l.includes('ncc') || l.includes('north county') || l.includes('paso')) return 'NCC';
+        return 'SLO';
+      }
+
+      // Determine status from Alma fields
+      function detectStatus(baseStatus, processType) {
+        const s = baseStatus.toLowerCase();
+        const p = processType.toLowerCase();
+        if (s === 'item in place' && (!p || p === 'none' || p === '')) return 'available';
+        if (p === 'loan') return 'on_loan';
+        if (p === 'lost' || p === 'lost and paid') return 'lost';
+        if (p === 'missing' || p === 'claimed returned' || p === 'transit') return 'missing';
+        return 'missing';
+      }
+
+      // Parse all rows into structured items
+      const fileItems = [];
+      let detectedDeviceType = null;
 
       for (const row of rows) {
-        // Get relevant fields using flexible column name matching
-        const callNum    = getCol(row, 'call number', 'permanent call number', 'title');
-        const itemCall   = getCol(row, 'item call number');
-        const library    = getCol(row, 'library', 'library name');
-        const status     = getCol(row, 'status', 'base status');
-        const procType   = getCol(row, 'process type', 'process_type');
+        const barcode   = getCol(row, 'barcode');
+        const callNum   = getCol(row, 'call number', 'permanent call number');
+        const itemCall  = getCol(row, 'item call number');
+        const library   = getCol(row, 'library', 'library name');
+        const baseStatus= getCol(row, 'status', 'base status');
+        const procType  = getCol(row, 'process type', 'process_type');
+        const desc      = getCol(row, 'description');
+        const title     = getCol(row, 'title');
 
-        const callLower  = (callNum + ' ' + itemCall).toLowerCase();
-        const libLower   = library.toLowerCase();
+        if (!barcode) continue;
 
-        // Skip deactivated devices
-        if (callLower.includes('deactivated')) continue;
-
-        // Detect device type
-        let device = null;
-        if (callLower.includes('hotspot') || callLower.includes('hot spot')) {
-          device = 'hotspot';
-        } else if (callLower.includes('chromebook') || callLower.includes('chrome book')) {
-          device = 'chromebook';
-        } else if (callLower.includes('thinkpad') || callLower.includes('lenovo') ||
-                   callLower.includes('t14') || callLower.includes('t490') ||
-                   callLower.includes('laptop')) {
-          device = 'laptop';
-        } else if (callLower.includes('calculator') || callLower.includes('ti-30') ||
-                   callLower.includes('ti-83') || callLower.includes('ti 30') ||
-                   callLower.includes('ti 83')) {
-          device = 'calculator';
-        }
+        const device = detectDevice(callNum || title, itemCall);
         if (!device) continue;
 
-        // Detect campus
-        let campus = 'SLO';
-        if (libLower.includes('ncc') || libLower.includes('north county') || libLower.includes('paso')) {
-          campus = 'NCC';
-        }
+        detectedDeviceType = device;
+        const campus = device === 'laptop' ? 'shared' : detectCampus(library);
+        const status = detectStatus(baseStatus, procType);
 
-        // Determine availability status
-        // Available = "Item in place" (process type will be blank/None)
-        // On loan = process type "Loan"
-        // Lost/Missing = everything else
-        const statusLower = status.toLowerCase();
-        const procLower   = procType.toLowerCase();
-
-        if (statusLower === 'item in place') {
-          addCount(device, campus, 'available');
-        } else if (procLower === 'loan') {
-          addCount(device, campus, 'on_loan');
-        } else if (procLower === 'lost' || procLower === 'lost and paid') {
-          addCount(device, campus, 'lost');
-        } else {
-          addCount(device, campus, 'missing');
-        }
+        fileItems.push({ barcode, device_type: device, campus, status, call_number: callNum || title, description: desc || itemCall });
       }
 
-      if (Object.keys(counts).length === 0) {
-        document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">No recognizable devices found. Make sure this is an Alma inventory export with Call Number and Status columns.</div>`;
+      if (fileItems.length === 0) {
+        document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">No recognizable devices found. Make sure this is an Alma inventory export with Barcode and Call Number columns.</div>`;
         return;
       }
 
-      // Show preview table
-      let prevHtml = `
-        <div class="form-label" style="margin-bottom:8px">Detected Inventory (${rows.length} rows processed)</div>
-        <table><thead><tr><th>Device</th><th>Campus</th><th>Available</th><th>On Loan</th><th>Missing</th><th>Lost</th><th>Total</th></tr></thead><tbody>`;
-      for (const c of Object.values(counts)) {
-        const campusLabel = c.campus === 'shared' ? 'All Campuses' : c.campus;
-        prevHtml += `<tr>
-          <td>${deviceLabel(c.device)}</td>
-          <td>${campusLabel}</td>
-          <td><strong style="color:var(--success)">${c.available}</strong></td>
-          <td>${c.on_loan}</td>
-          <td>${c.missing}</td>
-          <td>${c.lost}</td>
-          <td>${c.total}</td>
-        </tr>`;
+      // Load existing items of this device type from Supabase
+      const existingItems = await sbGet('items', `?device_type=eq.${detectedDeviceType}&select=*`);
+      const existingMap = {};
+      existingItems.forEach(item => { existingMap[item.barcode] = item; });
+
+      // Diff file vs existing
+      const changes = [];
+      const toInsert = [];
+      const toUpdate = [];
+      let newCount = 0, statusChanges = 0, campusChanges = 0;
+      const now = new Date().toISOString();
+
+      for (const fileItem of fileItems) {
+        const existing = existingMap[fileItem.barcode];
+        if (!existing) {
+          // New device
+          toInsert.push({ ...fileItem, last_seen_upload: now, created_at: now, updated_at: now });
+          changes.push({ barcode: fileItem.barcode, type: 'new', detail: `New ${deviceLabel(fileItem.device_type)} at ${fileItem.campus} — ${fileItem.status}` });
+          newCount++;
+        } else {
+          // Existing — check for changes
+          const updates = { last_seen_upload: now, updated_at: now };
+          let changed = false;
+          if (existing.status !== fileItem.status) {
+            changes.push({ barcode: fileItem.barcode, type: 'status_change', detail: `${existing.status} → ${fileItem.status}` });
+            updates.status = fileItem.status;
+            statusChanges++; changed = true;
+          }
+          if (existing.campus !== fileItem.campus) {
+            changes.push({ barcode: fileItem.barcode, type: 'campus_change', detail: `${existing.campus} → ${fileItem.campus}` });
+            updates.campus = fileItem.campus;
+            campusChanges++; changed = true;
+          }
+          if (existing.call_number !== fileItem.call_number && fileItem.call_number) updates.call_number = fileItem.call_number;
+          if (existing.description !== fileItem.description && fileItem.description) updates.description = fileItem.description;
+          toUpdate.push({ barcode: fileItem.barcode, updates });
+        }
       }
-      prevHtml += '</tbody></table>';
+
+      // Count summary for preview
+      const summary = {};
+      fileItems.forEach(item => {
+        const key = `${item.device_type}_${item.campus}`;
+        if (!summary[key]) summary[key] = { device_type: item.device_type, campus: item.campus, available: 0, on_loan: 0, missing: 0, lost: 0, total: 0 };
+        summary[key].total++;
+        summary[key][item.status] = (summary[key][item.status] || 0) + 1;
+      });
+
+      // Show preview
+      let prevHtml = `<div class="form-label" style="margin-bottom:8px">Upload Preview — ${fileItems.length} devices found</div>
+        <table><thead><tr><th>Device</th><th>Campus</th><th>Available</th><th>On Loan</th><th>Missing</th><th>Lost</th><th>Total</th></tr></thead><tbody>`;
+      Object.values(summary).forEach(s => {
+        prevHtml += `<tr>
+          <td>${deviceLabel(s.device_type)}</td>
+          <td>${s.campus === 'shared' ? 'All Campuses' : s.campus}</td>
+          <td><strong style="color:var(--success)">${s.available || 0}</strong></td>
+          <td>${s.on_loan || 0}</td><td>${s.missing || 0}</td><td>${s.lost || 0}</td><td>${s.total}</td>
+        </tr>`;
+      });
+      prevHtml += `</tbody></table>
+        <div style="display:flex;gap:16px;margin-top:12px;font-size:13px">
+          <span style="color:var(--success)"><strong>+${newCount}</strong> new devices</span>
+          <span style="color:var(--warning)"><strong>${statusChanges}</strong> status changes</span>
+          <span style="color:#3b82f6"><strong>${campusChanges}</strong> campus changes</span>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="commitInventoryUpload()">Confirm &amp; Save</button>`;
       document.getElementById('upload-preview').innerHTML = prevHtml;
 
-      // Save available counts to Supabase
-      try {
-        for (const c of Object.values(counts)) {
-          await fetch(`${SUPABASE_URL}/rest/v1/inventory`, {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json',
-              'Prefer': 'resolution=merge-duplicates,return=minimal'
-            },
-            body: JSON.stringify({
-              device_type: c.device,
-              campus: c.campus,
-              available_count: c.available,
-              total_count: c.total,
-              last_updated: new Date().toISOString()
-            })
-          });
-        }
-        document.getElementById('upload-result').innerHTML = `<div class="alert alert-success">✓ Inventory updated successfully. ${Object.keys(counts).length} device categories imported.</div>`;
-        loadInventory();
-      } catch(err) {
-        document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">Error saving to database: ${err.message}</div>`;
-      }
+      // Store pending upload in memory for commit step
+      window._pendingUpload = { toInsert, toUpdate, changes, detectedDeviceType,
+        totalInFile: fileItems.length, newCount, statusChanges, campusChanges };
+
     } catch(parseErr) {
       document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">Error reading file: ${parseErr.message}</div>`;
     }
   };
   reader.readAsArrayBuffer(file);
 }
+
+async function commitInventoryUpload() {
+  const p = window._pendingUpload;
+  if (!p) return;
+  document.getElementById('upload-result').innerHTML = `<div class="alert alert-info">Saving ${p.toInsert.length + p.toUpdate.length} records...</div>`;
+
+  try {
+    // Insert new items in batches of 50
+    for (let i = 0; i < p.toInsert.length; i += 50) {
+      const batch = p.toInsert.slice(i, i + 50);
+      await sbPost('items', batch);
+    }
+
+    // Update changed items
+    for (const u of p.toUpdate) {
+      await sbPatch('items', `?barcode=eq.${u.barcode}`, u.updates);
+    }
+
+    // Write upload log
+    await sbPost('upload_log', [{
+      uploaded_at: new Date().toISOString(),
+      device_type: p.detectedDeviceType,
+      total_in_file: p.totalInFile,
+      new_devices: p.newCount,
+      status_changes: p.statusChanges,
+      campus_changes: p.campusChanges,
+      changes_detail: p.changes
+    }]);
+
+    document.getElementById('upload-result').innerHTML = `<div class="alert alert-success">
+      ✓ Upload complete — ${p.newCount} new devices added, ${p.statusChanges} status changes, ${p.campusChanges} campus changes.
+    </div>`;
+    document.getElementById('upload-preview').innerHTML = '';
+    window._pendingUpload = null;
+
+    // Refresh all panels
+    loadInventory();
+    loadUploadHistory();
+    loadItemsBrowser();
+    loadWaitlistCounts();
+
+  } catch(e) {
+    document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">Error saving: ${e.message}</div>`;
+  }
+}
+
 
 // ── EMAIL SETTINGS ────────────────────────────────────────────────────────────
 function updateEmailPreview() {
