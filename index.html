@@ -82,6 +82,21 @@ body {
 .nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--white); }
 .nav-btn.active { background: var(--gold); color: var(--navy); font-weight: 600; }
 
+
+/* ── LANGUAGE TOGGLE ── */
+.lang-toggle {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.1); border-radius: 8px;
+  padding: 4px; margin-right: 8px;
+}
+.lang-btn {
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.6); font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600; padding: 5px 12px;
+  border-radius: 6px; transition: all 0.15s; letter-spacing: 0.05em;
+}
+.lang-btn.active { background: var(--white); color: var(--navy); }
+
 /* ── VIEWS ── */
 .view { display: none; }
 .view.active { display: block; }
@@ -540,6 +555,10 @@ tr:hover td { background: #faf8f4; }
     <span>Device Portal</span>
   </div>
   <nav class="header-nav">
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="lang-en" onclick="setLanguage('en')">EN</button>
+      <button class="lang-btn" id="lang-es" onclick="setLanguage('es')">ES</button>
+    </div>
     <button class="nav-btn active" onclick="showView('student')">Request a Device</button>
     <button class="nav-btn" onclick="requireStaffAuth()">Staff Dashboard</button>
   </nav>
@@ -645,7 +664,7 @@ tr:hover td { background: #faf8f4; }
           <p>If the library is out of a device, you will be placed on a waitlist. You will be notified once when a device becomes available. You will have <strong>one week</strong> to pick up the device. If you do not pick it up within one week, your spot will be released to the next person and you must rejoin the waitlist.</p>
           <p>Email <strong>circulation@cuesta.edu</strong> for availability or questions.</p>
         </div>
-        <div class="check-row" onclick="toggleCheck('agree-check')">
+        <div class="check-row">
           <input type="checkbox" id="agree-check">
           <label for="agree-check">I have read and agree to all of the above policies and terms.</label>
         </div>
@@ -678,8 +697,8 @@ tr:hover td { background: #faf8f4; }
           </div>
         </div>
         <div id="aghs-option" style="margin-bottom:16px">
-          <div class="check-row" onclick="toggleAGHS()">
-            <input type="checkbox" id="aghs-check">
+          <div class="check-row">
+            <input type="checkbox" id="aghs-check" onchange="toggleAGHS()">
             <label for="aghs-check">I need a device at South County (AGHS) — special request</label>
           </div>
           <div id="aghs-note" style="display:none" class="alert alert-info">
@@ -730,9 +749,9 @@ tr:hover td { background: #faf8f4; }
     <div id="portal-step-5" style="display:none">
       <div class="card" style="text-align:center;padding:40px">
         <div style="font-size:48px;margin-bottom:16px">✅</div>
-        <div class="card-title" style="font-size:20px;margin-bottom:8px">Request Submitted!</div>
+        <div class="card-title" id="success-title" style="font-size:20px;margin-bottom:8px">Request Submitted!</div>
         <div id="success-message" style="color:var(--text-mid);font-size:14px;line-height:1.6;margin-bottom:24px"></div>
-        <button class="btn btn-outline" onclick="resetPortal()">Submit Another Request</button>
+        <button class="btn btn-outline" id="btn-another" onclick="resetPortal()">Submit Another Request</button>
       </div>
     </div>
   </div>
@@ -1245,10 +1264,10 @@ async function submitStep1() {
   const phone = document.getElementById('s-phone').value.trim();
 
   if (!fn || !ln || !sid || !email) {
-    showAlert('step1-alert', 'Please fill in all required fields.', 'danger'); return;
+    showAlert('step1-alert', t('errRequired'), 'danger'); return;
   }
   if (!/^\d{9}$/.test(sid)) {
-    showAlert('step1-alert', 'Student ID must be exactly 9 digits (e.g. 900123456).', 'danger'); return;
+    showAlert('step1-alert', t('errStudentId'), 'danger'); return;
   }
 
   studentData = { first_name: fn, last_name: ln, student_id: sid, email, phone };
@@ -1271,7 +1290,7 @@ async function submitStep1() {
   } catch(e) {
     showAlert('step1-alert', 'Error checking records. Please try again.', 'danger');
   } finally {
-    btn.innerHTML = 'Continue';
+    btn.innerHTML = t('continueBtn');
     btn.disabled = false;
   }
 }
@@ -1281,8 +1300,8 @@ async function submitStep2() {
   clearAlert('step2-alert');
   const checked = document.getElementById('agree-check').checked;
   const sig = document.getElementById('s-signature').value.trim();
-  if (!checked) { showAlert('step2-alert', 'You must check the acknowledgment box.', 'danger'); return; }
-  if (!sig) { showAlert('step2-alert', 'Please type your full name as a signature.', 'danger'); return; }
+  if (!checked) { showAlert('step2-alert', t('errCheck'), 'danger'); return; }
+  if (!sig) { showAlert('step2-alert', t('errSig'), 'danger'); return; }
 
   try {
     const result = await sbPost('agreements', {
@@ -1360,15 +1379,17 @@ async function renderDeviceGrid() {
       (dt.singleWaitlist || r.campus === selectedCampus)
     );
     const badge = hasExisting
-      ? `<span class="device-badge" style="background:#fef3c7;color:#92400e">Already requested (#${hasExisting.waitlist_position || '?'})</span>`
+      ? `<span class="device-badge" style="background:#fef3c7;color:#92400e">${t('alreadyRequested')}${hasExisting.waitlist_position || '?'})</span>`
       : available > 0
-        ? `<span class="device-badge badge-available">${available} available</span>`
-        : `<span class="device-badge badge-waitlist">Waitlist</span>`;
+        ? `<span class="device-badge badge-available">${available} ${t('available')}</span>`
+        : `<span class="device-badge badge-waitlist">${t('waitlist')}</span>`;
+    const dtName = t(dt.id + 'Name');
+    const dtNote = t(dt.id + 'Note');
     html += `
       <div class="device-card" onclick="toggleDevice('${dt.id}')" id="dcard-${dt.id}">
         <div class="device-card-icon">${dt.icon}</div>
-        <div class="device-card-name">${dt.label}</div>
-        <div class="device-card-note">${dt.note}</div>
+        <div class="device-card-name">${dtName}</div>
+        <div class="device-card-note">${dtNote}</div>
         ${badge}
       </div>`;
   });
@@ -1379,7 +1400,7 @@ async function renderDeviceGrid() {
   const notice = document.getElementById('existing-requests-notice');
   if (existingRequests.length > 0) {
     notice.innerHTML = `<div class="alert alert-warning" style="margin-top:8px">
-      You have active requests this semester. Selecting a device you already requested will add a new request at the bottom of the current waitlist.
+      ${t('existingWarning')}
     </div>`;
   } else {
     notice.innerHTML = '';
@@ -1400,8 +1421,8 @@ function toggleDevice(id) {
 
 async function submitStep3() {
   clearAlert('step3-alert');
-  if (!selectedCampus) { showAlert('step3-alert', 'Please select a campus.', 'danger'); return; }
-  if (selectedDevices.length === 0) { showAlert('step3-alert', 'Please select at least one device.', 'danger'); return; }
+  if (!selectedCampus) { showAlert('step3-alert', t('errCampus'), 'danger'); return; }
+  if (selectedDevices.length === 0) { showAlert('step3-alert', t('errDevice'), 'danger'); return; }
   goStep(4);
   renderConfirmation();
 }
@@ -1410,10 +1431,10 @@ async function submitStep3() {
 async function renderConfirmation() {
   const list = document.getElementById('confirm-list');
   list.innerHTML = `
-    <li><span class="confirm-icon">👤</span><div><div class="confirm-label">Name</div><div class="confirm-val">${studentData.first_name} ${studentData.last_name}</div></div></li>
-    <li><span class="confirm-icon">🪪</span><div><div class="confirm-label">Student ID</div><div class="confirm-val">${studentData.student_id}</div></div></li>
-    <li><span class="confirm-icon">📧</span><div><div class="confirm-label">Email</div><div class="confirm-val">${studentData.email}</div></div></li>
-    <li><span class="confirm-icon">📍</span><div><div class="confirm-label">Campus</div><div class="confirm-val">${selectedCampus === 'AGHS' ? 'South County (AGHS)' : selectedCampus + ' Library'}</div></div></li>
+    <li><span class="confirm-icon">👤</span><div><div class="confirm-label">${t('nameLabel')}</div><div class="confirm-val">${studentData.first_name} ${studentData.last_name}</div></div></li>
+    <li><span class="confirm-icon">🪪</span><div><div class="confirm-label">${t('idLabel')}</div><div class="confirm-val">${studentData.student_id}</div></div></li>
+    <li><span class="confirm-icon">📧</span><div><div class="confirm-label">${t('emailLabel')}</div><div class="confirm-val">${studentData.email}</div></div></li>
+    <li><span class="confirm-icon">📍</span><div><div class="confirm-label">${t('campusLabel')}</div><div class="confirm-val">${selectedCampus === 'AGHS' ? t('aghsCampus') : selectedCampus + ' Library'}</div></div></li>
   `;
 
   // Show device availability status
@@ -1433,10 +1454,10 @@ async function renderConfirmation() {
     } catch(e) {}
 
     const badge = isAGHS
-      ? `<span class="position-badge">📍 Special Request</span>`
+      ? `<span class="position-badge">${t('specialRequest')}</span>`
       : available > 0
-        ? `<span class="position-badge available-now">✓ Available Now</span>`
-        : `<span class="position-badge">⏳ Position #${position} on waitlist</span>`;
+        ? `<span class="position-badge available-now">${t('availableNow')}</span>`
+        : `<span class="position-badge">${t('waitlistPos')}${position}${t('onWaitlist')}</span>`;
 
     devHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-dark)">
       <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">${dt.icon}</span><span style="font-weight:500;font-size:14px">${dt.label}</span></div>
@@ -1523,11 +1544,11 @@ async function submitFinal() {
     let successHtml = `<p>Thank you, <strong>${studentData.first_name}</strong>! Here's a summary of your requests:</p><br>`;
     results.forEach(r => {
       if (r.status === 'ready') {
-        successHtml += `<p>✅ <strong>${r.device.label}</strong> — A device is available! Please come to the ${selectedCampus} Library to pick it up. You have <strong>7 days</strong> from today.</p>`;
+        successHtml += `<p>✅ <strong>${t(r.device.id + 'Name')}</strong> — ${t('successAvailable').replace('{campus}', selectedCampus)}</p>`;
       } else if (r.status === 'aghs') {
-        successHtml += `<p>📍 <strong>${r.device.label}</strong> — Your AGHS special request has been logged. Library staff will contact you at ${studentData.email}.</p>`;
+        successHtml += `<p>📍 <strong>${t(r.device.id + 'Name')}</strong> — ${t('successAGHS').replace('{email}', studentData.email)}</p>`;
       } else {
-        successHtml += `<p>⏳ <strong>${r.device.label}</strong> — You are #${r.pos} on the waitlist. You will be notified at ${studentData.email} when a device becomes available.</p>`;
+        successHtml += `<p>⏳ <strong>${t(r.device.id + 'Name')}</strong> — ${t('successWaitlist').replace('{pos}', r.pos).replace('{email}', studentData.email)}</p>`;
       }
       successHtml += '<br>';
     });
@@ -1537,7 +1558,7 @@ async function submitFinal() {
   } catch(e) {
     showAlert('step4-alert', 'Error submitting request: ' + e.message, 'danger');
   } finally {
-    btn.innerHTML = 'Submit Request';
+    btn.innerHTML = t('submitBtn');
     btn.disabled = false;
   }
 }
@@ -2068,6 +2089,270 @@ function saveSendGridKey() {
   alert('SendGrid key saved locally.');
 }
 
+
+// ── TRANSLATIONS ─────────────────────────────────────────────────────────────
+let currentLang = 'en';
+
+const T = {
+  en: {
+    // Header
+    portalTitle: 'Cuesta College Library',
+    portalSubtitle: 'Electronic Device Request & Loan Agreement',
+    // Steps
+    step1: 'Your Info', step2: 'Agreement', step3: 'Devices', step4: 'Confirm',
+    // Step 1
+    step1Title: 'Student Information',
+    step1Sub: 'Please enter your information to get started.',
+    firstName: 'First Name *', lastName: 'Last Name *',
+    studentId: 'Student ID Number *', studentIdHelper: '900XXXXXX (9 digits)',
+    email: 'Preferred Email Address *', emailHelper: 'email@example.com',
+    phone: 'Primary Phone Number', phoneHelper: '(XXX) XXX-XXXX',
+    continueBtn: 'Continue', checkingBtn: 'Checking...',
+    errRequired: 'Please fill in all required fields.',
+    errStudentId: 'Student ID must be exactly 9 digits (e.g. 900123456).',
+    // Step 2
+    step2Title: 'Electronic Device Loan Agreement',
+    step2Sub: 'Please read the full policy before continuing.',
+    signLabel: 'Type your full name to sign *', signPlaceholder: 'Full legal name',
+    signBtn: 'Sign & Continue', backBtn: 'Back',
+    errCheck: 'You must check the acknowledgment box.',
+    errSig: 'Please type your full name as a signature.',
+    checkLabel: 'I have read and agree to all of the above policies and terms.',
+    // Step 3
+    selectCampusTitle: 'Select Campus',
+    selectCampusSub: 'Choose the campus where you will pick up your device(s).',
+    sloName: 'SLO Library', sloSub: 'San Luis Obispo',
+    nccName: 'NCC Library', nccSub: 'Paso Robles',
+    aghsCheck: 'I need a device at South County (AGHS) — special request',
+    aghsNote: 'AGHS device requests are handled on a case-by-case basis by library staff. You will be contacted directly. Please select the device type(s) below and submit your request.',
+    selectDeviceTitle: 'Select Device(s)',
+    selectDeviceSub: 'Select all devices you need. Each creates a separate request.',
+    reviewBtn: 'Review Request',
+    errCampus: 'Please select a campus.',
+    errDevice: 'Please select at least one device.',
+    alreadyRequested: 'Already requested (#',
+    existingWarning: '${t('existingWarning')}',
+    // Step 4
+    step4Title: 'Review & Submit',
+    step4Sub: 'Please confirm your request details below.',
+    nameLabel: 'Name', idLabel: 'Student ID', emailLabel: 'Email', campusLabel: 'Campus',
+    devicesLabel: 'Devices Requested',
+    notifLabel: 'Notification Preference',
+    notifEmail: 'Email — address I entered on this form',
+    notifMyCuesta: 'Email — my.cuesta.edu address',
+    notifPhone: 'Phone call — number entered on this form',
+    submitBtn: 'Submit Request', submittingBtn: 'Submitting...',
+    aghsCampus: t('aghsCampus'),
+    specialRequest: '📍 Special Request',
+    availableNow: '✓ Available Now',
+    waitlistPos: '⏳ Position #',
+    onWaitlist: ' on waitlist',
+    // Step 5
+    successTitle: 'Request Submitted!',
+    successAvailable: 'A device is available! Please come to the {campus} Library to pick it up. You have <strong>7 days</strong> from today.',
+    successAGHS: 'Your AGHS special request has been logged. Library staff will contact you at {email}.',
+    successWaitlist: 'You are #{pos} on the waitlist. You will be notified at {email} when a device becomes available.',
+    anotherBtn: 'Submit Another Request',
+    // Device names
+    hotspotName: 'WiFi Hotspot', hotspotNote: 'Academic use only — limited availability',
+    chromebookName: 'Chromebook', chromebookNote: 'Works for most classes',
+    laptopName: 'Specialty Laptop', laptopNote: 'Requires enrollment proof — AUTOCAD, ARC-GIS etc.',
+    calculatorName: 'Calculator', calculatorNote: 'TI-30XIIS, TI-30XS, or TI-83 Plus',
+    available: 'available', waitlist: 'Waitlist',
+  },
+  es: {
+    // Header
+    portalTitle: 'Biblioteca del Colegio Cuesta',
+    portalSubtitle: 'Solicitud de Dispositivo Electrónico y Acuerdo de Préstamo',
+    // Steps
+    step1: 'Sus Datos', step2: 'Acuerdo', step3: 'Dispositivos', step4: 'Confirmar',
+    // Step 1
+    step1Title: 'Información del Estudiante',
+    step1Sub: 'Por favor ingrese su información para comenzar.',
+    firstName: 'Nombre *', lastName: 'Apellido *',
+    studentId: 'Número de Identificación Estudiantil *', studentIdHelper: '900XXXXXX (9 dígitos)',
+    email: 'Dirección de Correo Electrónico Preferida *', emailHelper: 'correo@ejemplo.com',
+    phone: 'Número de Teléfono Principal', phoneHelper: '(XXX) XXX-XXXX',
+    continueBtn: 'Continuar', checkingBtn: 'Verificando...',
+    errRequired: 'Por favor complete todos los campos requeridos.',
+    errStudentId: 'El número de identificación debe tener exactamente 9 dígitos (ej. 900123456).',
+    // Step 2
+    step2Title: 'Acuerdo de Préstamo de Dispositivos Electrónicos',
+    step2Sub: 'Por favor lea la política completa antes de continuar.',
+    signLabel: 'Escriba su nombre completo para firmar *', signPlaceholder: 'Nombre legal completo',
+    signBtn: 'Firmar y Continuar', backBtn: 'Regresar',
+    errCheck: 'Debe marcar la casilla de confirmación.',
+    errSig: 'Por favor escriba su nombre completo como firma.',
+    checkLabel: 'He leído y acepto todas las políticas y términos anteriores.',
+    // Step 3
+    selectCampusTitle: 'Seleccione el Campus',
+    selectCampusSub: 'Elija el campus donde recogerá su(s) dispositivo(s).',
+    sloName: 'Biblioteca SLO', sloSub: 'San Luis Obispo',
+    nccName: 'Biblioteca NCC', nccSub: 'Paso Robles',
+    aghsCheck: 'Necesito un dispositivo en South County (AGHS) — solicitud especial',
+    aghsNote: 'Las solicitudes de dispositivos para AGHS se manejan caso por caso por el personal de la biblioteca. Se le contactará directamente. Por favor seleccione el tipo de dispositivo a continuación y envíe su solicitud.',
+    selectDeviceTitle: 'Seleccione Dispositivo(s)',
+    selectDeviceSub: 'Seleccione todos los dispositivos que necesita. Cada uno crea una solicitud independiente.',
+    reviewBtn: 'Revisar Solicitud',
+    errCampus: 'Por favor seleccione un campus.',
+    errDevice: 'Por favor seleccione al menos un dispositivo.',
+    alreadyRequested: 'Ya solicitado (#',
+    existingWarning: 'Tiene solicitudes activas este semestre. Si selecciona un dispositivo que ya solicitó, se agregará una nueva solicitud al final de la lista de espera actual.',
+    // Step 4
+    step4Title: 'Revisar y Enviar',
+    step4Sub: 'Por favor confirme los detalles de su solicitud.',
+    nameLabel: 'Nombre', idLabel: 'Identificación', emailLabel: 'Correo', campusLabel: 'Campus',
+    devicesLabel: 'Dispositivos Solicitados',
+    notifLabel: 'Preferencia de Notificación',
+    notifEmail: 'Correo electrónico — dirección ingresada en este formulario',
+    notifMyCuesta: 'Correo electrónico — dirección my.cuesta.edu',
+    notifPhone: 'Llamada telefónica — número ingresado en este formulario',
+    submitBtn: 'Enviar Solicitud', submittingBtn: 'Enviando...',
+    aghsCampus: t('aghsCampus'),
+    specialRequest: '📍 Solicitud Especial',
+    availableNow: '✓ Disponible Ahora',
+    waitlistPos: '⏳ Posición #',
+    onWaitlist: ' en lista de espera',
+    // Step 5
+    successTitle: '¡Solicitud Enviada!',
+    successAvailable: '¡Hay un dispositivo disponible! Por favor venga a la Biblioteca {campus} a recogerlo. Tiene <strong>7 días</strong> a partir de hoy.',
+    successAGHS: 'Su solicitud especial para AGHS ha sido registrada. El personal de la biblioteca se pondrá en contacto con usted en {email}.',
+    successWaitlist: 'Usted está en el lugar #{pos} de la lista de espera. Se le notificará en {email} cuando haya un dispositivo disponible.',
+    anotherBtn: 'Enviar Otra Solicitud',
+    // Device names
+    hotspotName: 'Hotspot WiFi', hotspotNote: 'Solo uso académico — disponibilidad limitada',
+    chromebookName: 'Chromebook', chromebookNote: 'Funciona para la mayoría de las clases',
+    laptopName: 'Laptop Especializada', laptopNote: 'Requiere comprobante de matrícula — AUTOCAD, ARC-GIS, etc.',
+    calculatorName: 'Calculadora', calculatorNote: 'TI-30XIIS, TI-30XS o TI-83 Plus',
+    available: 'disponibles', waitlist: 'Lista de espera',
+  }
+};
+
+// Agreement text in Spanish
+const AGREEMENT_ES = `
+  <p><strong>La Biblioteca del Colegio Cuesta</strong> cuenta con un número limitado de Chromebooks, Hotspots, Laptops Especializadas y Calculadoras disponibles para préstamo a estudiantes matriculados en el Colegio Cuesta.</p>
+  <p>Los estudiantes pueden solicitar en préstamo un Hotspot más una Calculadora más un Chromebook O una Laptop a la vez. Cada dispositivo incluye un estuche y cable de carga (excepto las calculadoras).</p>
+  <h3>Solo Uso Académico</h3>
+  <p>Todos los dispositivos electrónicos son para <strong>USO ACADÉMICO EXCLUSIVAMENTE</strong>. El uso de estos dispositivos debe cumplir con el Código de Conducta Estudiantil y las políticas relacionadas con el uso aceptable de tecnología. La actividad en los dispositivos y redes del colegio puede ser monitoreada.</p>
+  <h3>Período de Préstamo</h3>
+  <p>Todos los dispositivos se prestan por un semestre o sesión. Los dispositivos deben devolverse antes del último día del semestre/sesión/rotación o a más tardar en esa fecha. Los dispositivos no se prestan durante los recesos entre semestres.</p>
+  <h3>No Se Permiten Renovaciones</h3>
+  <p>No se permiten renovaciones. Las extensiones pueden otorgarse caso por caso. Envíe solicitudes de extensión por correo electrónico a <strong>circulation@cuesta.edu</strong>.</p>
+  <h3>Política de Devolución</h3>
+  <p>Los dispositivos deben devolverse en persona durante el horario de atención. Los dispositivos serán inspeccionados al momento de la devolución. Los dispositivos deben devolverse en buen estado y funcionando correctamente; de lo contrario, se podrá cobrar un cargo. NO devuelva los dispositivos en los buzones de libros.</p>
+  <h3>Cargos por Mora y Dispositivos Perdidos</h3>
+  <p>No existe período de gracia para los cargos por mora. Si un dispositivo tiene más de dos semanas de retraso, se considerará perdido y el estudiante será responsable del costo total de reposición.</p>
+  <h3>Daño y Robo</h3>
+  <p>Los estudiantes son responsables de cualquier costo relacionado con el daño, pérdida o robo de los dispositivos y accesorios. Los artículos robados o perdidos deben reportarse al departamento de policía local dentro de las 48 horas y al personal de la biblioteca en circulation@cuesta.edu.</p>
+  <h3>Costos de Reposición</h3>
+  <ul>
+    <li>Chromebook: $310 total (dispositivo $250, estuche $30, cargador $30)</li>
+    <li>Laptop Especializada: $1,537 total (dispositivo $1,450, estuche $30, adaptador $57)</li>
+    <li>Hotspot WiFi: $90 total (dispositivo $70, estuche $5, cable $15)</li>
+    <li>Calculadora TI-30XIIS: $25</li>
+    <li>Calculadora TI-30XS: $35</li>
+    <li>Calculadora TI-83 Plus: $135</li>
+  </ul>
+  <h3>Lista de Espera</h3>
+  <p>Si la biblioteca no cuenta con el dispositivo que necesita, se le colocará en una lista de espera. Se le notificará una vez cuando haya un dispositivo disponible. Tendrá <strong>una semana</strong> para recoger el dispositivo. Si no lo recoge dentro de una semana, su lugar será asignado a la siguiente persona y deberá volver a unirse a la lista de espera.</p>
+  <p>Envíe un correo electrónico a <strong>circulation@cuesta.edu</strong> para consultas sobre disponibilidad.</p>
+`;
+
+function t(key) {
+  return T[currentLang][key] || T['en'][key] || key;
+}
+
+function setLanguage(lang) {
+  currentLang = lang;
+  document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+  document.getElementById('lang-es').classList.toggle('active', lang === 'es');
+  document.documentElement.lang = lang;
+  applyTranslations();
+}
+
+function applyTranslations() {
+  // Hero
+  document.querySelector('.portal-hero h1').textContent = t('portalTitle');
+  document.querySelector('.portal-hero p').textContent = t('portalSubtitle');
+
+  // Step labels
+  document.querySelector('#step-1 .step-label').textContent = t('step1');
+  document.querySelector('#step-2 .step-label').textContent = t('step2');
+  document.querySelector('#step-3 .step-label').textContent = t('step3');
+  document.querySelector('#step-4 .step-label').textContent = t('step4');
+
+  // Step 1
+  document.querySelector('#portal-step-1 .card-title').textContent = t('step1Title');
+  document.querySelector('#portal-step-1 .card-sub').textContent = t('step1Sub');
+  setLabel('s-firstname', t('firstName'));
+  setLabel('s-lastname', t('lastName'));
+  setLabel('s-studentid', t('studentId'));
+  setPlaceholder('s-studentid', t('studentIdHelper'));
+  setLabel('s-email', t('email'));
+  setPlaceholder('s-email', t('emailHelper'));
+  setLabel('s-phone', t('phone'));
+  setPlaceholder('s-phone', t('phoneHelper'));
+  document.getElementById('btn-step1').textContent = t('continueBtn');
+
+  // Step 2
+  document.querySelector('#portal-step-2 .card-title').textContent = t('step2Title');
+  document.querySelector('#portal-step-2 .card-sub').innerHTML = t('step2Sub') + ' <em>Summer 2026</em>';
+  document.querySelector('#portal-step-2 .agreement-scroll').innerHTML = currentLang === 'es' ? AGREEMENT_ES : AGREEMENT_EN;
+  document.querySelector('.check-row label[for="agree-check"]').textContent = t('checkLabel');
+  setLabel('s-signature', t('signLabel'));
+  setPlaceholder('s-signature', t('signPlaceholder'));
+  const step2Btns = document.querySelectorAll('#portal-step-2 button');
+  step2Btns[0].textContent = t('backBtn');
+  step2Btns[1].textContent = t('signBtn');
+
+  // Step 3
+  document.querySelector('#portal-step-3 .card-title').textContent = t('selectCampusTitle');
+  document.querySelector('#portal-step-3 .card-sub').textContent = t('selectCampusSub');
+  document.querySelector('#campus-SLO .campus-card-name').textContent = t('sloName');
+  document.querySelector('#campus-SLO .campus-card-sub').textContent = t('sloSub');
+  document.querySelector('#campus-NCC .campus-card-name').textContent = t('nccName');
+  document.querySelector('#campus-NCC .campus-card-sub').textContent = t('nccSub');
+  document.querySelector('label[for="aghs-check"]').textContent = t('aghsCheck');
+  document.getElementById('aghs-note').textContent = t('aghsNote');
+  document.querySelector('#device-select-card .card-title').textContent = t('selectDeviceTitle');
+  document.querySelector('#device-select-card .card-sub').textContent = t('selectDeviceSub');
+  const step3Btns = document.querySelectorAll('#device-select-card button');
+  step3Btns[0].textContent = t('backBtn');
+  step3Btns[1].textContent = t('reviewBtn');
+
+  // Step 4
+  document.querySelector('#portal-step-4 .card-title').textContent = t('step4Title');
+  document.querySelector('#portal-step-4 .card-sub').textContent = t('step4Sub');
+  setLabel('s-notif', t('notifLabel'));
+  const notifSel = document.getElementById('s-notif');
+  if (notifSel) {
+    notifSel.options[0].text = t('notifEmail');
+    notifSel.options[1].text = t('notifMyCuesta');
+    notifSel.options[2].text = t('notifPhone');
+  }
+  const step4Btns = document.querySelectorAll('#portal-step-4 button');
+  step4Btns[0].textContent = t('backBtn');
+
+  // Re-render device grid if visible
+  if (selectedCampus) renderDeviceGrid();
+}
+
+function setLabel(inputId, text) {
+  const input = document.getElementById(inputId);
+  if (input) {
+    const label = input.previousElementSibling;
+    if (label && label.classList.contains('form-label')) label.textContent = text;
+  }
+}
+
+function setPlaceholder(inputId, text) {
+  const input = document.getElementById(inputId);
+  if (input) input.placeholder = text;
+}
+
+// Store English agreement text for switching back - captured after DOM loads
+let AGREEMENT_EN = '';
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('ccl_email_settings');
@@ -2083,6 +2368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch(e) {}
   }
   document.getElementById('email-body')?.addEventListener('input', updateEmailPreview);
+  AGREEMENT_EN = document.querySelector('.agreement-scroll')?.innerHTML || '';
 });
 </script>
 </body>
