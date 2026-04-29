@@ -567,9 +567,9 @@ tr:hover td { background: #faf8f4; }
 <!-- ══ STUDENT VIEW ══ -->
 <div id="view-student" class="view active">
   <div class="portal-hero">
-    <h1>Cuesta College Library</h1>
+    <h1 data-i18n="portalTitle">Cuesta College Library</h1>
     <div class="gold-line"></div>
-    <p>Electronic Device Request &amp; Loan Agreement</p>
+    <p data-i18n="portalSubtitle">Electronic Device Request &amp; Loan Agreement</p>
   </div>
 
   <div class="portal-body">
@@ -577,54 +577,54 @@ tr:hover td { background: #faf8f4; }
     <div class="steps" id="step-indicator">
       <div class="step active" id="step-1">
         <div class="step-num">1</div>
-        <div class="step-label">Your Info</div>
+        <div class="step-label" data-i18n="step1">Your Info</div>
       </div>
       <div class="step-line" id="line-1"></div>
       <div class="step" id="step-2">
         <div class="step-num">2</div>
-        <div class="step-label">Agreement</div>
+        <div class="step-label" data-i18n="step2">Agreement</div>
       </div>
       <div class="step-line" id="line-2"></div>
       <div class="step" id="step-3">
         <div class="step-num">3</div>
-        <div class="step-label">Devices</div>
+        <div class="step-label" data-i18n="step3">Devices</div>
       </div>
       <div class="step-line" id="line-3"></div>
       <div class="step" id="step-4">
         <div class="step-num">4</div>
-        <div class="step-label">Confirm</div>
+        <div class="step-label" data-i18n="step4">Confirm</div>
       </div>
     </div>
 
     <!-- Step 1: Student Info -->
     <div id="portal-step-1">
       <div class="card">
-        <div class="card-title">Student Information</div>
-        <div class="card-sub">Please enter your information to get started.</div>
+        <div class="card-title" data-i18n="step1Title">Student Information</div>
+        <div class="card-sub" data-i18n="step1Sub">Please enter your information to get started.</div>
         <div id="step1-alert"></div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">First Name *</label>
+            <label class="form-label" data-i18n="firstName">First Name *</label>
             <input class="form-input" id="s-firstname" placeholder="First name">
           </div>
           <div class="form-group">
-            <label class="form-label">Last Name *</label>
+            <label class="form-label" data-i18n="lastName">Last Name *</label>
             <input class="form-input" id="s-lastname" placeholder="Last name">
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Student ID Number *</label>
+          <label class="form-label" data-i18n="studentId">Student ID Number *</label>
           <input class="form-input" id="s-studentid" placeholder="900XXXXXX (9 digits)">
         </div>
         <div class="form-group">
-          <label class="form-label">Preferred Email Address *</label>
+          <label class="form-label" data-i18n="email">Preferred Email Address *</label>
           <input class="form-input" id="s-email" type="email" placeholder="email@example.com">
         </div>
         <div class="form-group">
-          <label class="form-label">Primary Phone Number</label>
+          <label class="form-label" data-i18n="phone">Primary Phone Number</label>
           <input class="form-input" id="s-phone" placeholder="(XXX) XXX-XXXX">
         </div>
-        <button class="btn btn-primary btn-full" onclick="submitStep1()" id="btn-step1">
+        <button class="btn btn-primary btn-full" onclick="submitStep1()" id="btn-step1" data-i18n="continueBtn">
           Continue
         </button>
       </div>
@@ -633,7 +633,7 @@ tr:hover td { background: #faf8f4; }
     <!-- Step 2: Agreement -->
     <div id="portal-step-2" style="display:none">
       <div class="card">
-        <div class="card-title">Electronic Device Loan Agreement</div>
+        <div class="card-title" data-i18n="step2Title">Electronic Device Loan Agreement</div>
         <div class="card-sub">Please read the full policy before continuing. <em>Summer 2026</em></div>
         <div id="step2-alert"></div>
         <div class="agreement-scroll">
@@ -666,10 +666,10 @@ tr:hover td { background: #faf8f4; }
         </div>
         <div class="check-row">
           <input type="checkbox" id="agree-check">
-          <label for="agree-check">I have read and agree to all of the above policies and terms.</label>
+          <label for="agree-check" data-i18n="checkLabel">I have read and agree to all of the above policies and terms.</label>
         </div>
         <div class="form-group">
-          <label class="form-label">Type your full name to sign *</label>
+          <label class="form-label" data-i18n="signLabel">Type your full name to sign *</label>
           <input class="form-input" id="s-signature" placeholder="Full legal name">
         </div>
         <div style="display:flex;gap:10px">
@@ -682,24 +682,24 @@ tr:hover td { background: #faf8f4; }
     <!-- Step 3: Device Selection -->
     <div id="portal-step-3" style="display:none">
       <div class="card">
-        <div class="card-title">Select Campus</div>
-        <div class="card-sub">Choose the campus where you will pick up your device(s).</div>
+        <div class="card-title" data-i18n="selectCampusTitle">Select Campus</div>
+        <div class="card-sub" data-i18n="selectCampusSub">Choose the campus where you will pick up your device(s).</div>
         <div class="campus-row" id="campus-row">
           <div class="campus-card" onclick="selectCampus('SLO')" id="campus-SLO">
             <div style="font-size:24px;margin-bottom:6px">🏛️</div>
-            <div class="campus-card-name">SLO Library</div>
-            <div class="campus-card-sub">San Luis Obispo</div>
+            <div class="campus-card-name" data-i18n="sloName">SLO Library</div>
+            <div class="campus-card-sub" data-i18n="sloSub">San Luis Obispo</div>
           </div>
           <div class="campus-card" onclick="selectCampus('NCC')" id="campus-NCC">
             <div style="font-size:24px;margin-bottom:6px">📚</div>
-            <div class="campus-card-name">NCC Library</div>
-            <div class="campus-card-sub">Paso Robles</div>
+            <div class="campus-card-name" data-i18n="nccName">NCC Library</div>
+            <div class="campus-card-sub" data-i18n="nccSub">Paso Robles</div>
           </div>
         </div>
         <div id="aghs-option" style="margin-bottom:16px">
           <div class="check-row">
             <input type="checkbox" id="aghs-check" onchange="toggleAGHS()">
-            <label for="aghs-check">I need a device at South County (AGHS) — special request</label>
+            <label for="aghs-check" data-i18n="aghsCheck">I need a device at South County (AGHS) — special request</label>
           </div>
           <div id="aghs-note" style="display:none" class="alert alert-info">
             AGHS device requests are handled on a case-by-case basis by library staff. You will be contacted directly. Please select the device type(s) below and submit your request.
@@ -708,8 +708,8 @@ tr:hover td { background: #faf8f4; }
       </div>
 
       <div class="card" id="device-select-card" style="display:none">
-        <div class="card-title">Select Device(s)</div>
-        <div class="card-sub">Select all devices you need. Each creates a separate request.</div>
+        <div class="card-title" data-i18n="selectDeviceTitle">Select Device(s)</div>
+        <div class="card-sub" data-i18n="selectDeviceSub">Select all devices you need. Each creates a separate request.</div>
         <div id="step3-alert"></div>
         <div class="device-grid" id="device-grid">
           <!-- populated by JS -->
@@ -725,8 +725,8 @@ tr:hover td { background: #faf8f4; }
     <!-- Step 4: Confirmation -->
     <div id="portal-step-4" style="display:none">
       <div class="card">
-        <div class="card-title">Review &amp; Submit</div>
-        <div class="card-sub">Please confirm your request details below.</div>
+        <div class="card-title" data-i18n="step4Title">Review &amp; Submit</div>
+        <div class="card-sub" data-i18n="step4Sub">Please confirm your request details below.</div>
         <div id="step4-alert"></div>
         <ul class="confirm-list" id="confirm-list"></ul>
         <div id="confirm-devices" style="margin:16px 0"></div>
@@ -749,9 +749,9 @@ tr:hover td { background: #faf8f4; }
     <div id="portal-step-5" style="display:none">
       <div class="card" style="text-align:center;padding:40px">
         <div style="font-size:48px;margin-bottom:16px">✅</div>
-        <div class="card-title" id="success-title" style="font-size:20px;margin-bottom:8px">Request Submitted!</div>
+        <div class="card-title" data-i18n="successTitle" id="success-title" style="font-size:20px;margin-bottom:8px">Request Submitted!</div>
         <div id="success-message" style="color:var(--text-mid);font-size:14px;line-height:1.6;margin-bottom:24px"></div>
-        <button class="btn btn-outline" id="btn-another" onclick="resetPortal()">Submit Another Request</button>
+        <button class="btn btn-outline" data-i18n="anotherBtn" id="btn-another" onclick="resetPortal()">Submit Another Request</button>
       </div>
     </div>
   </div>
@@ -2272,84 +2272,53 @@ function setLanguage(lang) {
 
 function qs(sel) { return document.querySelector(sel); }
 function qsi(id) { return document.getElementById(id); }
-function setText(sel, text, useId) {
-  const el = useId ? qsi(sel) : qs(sel);
-  if (el) el.textContent = text;
-}
+function setText(sel, text) { const el = qs(sel); if (el) el.textContent = text; }
 function setHTML(sel, html) { const el = qs(sel); if (el) el.innerHTML = html; }
 
 function applyTranslations() {
   try {
-    // Hero
-    setText('.portal-hero h1', t('portalTitle'));
-    setText('.portal-hero p', t('portalSubtitle'));
+    // Update all elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n');
+      var val = T[currentLang][key] || T['en'][key];
+      if (val) el.textContent = val;
+    });
 
-    // Step labels
-    setText('#step-1 .step-label', t('step1'));
-    setText('#step-2 .step-label', t('step2'));
-    setText('#step-3 .step-label', t('step3'));
-    setText('#step-4 .step-label', t('step4'));
-
-    // Step 1
-    setText('#portal-step-1 .card-title', t('step1Title'));
-    setText('#portal-step-1 .card-sub', t('step1Sub'));
-    setLabel('s-firstname', t('firstName'));
-    setLabel('s-lastname', t('lastName'));
-    setLabel('s-studentid', t('studentId'));
+    // Update placeholders
     setPlaceholder('s-studentid', t('studentIdHelper'));
-    setLabel('s-email', t('email'));
     setPlaceholder('s-email', t('emailHelper'));
-    setLabel('s-phone', t('phone'));
     setPlaceholder('s-phone', t('phoneHelper'));
-    const btnStep1 = qsi('btn-step1');
-    if (btnStep1) btnStep1.textContent = t('continueBtn');
-
-    // Step 2
-    setText('#portal-step-2 .card-title', t('step2Title'));
-    setHTML('#portal-step-2 .card-sub', t('step2Sub') + ' <em>Summer 2026</em>');
-    setHTML('#portal-step-2 .agreement-scroll', currentLang === 'es' ? AGREEMENT_ES : AGREEMENT_EN);
-    // Re-attach checkbox label after innerHTML reset
-    const agreeLabel = qs('.check-row label[for="agree-check"]');
-    if (agreeLabel) agreeLabel.textContent = t('checkLabel');
-    setLabel('s-signature', t('signLabel'));
     setPlaceholder('s-signature', t('signPlaceholder'));
-    const step2Btns = document.querySelectorAll('#portal-step-2 button');
-    if (step2Btns[0]) step2Btns[0].textContent = t('backBtn');
-    if (step2Btns[1]) step2Btns[1].textContent = t('signBtn');
 
-    // Step 3 - campus card (first card in step 3)
-    const step3Cards = document.querySelectorAll('#portal-step-3 .card-title');
-    if (step3Cards[0]) step3Cards[0].textContent = t('selectCampusTitle');
-    const step3Subs = document.querySelectorAll('#portal-step-3 .card-sub');
-    if (step3Subs[0]) step3Subs[0].textContent = t('selectCampusSub');
-    setText('#campus-SLO .campus-card-name', t('sloName'));
-    setText('#campus-SLO .campus-card-sub', t('sloSub'));
-    setText('#campus-NCC .campus-card-name', t('nccName'));
-    setText('#campus-NCC .campus-card-sub', t('nccSub'));
-    const aghsLabel = qs('label[for="aghs-check"]');
-    if (aghsLabel) aghsLabel.textContent = t('aghsCheck');
-    const aghsNote = qsi('aghs-note');
+    // Update agreement text
+    setHTML('#portal-step-2 .agreement-scroll', currentLang === 'es' ? AGREEMENT_ES : AGREEMENT_EN);
+
+    // Update step2 card sub (has <em> tag so needs innerHTML)
+    setHTML('#portal-step-2 .card-sub', t('step2Sub') + ' <em>Summer 2026</em>');
+
+    // Update AGHS note
+    var aghsNote = qsi('aghs-note');
     if (aghsNote) aghsNote.textContent = t('aghsNote');
-    // Step 3 - device card (second card in step 3)
-    const step3Cards2 = document.querySelectorAll('#portal-step-3 .card-title');
-    if (step3Cards2[1]) step3Cards2[1].textContent = t('selectDeviceTitle');
-    if (step3Subs[1]) step3Subs[1].textContent = t('selectDeviceSub');
-    const step3Btns = document.querySelectorAll('#device-select-card button');
-    if (step3Btns[0]) step3Btns[0].textContent = t('backBtn');
-    if (step3Btns[1]) step3Btns[1].textContent = t('reviewBtn');
 
-    // Step 4
-    setText('#portal-step-4 .card-title', t('step4Title'));
-    setText('#portal-step-4 .card-sub', t('step4Sub'));
-    setLabel('s-notif', t('notifLabel'));
-    const notifSel = qsi('s-notif');
+    // Update notification select options
+    var notifSel = qsi('s-notif');
     if (notifSel && notifSel.options.length >= 3) {
       notifSel.options[0].text = t('notifEmail');
       notifSel.options[1].text = t('notifMyCuesta');
       notifSel.options[2].text = t('notifPhone');
     }
-    const step4Btns = document.querySelectorAll('#portal-step-4 button');
+
+    // Update back/sign buttons not covered by data-i18n
+    var step2Btns = document.querySelectorAll('#portal-step-2 button');
+    if (step2Btns[0]) step2Btns[0].textContent = t('backBtn');
+    if (step2Btns[1]) step2Btns[1].textContent = t('signBtn');
+    var step3Btns = document.querySelectorAll('#device-select-card button');
+    if (step3Btns[0]) step3Btns[0].textContent = t('backBtn');
+    if (step3Btns[1]) step3Btns[1].textContent = t('reviewBtn');
+    var step4Btns = document.querySelectorAll('#portal-step-4 button');
     if (step4Btns[0]) step4Btns[0].textContent = t('backBtn');
+    var step4SubmitBtn = qsi('btn-submit-final');
+    if (step4SubmitBtn) step4SubmitBtn.textContent = t('submitBtn');
 
     // Re-render device grid if campus already selected
     if (selectedCampus) renderDeviceGrid();
