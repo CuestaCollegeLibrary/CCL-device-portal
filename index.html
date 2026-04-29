@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCL Device Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0f2d1f;
+  --navy-mid: #1a4a2e;
+  --navy-light: #23623d;
+  --gold: #c9a84c;
+  --gold-light: #e8c97a;
+  --cream: #f0f5f1;
+  --cream-dark: #dce8df;
+  --white: #ffffff;
+  --text: #0f1f15;
+  --text-mid: #3d5447;
+  --text-light: #7a9485;
+  --success: #2d7d46;
+  --success-bg: #e8f5ed;
+  --warning: #b45309;
+  --warning-bg: #fef3c7;
+  --danger: #c0392b;
+  --danger-bg: #fdecea;
+  --border: #d4c9b0;
+  --shadow: 0 4px 24px rgba(15,31,61,0.10);
+  --shadow-lg: 0 8px 40px rgba(15,31,61,0.15);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.site-header {
+  background: var(--navy);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+}
+.site-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--white);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.site-logo-mark {
+  width: 36px; height: 36px;
+  background: var(--gold);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: var(--navy);
+  font-family: 'DM Mono', monospace;
+}
+.header-nav { display: flex; gap: 8px; }
+.nav-btn {
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.7);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 500;
+  padding: 8px 16px; border-radius: 6px;
+  transition: all 0.15s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+.nav-btn.active { background: var(--gold); color: var(--navy); font-weight: 600; }
+
+/* ── VIEWS ── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── STUDENT PORTAL ── */
+.portal-hero {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 60%, var(--navy-light) 100%);
+  padding: 48px 32px 40px;
+  text-align: center;
+  color: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+.portal-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 70% 50%, rgba(201,168,76,0.15) 0%, transparent 60%);
+}
+.portal-hero h1 {
+  font-size: 28px; font-weight: 600;
+  margin-bottom: 8px; position: relative;
+}
+.portal-hero p {
+  color: rgba(255,255,255,0.7); font-size: 15px; position: relative;
+}
+.gold-line {
+  width: 48px; height: 3px;
+  background: var(--gold);
+  margin: 16px auto; border-radius: 2px;
+}
+
+.portal-body { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+
+/* ── STEP INDICATOR ── */
+.steps {
+  display: flex; align-items: center;
+  margin-bottom: 32px; gap: 0;
+}
+.step {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1;
+}
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600;
+  background: var(--cream-dark); color: var(--text-light);
+  border: 2px solid var(--border);
+  flex-shrink: 0; transition: all 0.3s;
+}
+.step.active .step-num { background: var(--navy); color: var(--white); border-color: var(--navy); }
+.step.done .step-num { background: var(--success); color: var(--white); border-color: var(--success); }
+.step-label { font-size: 12px; font-weight: 500; color: var(--text-light); }
+.step.active .step-label { color: var(--navy); }
+.step.done .step-label { color: var(--success); }
+.step-line { flex: 1; height: 2px; background: var(--border); margin: 0 8px; }
+.step-line.done { background: var(--success); }
+
+/* ── CARD ── */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-size: 17px; font-weight: 600;
+  color: var(--navy); margin-bottom: 4px;
+}
+.card-sub { font-size: 13px; color: var(--text-light); margin-bottom: 20px; }
+
+/* ── FORM ELEMENTS ── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-size: 13px; font-weight: 500;
+  color: var(--text-mid); margin-bottom: 6px;
+}
+.form-input {
+  width: 100%; padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px; color: var(--text);
+  background: var(--white);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+.form-input:focus {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(15,31,61,0.08);
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 11px 24px;
+  border-radius: var(--radius-sm); border: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 500;
+  transition: all 0.15s; text-decoration: none;
+}
+.btn-primary {
+  background: var(--navy); color: var(--white);
+}
+.btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn-primary:disabled { background: var(--text-light); cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-gold {
+  background: var(--gold); color: var(--navy); font-weight: 600;
+}
+.btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); }
+.btn-outline {
+  background: none; border: 1.5px solid var(--border);
+  color: var(--text-mid);
+}
+.btn-outline:hover { border-color: var(--navy); color: var(--navy); }
+.btn-danger { background: var(--danger); color: var(--white); }
+.btn-danger:hover { background: #a93226; }
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+.btn-full { width: 100%; }
+
+/* ── ALERT ── */
+.alert {
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  font-size: 13px; margin-bottom: 16px;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.alert-success { background: var(--success-bg); color: var(--success); border: 1px solid #a3d9b1; }
+.alert-warning { background: var(--warning-bg); color: var(--warning); border: 1px solid #fcd34d; }
+.alert-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c2; }
+.alert-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+/* ── AGREEMENT ── */
+.agreement-scroll {
+  height: 300px; overflow-y: auto;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px; font-size: 13px;
+  line-height: 1.7; color: var(--text-mid);
+  background: #fafaf8; margin-bottom: 16px;
+}
+.agreement-scroll h3 { color: var(--navy); font-size: 14px; margin: 16px 0 6px; }
+.agreement-scroll p { margin-bottom: 10px; }
+.agreement-scroll ul { padding-left: 20px; margin-bottom: 10px; }
+.agreement-scroll li { margin-bottom: 4px; }
+.check-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px; background: var(--cream);
+  border-radius: var(--radius-sm); margin-bottom: 12px;
+  cursor: pointer;
+}
+.check-row input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--navy); }
+.check-row label { font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text); }
+
+/* ── DEVICE SELECTION ── */
+.device-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 16px;
+}
+.device-card {
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  padding: 14px; cursor: pointer; transition: all 0.15s;
+  background: var(--white); position: relative;
+}
+.device-card:hover { border-color: var(--navy-light); }
+.device-card.selected { border-color: var(--navy); background: #f0f7f2; }
+.device-card.selected::after {
+  content: '✓';
+  position: absolute; top: 8px; right: 10px;
+  color: var(--navy); font-weight: 700; font-size: 14px;
+}
+.device-card-icon { font-size: 22px; margin-bottom: 6px; }
+.device-card-name { font-size: 13px; font-weight: 600; color: var(--navy); }
+.device-card-note { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.device-card.unavailable { opacity: 0.6; }
+.device-badge {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  padding: 2px 7px; border-radius: 20px; margin-top: 4px;
+}
+.badge-available { background: var(--success-bg); color: var(--success); }
+.badge-waitlist { background: var(--warning-bg); color: var(--warning); }
+
+/* ── CAMPUS SELECT ── */
+.campus-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 16px;
+}
+.campus-card {
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  padding: 14px; cursor: pointer; transition: all 0.15s;
+  text-align: center;
+}
+.campus-card:hover { border-color: var(--navy-light); }
+.campus-card.selected { border-color: var(--gold); background: #f0f7f2; }
+.campus-card-name { font-size: 14px; font-weight: 600; color: var(--navy); }
+.campus-card-sub { font-size: 12px; color: var(--text-light); }
+
+/* ── CONFIRMATION ── */
+.confirm-list { list-style: none; }
+.confirm-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--cream-dark);
+  font-size: 14px;
+}
+.confirm-list li:last-child { border-bottom: none; }
+.confirm-icon { font-size: 18px; }
+.confirm-label { color: var(--text-light); font-size: 12px; }
+.confirm-val { font-weight: 500; }
+.position-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--warning-bg); color: var(--warning);
+  border: 1px solid #fcd34d; border-radius: 20px;
+  padding: 4px 12px; font-size: 13px; font-weight: 600;
+}
+.position-badge.available-now {
+  background: var(--success-bg); color: var(--success);
+  border-color: #a3d9b1;
+}
+
+/* ── STAFF DASHBOARD ── */
+.dashboard-layout {
+  display: grid; grid-template-columns: 220px 1fr;
+  min-height: calc(100vh - 64px);
+}
+.sidebar {
+  background: var(--navy); padding: 24px 0;
+  position: sticky; top: 64px; height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+.sidebar-section { margin-bottom: 8px; }
+.sidebar-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.4); text-transform: uppercase;
+  padding: 0 20px 8px;
+}
+.sidebar-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; cursor: pointer;
+  color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500;
+  transition: all 0.15s; border: none; background: none;
+  width: 100%; text-align: left; font-family: 'DM Sans', sans-serif;
+}
+.sidebar-item:hover { background: rgba(255,255,255,0.08); color: var(--white); }
+.sidebar-item.active { background: rgba(201,168,76,0.2); color: var(--gold); border-right: 3px solid var(--gold); }
+.sidebar-count {
+  margin-left: auto; background: rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 2px 8px;
+  font-size: 11px; font-weight: 600;
+}
+.sidebar-item.active .sidebar-count { background: var(--gold); color: var(--navy); }
+
+.main-content { padding: 32px; background: var(--cream); }
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 22px; font-weight: 600; color: var(--navy); }
+.page-sub { font-size: 13px; color: var(--text-light); margin-top: 4px; }
+
+/* ── STATS ROW ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--white); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow);
+}
+.stat-val { font-size: 28px; font-weight: 700; color: var(--navy); font-family: 'DM Mono', monospace; }
+.stat-label { font-size: 12px; color: var(--text-light); margin-top: 4px; font-weight: 500; }
+.stat-card.gold { border-top: 3px solid var(--gold); }
+.stat-card.green { border-top: 3px solid var(--success); }
+.stat-card.blue { border-top: 3px solid #3b82f6; }
+.stat-card.red { border-top: 3px solid var(--danger); }
+
+/* ── TABLE ── */
+.table-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px;
+}
+.table-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--cream-dark);
+}
+.table-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+.table-actions { display: flex; gap: 8px; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; padding: 10px 16px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-light);
+  background: #f8f6f2; border-bottom: 1px solid var(--cream-dark);
+}
+td {
+  padding: 12px 16px; font-size: 13px;
+  border-bottom: 1px solid var(--cream-dark); color: var(--text);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #faf8f4; }
+.td-name { font-weight: 500; }
+.td-id { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-light); }
+
+/* ── STATUS BADGES ── */
+.status {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+}
+.status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status-waitlisted { background: var(--warning-bg); color: var(--warning); }
+.status-ready { background: var(--success-bg); color: var(--success); }
+.status-checked-out { background: #eff6ff; color: #1d4ed8; }
+.status-expired { background: var(--danger-bg); color: var(--danger); }
+.status-cancelled { background: #f3f4f6; color: #6b7280; }
+
+/* ── WAITLIST TABLE ── */
+.waitlist-section { margin-bottom: 32px; }
+.waitlist-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.waitlist-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+.waitlist-count {
+  background: var(--navy); color: var(--white);
+  border-radius: 20px; padding: 2px 10px;
+  font-size: 12px; font-weight: 600;
+  font-family: 'DM Mono', monospace;
+}
+.pos-num {
+  font-family: 'DM Mono', monospace; font-size: 13px;
+  font-weight: 700; color: var(--navy);
+  background: var(--cream); border-radius: 6px;
+  padding: 2px 8px; display: inline-block;
+}
+
+/* ── TABS ── */
+.tab-row {
+  display: flex; gap: 4px; margin-bottom: 24px;
+  border-bottom: 2px solid var(--cream-dark); padding-bottom: 0;
+}
+.tab-btn {
+  padding: 10px 18px; cursor: pointer; border: none; background: none;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+  color: var(--text-light); border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--navy); }
+.tab-btn.active { color: var(--navy); border-bottom-color: var(--navy); font-weight: 600; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15,31,61,0.5); z-index: 1000;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); padding: 28px;
+  width: 100%; max-width: 480px; margin: 16px;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-title { font-size: 18px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+.modal-sub { font-size: 13px; color: var(--text-light); margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 32px; text-align: center; cursor: pointer;
+  transition: all 0.15s; background: var(--white);
+}
+.upload-zone:hover { border-color: var(--navy); background: #f2f8f4; }
+.upload-zone.dragging { border-color: var(--gold); background: #f0f7f2; }
+.upload-icon { font-size: 32px; margin-bottom: 8px; }
+.upload-text { font-size: 14px; font-weight: 500; color: var(--navy); }
+.upload-sub { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+/* ── AGHS SECTION ── */
+.aghs-banner {
+  background: linear-gradient(135deg, #1a3d2b, #2d6645);
+  border-radius: var(--radius); padding: 20px 24px;
+  color: var(--white); margin-bottom: 20px;
+  display: flex; align-items: center; gap: 16px;
+}
+.aghs-icon { font-size: 32px; }
+.aghs-title { font-size: 15px; font-weight: 600; }
+.aghs-sub { font-size: 13px; color: rgba(255,255,255,0.7); }
+
+/* ── PASSWORD GATE ── */
+.password-gate {
+  min-height: calc(100vh - 64px);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--cream);
+}
+.password-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); padding: 40px;
+  width: 100%; max-width: 380px; text-align: center;
+}
+.password-logo {
+  width: 56px; height: 56px; background: var(--navy);
+  border-radius: 14px; margin: 0 auto 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: var(--gold); font-weight: 700;
+  font-family: 'DM Mono', monospace;
+}
+.password-title { font-size: 20px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+.password-sub { font-size: 13px; color: var(--text-light); margin-bottom: 24px; }
+
+/* ── LOADING ── */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: var(--white);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center; padding: 48px 24px;
+  color: var(--text-light);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-text { font-size: 14px; font-weight: 500; }
+.empty-sub { font-size: 13px; margin-top: 4px; }
+
+/* ── NOTIFICATION PREVIEW ── */
+.notif-preview {
+  background: #f8fafc; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px;
+  font-size: 13px; color: var(--text-mid);
+  line-height: 1.6; margin-bottom: 16px;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .dashboard-layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .device-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="site-logo">
+    <div class="site-logo-mark">CCL</div>
+    <span>Device Portal</span>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showView('student')">Request a Device</button>
+    <button class="nav-btn" onclick="requireStaffAuth()">Staff Dashboard</button>
+  </nav>
+</header>
+
+<!-- ══ STUDENT VIEW ══ -->
+<div id="view-student" class="view active">
+  <div class="portal-hero">
+    <h1>Cuesta College Library</h1>
+    <div class="gold-line"></div>
+    <p>Electronic Device Request &amp; Loan Agreement</p>
+  </div>
+
+  <div class="portal-body">
+    <!-- Step indicator -->
+    <div class="steps" id="step-indicator">
+      <div class="step active" id="step-1">
+        <div class="step-num">1</div>
+        <div class="step-label">Your Info</div>
+      </div>
+      <div class="step-line" id="line-1"></div>
+      <div class="step" id="step-2">
+        <div class="step-num">2</div>
+        <div class="step-label">Agreement</div>
+      </div>
+      <div class="step-line" id="line-2"></div>
+      <div class="step" id="step-3">
+        <div class="step-num">3</div>
+        <div class="step-label">Devices</div>
+      </div>
+      <div class="step-line" id="line-3"></div>
+      <div class="step" id="step-4">
+        <div class="step-num">4</div>
+        <div class="step-label">Confirm</div>
+      </div>
+    </div>
+
+    <!-- Step 1: Student Info -->
+    <div id="portal-step-1">
+      <div class="card">
+        <div class="card-title">Student Information</div>
+        <div class="card-sub">Please enter your information to get started.</div>
+        <div id="step1-alert"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">First Name *</label>
+            <input class="form-input" id="s-firstname" placeholder="First name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name *</label>
+            <input class="form-input" id="s-lastname" placeholder="Last name">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Student ID Number *</label>
+          <input class="form-input" id="s-studentid" placeholder="900XXXXXX (9 digits)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Preferred Email Address *</label>
+          <input class="form-input" id="s-email" type="email" placeholder="email@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Primary Phone Number</label>
+          <input class="form-input" id="s-phone" placeholder="(XXX) XXX-XXXX">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="submitStep1()" id="btn-step1">
+          Continue
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Agreement -->
+    <div id="portal-step-2" style="display:none">
+      <div class="card">
+        <div class="card-title">Electronic Device Loan Agreement</div>
+        <div class="card-sub">Please read the full policy before continuing. <em>Summer 2026</em></div>
+        <div id="step2-alert"></div>
+        <div class="agreement-scroll">
+          <p><strong>The Cuesta College Library</strong> has a limited number of Chromebooks, Hotspots, Specialty Laptops, and Calculators available for checkout by enrolled Cuesta College students.</p>
+          <p>Students may check out one Hotspot plus one Calculator plus one Chromebook OR one Laptop at a time. Each device comes with a carrying case and charging/power cable (except calculators).</p>
+          <h3>Academic Use Only</h3>
+          <p>All electronic devices are intended for <strong>ACADEMIC USE ONLY</strong>. Use of these devices must follow the Student Code of Conduct and related technology/acceptable use policies. Activity on college devices and networks may be monitored.</p>
+          <h3>Checkout Period</h3>
+          <p>All devices are loaned for one semester or session. Devices must be returned before or by the last day of the semester/session/rotation. Devices are not checked out over semester breaks.</p>
+          <h3>No Renewals</h3>
+          <p>Renewals are not allowed. Extensions may be given on a case-by-case basis. Email extension requests to <strong>circulation@cuesta.edu</strong>.</p>
+          <h3>Return Policy</h3>
+          <p>Devices must be returned in-person during open hours. Devices will be inspected for damage upon return. Devices must be in clean, working order or a fee may be assessed. Do NOT return devices in book drops.</p>
+          <h3>Late Fees &amp; Lost Devices</h3>
+          <p>There is no grace period for late fees. If a device is more than two weeks late, it will be considered lost and the student will be responsible for the full replacement cost.</p>
+          <h3>Damage &amp; Theft</h3>
+          <p>Students are responsible for any costs associated with damage, loss, or theft of devices and accessories. Stolen or lost items must be reported to the local police department within 48 hours and to Library Staff at circulation@cuesta.edu.</p>
+          <h3>Replacement Costs</h3>
+          <ul>
+            <li>Chromebook: $310 total (device $250, case $30, charger $30)</li>
+            <li>Specialty Laptop: $1,537 total (device $1,450, case $30, adapter $57)</li>
+            <li>WiFi Hotspot: $90 total (device $70, case $5, cable $15)</li>
+            <li>TI-30XIIS Calculator: $25</li>
+            <li>TI-30XS Calculator: $35</li>
+            <li>TI-83 Plus Calculator: $135</li>
+          </ul>
+          <h3>Waitlist</h3>
+          <p>If the library is out of a device, you will be placed on a waitlist. You will be notified once when a device becomes available. You will have <strong>one week</strong> to pick up the device. If you do not pick it up within one week, your spot will be released to the next person and you must rejoin the waitlist.</p>
+          <p>Email <strong>circulation@cuesta.edu</strong> for availability or questions.</p>
+        </div>
+        <div class="check-row" onclick="toggleCheck('agree-check')">
+          <input type="checkbox" id="agree-check">
+          <label for="agree-check">I have read and agree to all of the above policies and terms.</label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type your full name to sign *</label>
+          <input class="form-input" id="s-signature" placeholder="Full legal name">
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline" onclick="goStep(1)">Back</button>
+          <button class="btn btn-primary" style="flex:1" onclick="submitStep2()">Sign &amp; Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Device Selection -->
+    <div id="portal-step-3" style="display:none">
+      <div class="card">
+        <div class="card-title">Select Campus</div>
+        <div class="card-sub">Choose the campus where you will pick up your device(s).</div>
+        <div class="campus-row" id="campus-row">
+          <div class="campus-card" onclick="selectCampus('SLO')" id="campus-SLO">
+            <div style="font-size:24px;margin-bottom:6px">🏛️</div>
+            <div class="campus-card-name">SLO Library</div>
+            <div class="campus-card-sub">San Luis Obispo</div>
+          </div>
+          <div class="campus-card" onclick="selectCampus('NCC')" id="campus-NCC">
+            <div style="font-size:24px;margin-bottom:6px">📚</div>
+            <div class="campus-card-name">NCC Library</div>
+            <div class="campus-card-sub">Paso Robles</div>
+          </div>
+        </div>
+        <div id="aghs-option" style="margin-bottom:16px">
+          <div class="check-row" onclick="toggleAGHS()">
+            <input type="checkbox" id="aghs-check">
+            <label for="aghs-check">I need a device at South County (AGHS) — special request</label>
+          </div>
+          <div id="aghs-note" style="display:none" class="alert alert-info">
+            AGHS device requests are handled on a case-by-case basis by library staff. You will be contacted directly. Please select the device type(s) below and submit your request.
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="device-select-card" style="display:none">
+        <div class="card-title">Select Device(s)</div>
+        <div class="card-sub">Select all devices you need. Each creates a separate request.</div>
+        <div id="step3-alert"></div>
+        <div class="device-grid" id="device-grid">
+          <!-- populated by JS -->
+        </div>
+        <div id="existing-requests-notice"></div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button class="btn btn-outline" onclick="goStep(2)">Back</button>
+          <button class="btn btn-primary" style="flex:1" onclick="submitStep3()">Review Request</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Confirmation -->
+    <div id="portal-step-4" style="display:none">
+      <div class="card">
+        <div class="card-title">Review &amp; Submit</div>
+        <div class="card-sub">Please confirm your request details below.</div>
+        <div id="step4-alert"></div>
+        <ul class="confirm-list" id="confirm-list"></ul>
+        <div id="confirm-devices" style="margin:16px 0"></div>
+        <div class="form-group">
+          <label class="form-label">Notification Preference</label>
+          <select class="form-input" id="s-notif">
+            <option value="email">Email — address I entered on this form</option>
+            <option value="mycuesta">Email — my.cuesta.edu address</option>
+            <option value="phone">Phone call — number entered on this form</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline" onclick="goStep(3)">Back</button>
+          <button class="btn btn-gold" style="flex:1" onclick="submitFinal()" id="btn-submit-final">Submit Request</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Success -->
+    <div id="portal-step-5" style="display:none">
+      <div class="card" style="text-align:center;padding:40px">
+        <div style="font-size:48px;margin-bottom:16px">✅</div>
+        <div class="card-title" style="font-size:20px;margin-bottom:8px">Request Submitted!</div>
+        <div id="success-message" style="color:var(--text-mid);font-size:14px;line-height:1.6;margin-bottom:24px"></div>
+        <button class="btn btn-outline" onclick="resetPortal()">Submit Another Request</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STAFF VIEW ══ -->
+<div id="view-staff" class="view">
+  <!-- Password Gate -->
+  <div id="staff-gate" class="password-gate">
+    <div class="password-card">
+      <div class="password-logo">CCL</div>
+      <div class="password-title">Staff Access</div>
+      <div class="password-sub">Enter your team password to access the dashboard.</div>
+      <div id="gate-alert"></div>
+      <div class="form-group" style="text-align:left">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="staff-password" type="password" placeholder="Team password"
+               onkeydown="if(event.key==='Enter')checkStaffPassword()">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="checkStaffPassword()">Sign In</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="staff-dashboard" style="display:none">
+    <div class="dashboard-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">Overview</div>
+          <button class="sidebar-item active" onclick="showDashPanel('overview', this)">
+            📊 Overview
+          </button>
+          <button class="sidebar-item" onclick="showDashPanel('agreements', this)">
+            📋 Agreements
+          </button>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">SLO Waitlists</div>
+          <button class="sidebar-item" onclick="showDashPanel('wl-hotspot-slo', this)" id="nav-wl-hotspot-slo">
+            📶 Hotspots <span class="sidebar-count" id="cnt-hotspot-slo">0</span>
+          </button>
+          <button class="sidebar-item" onclick="showDashPanel('wl-chromebook-slo', this)" id="nav-wl-chromebook-slo">
+            💻 Chromebooks <span class="sidebar-count" id="cnt-chromebook-slo">0</span>
+          </button>
+          <button class="sidebar-item" onclick="showDashPanel('wl-calculator-slo', this)" id="nav-wl-calculator-slo">
+            🧮 Calculators <span class="sidebar-count" id="cnt-calculator-slo">0</span>
+          </button>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">NCC Waitlists</div>
+          <button class="sidebar-item" onclick="showDashPanel('wl-hotspot-ncc', this)" id="nav-wl-hotspot-ncc">
+            📶 Hotspots <span class="sidebar-count" id="cnt-hotspot-ncc">0</span>
+          </button>
+          <button class="sidebar-item" onclick="showDashPanel('wl-chromebook-ncc', this)" id="nav-wl-chromebook-ncc">
+            💻 Chromebooks <span class="sidebar-count" id="cnt-chromebook-ncc">0</span>
+          </button>
+          <button class="sidebar-item" onclick="showDashPanel('wl-calculator-ncc', this)" id="nav-wl-calculator-ncc">
+            🧮 Calculators <span class="sidebar-count" id="cnt-calculator-ncc">0</span>
+          </button>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Other</div>
+          <button class="sidebar-item" onclick="showDashPanel('wl-laptop', this)" id="nav-wl-laptop">
+            🖥️ Specialty Laptops <span class="sidebar-count" id="cnt-laptop">0</span>
+          </button>
+          <button class="sidebar-item" onclick="showDashPanel('aghs', this)">
+            📍 AGHS Requests
+          </button>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Tools</div>
+          <button class="sidebar-item" onclick="showDashPanel('inventory', this)">
+            📥 Upload Inventory
+          </button>
+          <button class="sidebar-item" onclick="showDashPanel('email', this)">
+            ✉️ Email Settings
+          </button>
+        </div>
+        <div style="padding:20px;margin-top:auto">
+          <button class="btn btn-outline btn-sm btn-full" onclick="staffLogout()" style="color:rgba(255,255,255,0.5);border-color:rgba(255,255,255,0.2)">Sign Out</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content" id="dash-main">
+        <!-- Overview Panel -->
+        <div id="panel-overview" class="tab-panel active">
+          <div class="page-header">
+            <div class="page-title">Dashboard Overview</div>
+            <div class="page-sub" id="overview-sub">Loading...</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-card gold">
+              <div class="stat-val" id="stat-total-waitlisted">—</div>
+              <div class="stat-label">Total Waitlisted</div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-val" id="stat-ready">—</div>
+              <div class="stat-label">Ready for Pickup</div>
+            </div>
+            <div class="stat-card blue">
+              <div class="stat-val" id="stat-checked-out">—</div>
+              <div class="stat-label">Currently Checked Out</div>
+            </div>
+            <div class="stat-card red">
+              <div class="stat-val" id="stat-expiring">—</div>
+              <div class="stat-label">Expiring This Week</div>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <div class="table-title">Recent Activity</div>
+              <button class="btn btn-outline btn-sm" onclick="loadOverview()">↻ Refresh</button>
+            </div>
+            <div id="recent-activity-table">
+              <div class="empty-state"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agreements Panel -->
+        <div id="panel-agreements" class="tab-panel">
+          <div class="page-header">
+            <div class="page-title">Signed Agreements</div>
+            <div class="page-sub">All students who have signed the device loan agreement this semester.</div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <div class="table-title">Summer 2026 Agreements</div>
+              <div class="table-actions">
+                <input class="form-input" style="width:200px;padding:7px 12px;font-size:13px"
+                       placeholder="Search by name or ID..." id="agreement-search"
+                       oninput="filterAgreements()">
+              </div>
+            </div>
+            <div id="agreements-table">
+              <div class="empty-state"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Waitlist Panels (generated by JS) -->
+        <div id="panel-wl-hotspot-slo" class="tab-panel">
+          <div id="content-wl-hotspot-slo"></div>
+        </div>
+        <div id="panel-wl-hotspot-ncc" class="tab-panel">
+          <div id="content-wl-hotspot-ncc"></div>
+        </div>
+        <div id="panel-wl-chromebook-slo" class="tab-panel">
+          <div id="content-wl-chromebook-slo"></div>
+        </div>
+        <div id="panel-wl-chromebook-ncc" class="tab-panel">
+          <div id="content-wl-chromebook-ncc"></div>
+        </div>
+        <div id="panel-wl-calculator-slo" class="tab-panel">
+          <div id="content-wl-calculator-slo"></div>
+        </div>
+        <div id="panel-wl-calculator-ncc" class="tab-panel">
+          <div id="content-wl-calculator-ncc"></div>
+        </div>
+        <div id="panel-wl-laptop" class="tab-panel">
+          <div id="content-wl-laptop"></div>
+        </div>
+
+        <!-- AGHS Panel -->
+        <div id="panel-aghs" class="tab-panel">
+          <div class="page-header">
+            <div class="page-title">AGHS Special Requests</div>
+            <div class="page-sub">Device requests from South County (AGHS). Handled case-by-case — no automatic waitlist.</div>
+          </div>
+          <div class="aghs-banner">
+            <div class="aghs-icon">📍</div>
+            <div>
+              <div class="aghs-title">South County Campus</div>
+              <div class="aghs-sub">Devices sent upon special request only. Contact student directly to arrange delivery or pickup.</div>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <div class="table-title">Active AGHS Requests</div>
+              <button class="btn btn-outline btn-sm" onclick="loadAGHS()">↻ Refresh</button>
+            </div>
+            <div id="aghs-table">
+              <div class="empty-state"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Upload Panel -->
+        <div id="panel-inventory" class="tab-panel">
+          <div class="page-header">
+            <div class="page-title">Upload Inventory Report</div>
+            <div class="page-sub">Upload an Alma inventory export to update device availability counts.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Alma Inventory Export</div>
+            <div class="card-sub">Upload a CSV or Excel file exported from Alma. The system will read available counts per device type per campus.</div>
+            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+                 ondragover="event.preventDefault();this.classList.add('dragging')"
+                 ondragleave="this.classList.remove('dragging')"
+                 ondrop="handleFileDrop(event)">
+              <div class="upload-icon">📂</div>
+              <div class="upload-text">Click to browse or drag &amp; drop</div>
+              <div class="upload-sub">Accepts .csv or .xlsx files from Alma</div>
+            </div>
+            <input type="file" id="file-input" accept=".csv,.xlsx" style="display:none" onchange="handleFileSelect(event)">
+            <div id="upload-preview" style="margin-top:16px"></div>
+            <div id="upload-result" style="margin-top:12px"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Current Inventory</div>
+            <div class="card-sub">Last updated from Alma upload.</div>
+            <div id="inventory-table">
+              <div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No inventory loaded yet</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Settings Panel -->
+        <div id="panel-email" class="tab-panel">
+          <div class="page-header">
+            <div class="page-title">Email Notifications</div>
+            <div class="page-sub">Configure automated email notifications for waitlist updates.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Notification Template</div>
+            <div class="card-sub">This email is sent when a student's device is ready for pickup.</div>
+            <div class="form-group">
+              <label class="form-label">From Name</label>
+              <input class="form-input" id="email-from-name" value="Cuesta College Library" placeholder="From name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Reply-To Email</label>
+              <input class="form-input" id="email-reply-to" value="circulation@cuesta.edu" placeholder="Reply-to email">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Subject</label>
+              <input class="form-input" id="email-subject" value="Your device is ready for pickup — Cuesta College Library">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Body (use {name}, {device}, {campus}, {deadline} as placeholders)</label>
+              <textarea class="form-input" id="email-body" rows="8" style="resize:vertical">Hi {name},
+
+Great news! Your requested {device} is now available for pickup at the {campus} Library.
+
+Please pick up your device by {deadline} (one week from today). If you do not pick it up by this date, your spot will be released to the next person on the waitlist and you will need to rejoin.
+
+To pick up your device, bring your student ID to the library circulation desk during open hours.
+
+If you have any questions, please email circulation@cuesta.edu.
+
+Thank you,
+Cuesta College Library</textarea>
+            </div>
+            <div class="card-title" style="margin-top:8px;margin-bottom:8px">Preview</div>
+            <div class="notif-preview" id="email-preview"></div>
+            <button class="btn btn-primary" onclick="saveEmailSettings()">Save Settings</button>
+          </div>
+          <div class="card">
+            <div class="card-title">SendGrid Integration</div>
+            <div class="card-sub">Enter your SendGrid API key to enable automated email sending.</div>
+            <div class="form-group">
+              <label class="form-label">SendGrid API Key</label>
+              <input class="form-input" id="sendgrid-key" type="password" placeholder="SG.xxxxxxxx...">
+            </div>
+            <div class="alert alert-info">
+              SendGrid offers a free tier of 100 emails/day. Sign up at sendgrid.com. Email sending goes through a Supabase Edge Function.
+            </div>
+            <button class="btn btn-primary" onclick="saveSendGridKey()">Save API Key</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALS ══ -->
+<!-- Student Detail Modal -->
+<div class="modal-overlay" id="modal-student">
+  <div class="modal">
+    <div class="modal-title" id="modal-student-name">Student</div>
+    <div class="modal-sub" id="modal-student-id"></div>
+    <div id="modal-student-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-student')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Advance / Notify Modal -->
+<div class="modal-overlay" id="modal-notify">
+  <div class="modal">
+    <div class="modal-title">Mark Device Ready &amp; Notify Student</div>
+    <div class="modal-sub" id="modal-notify-sub"></div>
+    <div id="modal-notify-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-notify')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmNotify()" id="btn-confirm-notify">Send Notification &amp; Mark Ready</button>
+    </div>
+  </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal-overlay" id="modal-checkout">
+  <div class="modal">
+    <div class="modal-title">Confirm Checkout</div>
+    <div class="modal-sub" id="modal-checkout-sub">Mark this device as checked out?</div>
+    <div id="modal-checkout-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-checkout')">Cancel</button>
+      <button class="btn btn-gold" onclick="confirmCheckout()" id="btn-confirm-checkout">Confirm Checkout</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expire Modal -->
+<div class="modal-overlay" id="modal-expire">
+  <div class="modal">
+    <div class="modal-title">Release Hold</div>
+    <div class="modal-sub">Student did not pick up within 7 days. Release their hold?</div>
+    <div id="modal-expire-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-expire')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmExpire()">Release &amp; Advance Queue</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE CONFIG ───────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://btxbzfzopeujlnsyxrgc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0eGJ6ZnpvcGV1amxuc3l4cmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0ODMyODksImV4cCI6MjA5MzA1OTI4OX0.OCvJtgaynwro1jwmR9UrCZMVtR6RHNBJ8eY-xG-efYQ';
+const SEMESTER = 'Summer2026';
+const STAFF_PASSWORD = 'cclstaff2026';
+
+const DEVICE_TYPES = [
+  { id: 'hotspot', label: 'WiFi Hotspot', icon: '📶', note: 'Academic use only — limited availability', campuses: ['SLO','NCC'] },
+  { id: 'chromebook', label: 'Chromebook', icon: '💻', note: 'Works for most classes', campuses: ['SLO','NCC'] },
+  { id: 'laptop', label: 'Specialty Laptop', icon: '🖥️', note: 'Requires enrollment proof — AUTOCAD, ARC-GIS etc.', campuses: ['SLO','NCC'], singleWaitlist: true },
+  { id: 'calculator', label: 'Calculator', icon: '🧮', note: 'TI-30XIIS, TI-30XS, or TI-83 Plus', campuses: ['SLO','NCC'] }
+];
+
+// ── SUPABASE HELPERS ──────────────────────────────────────────────────────────
+async function sb(table, method='GET', body=null, params='') {
+  const url = `${SUPABASE_URL}/rest/v1/${table}${params}`;
+  const opts = {
+    method,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : 'return=representation'
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+async function sbGet(table, params='') { return sb(table,'GET',null,params); }
+async function sbPost(table, body) { return sb(table,'POST',body); }
+async function sbPatch(table, params, body) { return sb(table,'PATCH',body,params); }
+async function sbDelete(table, params) { return sb(table,'DELETE',null,params); }
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let studentData = {};
+let selectedDevices = [];
+let selectedCampus = null;
+let isAGHS = false;
+let currentStep = 1;
+let inventoryData = {};
+let activeNotifyId = null;
+let activeCheckoutId = null;
+let activeExpireId = null;
+let allRequests = [];
+let allAgreements = [];
+let emailSettings = {
+  fromName: 'Cuesta College Library',
+  replyTo: 'circulation@cuesta.edu',
+  subject: 'Your device is ready for pickup — Cuesta College Library',
+  body: `Hi {name},\n\nGreat news! Your requested {device} is now available for pickup at the {campus} Library.\n\nPlease pick up your device by {deadline} (one week from today). If you do not pick it up by this date, your spot will be released to the next person on the waitlist and you will need to rejoin.\n\nTo pick up your device, bring your student ID to the library circulation desk during open hours.\n\nIf you have any questions, please email circulation@cuesta.edu.\n\nThank you,\nCuesta College Library`
+};
+
+// ── VIEW SWITCHING ────────────────────────────────────────────────────────────
+function showView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  const btns = document.querySelectorAll('.nav-btn');
+  if (v === 'student') btns[0].classList.add('active');
+  else btns[1].classList.add('active');
+}
+
+function requireStaffAuth() {
+  showView('staff');
+  const gate = document.getElementById('staff-gate');
+  const dash = document.getElementById('staff-dashboard');
+  if (sessionStorage.getItem('ccl_staff_auth') === 'yes') {
+    gate.style.display = 'none';
+    dash.style.display = 'block';
+    loadDashboard();
+  } else {
+    gate.style.display = 'flex';
+    dash.style.display = 'none';
+  }
+}
+
+function checkStaffPassword() {
+  const pw = document.getElementById('staff-password').value;
+  if (pw === STAFF_PASSWORD) {
+    sessionStorage.setItem('ccl_staff_auth', 'yes');
+    document.getElementById('staff-gate').style.display = 'none';
+    document.getElementById('staff-dashboard').style.display = 'block';
+    loadDashboard();
+  } else {
+    showAlert('gate-alert', 'Incorrect password. Please try again.', 'danger');
+  }
+}
+
+function staffLogout() {
+  sessionStorage.removeItem('ccl_staff_auth');
+  document.getElementById('staff-gate').style.display = 'flex';
+  document.getElementById('staff-dashboard').style.display = 'none';
+  document.getElementById('staff-password').value = '';
+}
+
+// ── STEP NAVIGATION ───────────────────────────────────────────────────────────
+function goStep(n) {
+  document.querySelectorAll('[id^="portal-step-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('portal-step-' + n).style.display = 'block';
+  currentStep = n;
+  updateStepIndicator(n);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepIndicator(n) {
+  for (let i = 1; i <= 4; i++) {
+    const step = document.getElementById('step-' + i);
+    const line = document.getElementById('line-' + i);
+    step.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+    if (line) line.className = 'step-line' + (i < n ? ' done' : '');
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function showAlert(containerId, msg, type='info') {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+function clearAlert(containerId) {
+  const el = document.getElementById(containerId);
+  if (el) el.innerHTML = '';
+}
+
+function toggleCheck(id) {
+  const cb = document.getElementById(id);
+  cb.checked = !cb.checked;
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function deviceLabel(id) {
+  const d = DEVICE_TYPES.find(x => x.id === id);
+  return d ? d.label : id;
+}
+
+function getWaitlistKey(deviceId, campus) {
+  if (deviceId === 'laptop') return 'laptop_shared';
+  return `${deviceId}_${campus.toLowerCase()}`;
+}
+
+function statusBadge(s) {
+  const map = {
+    waitlisted: 'Waitlisted',
+    ready: 'Ready for Pickup',
+    'checked-out': 'Checked Out',
+    expired: 'Expired',
+    cancelled: 'Cancelled',
+    aghs: 'AGHS Request'
+  };
+  return `<span class="status status-${s}">${map[s] || s}</span>`;
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── STEP 1: STUDENT INFO ──────────────────────────────────────────────────────
+async function submitStep1() {
+  clearAlert('step1-alert');
+  const fn = document.getElementById('s-firstname').value.trim();
+  const ln = document.getElementById('s-lastname').value.trim();
+  const sid = document.getElementById('s-studentid').value.trim();
+  const email = document.getElementById('s-email').value.trim();
+  const phone = document.getElementById('s-phone').value.trim();
+
+  if (!fn || !ln || !sid || !email) {
+    showAlert('step1-alert', 'Please fill in all required fields.', 'danger'); return;
+  }
+  if (!/^\d{9}$/.test(sid)) {
+    showAlert('step1-alert', 'Student ID must be exactly 9 digits (e.g. 900123456).', 'danger'); return;
+  }
+
+  studentData = { first_name: fn, last_name: ln, student_id: sid, email, phone };
+
+  // Check for existing agreement this semester
+  const btn = document.getElementById('btn-step1');
+  btn.innerHTML = '<span class="spinner"></span> Checking...';
+  btn.disabled = true;
+
+  try {
+    const existing = await sbGet('agreements', `?student_id=eq.${sid}&semester=eq.${SEMESTER}&select=*`);
+    if (existing.length > 0) {
+      // Already signed — skip to step 3
+      studentData.agreementId = existing[0].id;
+      goStep(3);
+      loadDeviceStep();
+    } else {
+      goStep(2);
+    }
+  } catch(e) {
+    showAlert('step1-alert', 'Error checking records. Please try again.', 'danger');
+  } finally {
+    btn.innerHTML = 'Continue';
+    btn.disabled = false;
+  }
+}
+
+// ── STEP 2: AGREEMENT ─────────────────────────────────────────────────────────
+async function submitStep2() {
+  clearAlert('step2-alert');
+  const checked = document.getElementById('agree-check').checked;
+  const sig = document.getElementById('s-signature').value.trim();
+  if (!checked) { showAlert('step2-alert', 'You must check the acknowledgment box.', 'danger'); return; }
+  if (!sig) { showAlert('step2-alert', 'Please type your full name as a signature.', 'danger'); return; }
+
+  try {
+    const result = await sbPost('agreements', {
+      student_id: studentData.student_id,
+      semester: SEMESTER,
+      signature: sig,
+      signed_at: new Date().toISOString()
+    });
+    studentData.agreementId = result[0]?.id;
+    goStep(3);
+    loadDeviceStep();
+  } catch(e) {
+    showAlert('step2-alert', 'Error saving agreement. Please try again.', 'danger');
+  }
+}
+
+// ── STEP 3: DEVICE SELECTION ──────────────────────────────────────────────────
+function selectCampus(c) {
+  selectedCampus = c;
+  isAGHS = false;
+  document.getElementById('aghs-check').checked = false;
+  document.getElementById('aghs-note').style.display = 'none';
+  document.querySelectorAll('.campus-card').forEach(el => el.classList.remove('selected'));
+  document.getElementById('campus-' + c).classList.add('selected');
+  document.getElementById('device-select-card').style.display = 'block';
+  renderDeviceGrid();
+}
+
+function toggleAGHS() {
+  const cb = document.getElementById('aghs-check');
+  isAGHS = cb.checked;
+  if (isAGHS) {
+    selectedCampus = 'AGHS';
+    document.querySelectorAll('.campus-card').forEach(el => el.classList.remove('selected'));
+    document.getElementById('aghs-note').style.display = 'block';
+    document.getElementById('device-select-card').style.display = 'block';
+    renderDeviceGrid();
+  } else {
+    selectedCampus = null;
+    document.getElementById('aghs-note').style.display = 'none';
+    document.getElementById('device-select-card').style.display = 'none';
+  }
+}
+
+async function loadDeviceStep() {
+  // Load inventory counts
+  try {
+    const inv = await sbGet('inventory', '?select=*');
+    inventoryData = {};
+    inv.forEach(row => {
+      inventoryData[`${row.device_type}_${row.campus}`] = row.available_count;
+    });
+  } catch(e) { /* inventory may be empty */ }
+}
+
+async function renderDeviceGrid() {
+  await loadDeviceStep();
+  const grid = document.getElementById('device-grid');
+  selectedDevices = [];
+
+  // Load existing requests for this student this semester
+  let existingRequests = [];
+  try {
+    existingRequests = await sbGet('device_requests',
+      `?student_id=eq.${studentData.student_id}&status=in.(waitlisted,ready)&select=*`);
+  } catch(e) {}
+
+  let html = '';
+  DEVICE_TYPES.forEach(dt => {
+    const campusKey = dt.singleWaitlist ? 'shared' : (selectedCampus || 'SLO');
+    const invKey = dt.singleWaitlist ? `${dt.id}_shared` : `${dt.id}_${campusKey}`;
+    const available = inventoryData[invKey] || 0;
+    const hasExisting = existingRequests.find(r =>
+      r.device_type === dt.id &&
+      (dt.singleWaitlist || r.campus === selectedCampus)
+    );
+    const badge = hasExisting
+      ? `<span class="device-badge" style="background:#fef3c7;color:#92400e">Already requested (#${hasExisting.waitlist_position || '?'})</span>`
+      : available > 0
+        ? `<span class="device-badge badge-available">${available} available</span>`
+        : `<span class="device-badge badge-waitlist">Waitlist</span>`;
+    html += `
+      <div class="device-card" onclick="toggleDevice('${dt.id}')" id="dcard-${dt.id}">
+        <div class="device-card-icon">${dt.icon}</div>
+        <div class="device-card-name">${dt.label}</div>
+        <div class="device-card-note">${dt.note}</div>
+        ${badge}
+      </div>`;
+  });
+
+  grid.innerHTML = html;
+
+  // Show existing request notices
+  const notice = document.getElementById('existing-requests-notice');
+  if (existingRequests.length > 0) {
+    notice.innerHTML = `<div class="alert alert-warning" style="margin-top:8px">
+      You have active requests this semester. Selecting a device you already requested will add a new request at the bottom of the current waitlist.
+    </div>`;
+  } else {
+    notice.innerHTML = '';
+  }
+}
+
+function toggleDevice(id) {
+  const card = document.getElementById('dcard-' + id);
+  const idx = selectedDevices.indexOf(id);
+  if (idx === -1) {
+    selectedDevices.push(id);
+    card.classList.add('selected');
+  } else {
+    selectedDevices.splice(idx, 1);
+    card.classList.remove('selected');
+  }
+}
+
+async function submitStep3() {
+  clearAlert('step3-alert');
+  if (!selectedCampus) { showAlert('step3-alert', 'Please select a campus.', 'danger'); return; }
+  if (selectedDevices.length === 0) { showAlert('step3-alert', 'Please select at least one device.', 'danger'); return; }
+  goStep(4);
+  renderConfirmation();
+}
+
+// ── STEP 4: CONFIRMATION ──────────────────────────────────────────────────────
+async function renderConfirmation() {
+  const list = document.getElementById('confirm-list');
+  list.innerHTML = `
+    <li><span class="confirm-icon">👤</span><div><div class="confirm-label">Name</div><div class="confirm-val">${studentData.first_name} ${studentData.last_name}</div></div></li>
+    <li><span class="confirm-icon">🪪</span><div><div class="confirm-label">Student ID</div><div class="confirm-val">${studentData.student_id}</div></div></li>
+    <li><span class="confirm-icon">📧</span><div><div class="confirm-label">Email</div><div class="confirm-val">${studentData.email}</div></div></li>
+    <li><span class="confirm-icon">📍</span><div><div class="confirm-label">Campus</div><div class="confirm-val">${selectedCampus === 'AGHS' ? 'South County (AGHS)' : selectedCampus + ' Library'}</div></div></li>
+  `;
+
+  // Show device availability status
+  let devHtml = '<div style="margin:16px 0"><div class="form-label" style="margin-bottom:10px">Devices Requested</div>';
+  for (const did of selectedDevices) {
+    const dt = DEVICE_TYPES.find(x => x.id === did);
+    const campusKey = dt.singleWaitlist ? 'shared' : selectedCampus;
+    const invKey = dt.singleWaitlist ? `${dt.id}_shared` : `${dt.id}_${campusKey}`;
+    const available = inventoryData[invKey] || 0;
+
+    // Get current waitlist position
+    let position = '—';
+    try {
+      const wl = await sbGet('device_requests',
+        `?device_type=eq.${did}&campus=eq.${dt.singleWaitlist ? 'shared' : selectedCampus}&status=eq.waitlisted&select=id&order=waitlist_position.asc`);
+      position = wl.length + 1;
+    } catch(e) {}
+
+    const badge = isAGHS
+      ? `<span class="position-badge">📍 Special Request</span>`
+      : available > 0
+        ? `<span class="position-badge available-now">✓ Available Now</span>`
+        : `<span class="position-badge">⏳ Position #${position} on waitlist</span>`;
+
+    devHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-dark)">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">${dt.icon}</span><span style="font-weight:500;font-size:14px">${dt.label}</span></div>
+      ${badge}
+    </div>`;
+  }
+  devHtml += '</div>';
+  document.getElementById('confirm-devices').innerHTML = devHtml;
+}
+
+async function submitFinal() {
+  clearAlert('step4-alert');
+  const notif = document.getElementById('s-notif').value;
+  const btn = document.getElementById('btn-submit-final');
+  btn.innerHTML = '<span class="spinner"></span> Submitting...';
+  btn.disabled = true;
+
+  try {
+    // Upsert student record
+    await fetch(`${SUPABASE_URL}/rest/v1/students`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify({
+        student_id: studentData.student_id,
+        first_name: studentData.first_name,
+        last_name: studentData.last_name,
+        email: studentData.email,
+        phone: studentData.phone
+      })
+    });
+
+    // Create one request per device
+    const results = [];
+    for (const did of selectedDevices) {
+      const dt = DEVICE_TYPES.find(x => x.id === did);
+      const campus = dt.singleWaitlist ? 'shared' : selectedCampus;
+      const invKey = dt.singleWaitlist ? `${did}_shared` : `${did}_${selectedCampus}`;
+      const available = inventoryData[invKey] || 0;
+      const status = isAGHS ? 'aghs' : (available > 0 ? 'ready' : 'waitlisted');
+
+      // Get next waitlist position
+      let pos = null;
+      if (status === 'waitlisted') {
+        const wl = await sbGet('device_requests',
+          `?device_type=eq.${did}&campus=eq.${campus}&status=eq.waitlisted&select=waitlist_position&order=waitlist_position.desc&limit=1`);
+        pos = wl.length > 0 ? (wl[0].waitlist_position || 0) + 1 : 1;
+      }
+
+      const req = {
+        student_id: studentData.student_id,
+        first_name: studentData.first_name,
+        last_name: studentData.last_name,
+        email: studentData.email,
+        phone: studentData.phone,
+        device_type: did,
+        campus: campus,
+        status: status,
+        waitlist_position: pos,
+        notification_pref: notif,
+        requested_at: new Date().toISOString()
+      };
+
+      if (status === 'ready') {
+        req.notified_at = new Date().toISOString();
+        req.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        // Decrement inventory
+        const newCount = Math.max(0, available - 1);
+        await sbPatch('inventory',
+          `?device_type=eq.${did}&campus=eq.${campus}`,
+          { available_count: newCount, last_updated: new Date().toISOString() }
+        );
+      }
+
+      const result = await sbPost('device_requests', req);
+      results.push({ device: dt, status, pos, result: result[0] });
+    }
+
+    // Show success
+    let successHtml = `<p>Thank you, <strong>${studentData.first_name}</strong>! Here's a summary of your requests:</p><br>`;
+    results.forEach(r => {
+      if (r.status === 'ready') {
+        successHtml += `<p>✅ <strong>${r.device.label}</strong> — A device is available! Please come to the ${selectedCampus} Library to pick it up. You have <strong>7 days</strong> from today.</p>`;
+      } else if (r.status === 'aghs') {
+        successHtml += `<p>📍 <strong>${r.device.label}</strong> — Your AGHS special request has been logged. Library staff will contact you at ${studentData.email}.</p>`;
+      } else {
+        successHtml += `<p>⏳ <strong>${r.device.label}</strong> — You are #${r.pos} on the waitlist. You will be notified at ${studentData.email} when a device becomes available.</p>`;
+      }
+      successHtml += '<br>';
+    });
+    document.getElementById('success-message').innerHTML = successHtml;
+    goStep(5);
+
+  } catch(e) {
+    showAlert('step4-alert', 'Error submitting request: ' + e.message, 'danger');
+  } finally {
+    btn.innerHTML = 'Submit Request';
+    btn.disabled = false;
+  }
+}
+
+function resetPortal() {
+  studentData = {};
+  selectedDevices = [];
+  selectedCampus = null;
+  isAGHS = false;
+  document.getElementById('s-firstname').value = '';
+  document.getElementById('s-lastname').value = '';
+  document.getElementById('s-studentid').value = '';
+  document.getElementById('s-email').value = '';
+  document.getElementById('s-phone').value = '';
+  document.getElementById('agree-check').checked = false;
+  document.getElementById('s-signature').value = '';
+  document.getElementById('device-select-card').style.display = 'none';
+  document.querySelectorAll('.campus-card').forEach(el => el.classList.remove('selected'));
+  goStep(1);
+}
+
+// ── STAFF DASHBOARD ───────────────────────────────────────────────────────────
+async function loadDashboard() {
+  updateEmailPreview();
+  loadOverview();
+  loadWaitlistCounts();
+}
+
+function showDashPanel(panel, btn) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('panel-' + panel).classList.add('active');
+  if (btn) btn.classList.add('active');
+
+  // Lazy load content
+  if (panel === 'agreements') loadAgreements();
+  else if (panel.startsWith('wl-')) loadWaitlist(panel);
+  else if (panel === 'aghs') loadAGHS();
+  else if (panel === 'inventory') loadInventory();
+  else if (panel === 'overview') loadOverview();
+}
+
+async function loadOverview() {
+  document.getElementById('overview-sub').textContent = `${SEMESTER} — Last refreshed ${new Date().toLocaleTimeString()}`;
+  try {
+    const all = await sbGet('device_requests', '?select=*&order=requested_at.desc');
+    allRequests = all;
+
+    const waitlisted = all.filter(r => r.status === 'waitlisted').length;
+    const ready = all.filter(r => r.status === 'ready').length;
+    const checkedOut = all.filter(r => r.status === 'checked-out').length;
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const expiring = all.filter(r => r.status === 'ready' && r.expires_at && new Date(r.expires_at) <= weekFromNow).length;
+
+    document.getElementById('stat-total-waitlisted').textContent = waitlisted;
+    document.getElementById('stat-ready').textContent = ready;
+    document.getElementById('stat-checked-out').textContent = checkedOut;
+    document.getElementById('stat-expiring').textContent = expiring;
+
+    const recent = all.slice(0, 20);
+    if (recent.length === 0) {
+      document.getElementById('recent-activity-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No requests yet</div></div>`;
+      return;
+    }
+
+    let html = `<table><thead><tr><th>Student</th><th>Device</th><th>Campus</th><th>Status</th><th>Requested</th><th></th></tr></thead><tbody>`;
+    recent.forEach(r => {
+      html += `<tr>
+        <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
+        <td>${deviceLabel(r.device_type)}</td>
+        <td>${r.campus === 'shared' ? 'Any' : r.campus}</td>
+        <td>${statusBadge(r.status)}</td>
+        <td>${formatDate(r.requested_at)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="openStudentModal('${r.student_id}')">View</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('recent-activity-table').innerHTML = html;
+  } catch(e) {
+    document.getElementById('recent-activity-table').innerHTML = `<div class="alert alert-danger">Error loading data: ${e.message}</div>`;
+  }
+}
+
+async function loadWaitlistCounts() {
+  try {
+    const counts = await sbGet('device_requests', '?status=eq.waitlisted&select=device_type,campus');
+    const map = {};
+    counts.forEach(r => {
+      const key = r.device_type === 'laptop' ? 'laptop' : `${r.device_type}_${r.campus.toLowerCase()}`;
+      map[key] = (map[key] || 0) + 1;
+    });
+    ['hotspot-slo','hotspot-ncc','chromebook-slo','chromebook-ncc','calculator-slo','calculator-ncc','laptop'].forEach(k => {
+      const el = document.getElementById('cnt-' + k);
+      if (el) el.textContent = map[k.replace('-','_')] || 0;
+    });
+  } catch(e) {}
+}
+
+async function loadWaitlist(panelId) {
+  const parts = panelId.replace('wl-','').split('-');
+  const deviceId = parts[0];
+  const campus = parts[1] ? parts[1].toUpperCase() : 'shared';
+  const dt = DEVICE_TYPES.find(x => x.id === deviceId);
+  const dbCampus = dt?.singleWaitlist ? 'shared' : campus;
+  const container = document.getElementById('content-' + panelId);
+
+  container.innerHTML = `<div class="page-header">
+    <div class="page-title">${dt?.icon || ''} ${dt?.label || deviceId} Waitlist${campus !== 'shared' ? ' — ' + campus : ''}</div>
+    <div class="page-sub">Students waiting for this device. Advance the queue when a device becomes available.</div>
+  </div>`;
+
+  try {
+    const [waitlisted, ready] = await Promise.all([
+      sbGet('device_requests', `?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.waitlisted&order=waitlist_position.asc&select=*`),
+      sbGet('device_requests', `?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.ready&order=notified_at.asc&select=*`)
+    ]);
+
+    // Inventory
+    const inv = await sbGet('inventory', `?device_type=eq.${deviceId}&campus=eq.${dbCampus}&select=*`);
+    const available = inv[0]?.available_count || 0;
+
+    let html = `<div class="table-card" style="margin-bottom:16px">
+      <div class="table-header">
+        <div class="table-title">Inventory Status</div>
+        <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${deviceId}','${dbCampus}')">
+          ＋ Mark Device Available &amp; Notify Next
+        </button>
+      </div>
+      <div style="padding:16px;display:flex;gap:24px">
+        <div><div class="stat-val" style="font-size:20px">${available}</div><div class="stat-label">Available in Inventory</div></div>
+        <div><div class="stat-val" style="font-size:20px">${waitlisted.length}</div><div class="stat-label">On Waitlist</div></div>
+        <div><div class="stat-val" style="font-size:20px">${ready.length}</div><div class="stat-label">Ready for Pickup</div></div>
+      </div>
+    </div>`;
+
+    if (ready.length > 0) {
+      html += `<div class="table-card" style="margin-bottom:16px">
+        <div class="table-header"><div class="table-title">Ready for Pickup</div></div>
+        <table><thead><tr><th>Student</th><th>Notified</th><th>Expires</th><th>Actions</th></tr></thead><tbody>`;
+      ready.forEach(r => {
+        const expired = r.expires_at && new Date(r.expires_at) < new Date();
+        html += `<tr>
+          <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
+          <td>${formatDate(r.notified_at)}</td>
+          <td style="color:${expired ? 'var(--danger)' : 'inherit'}">${formatDate(r.expires_at)}${expired ? ' ⚠️' : ''}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-gold btn-sm" onclick="openCheckoutModal('${r.id}','${r.first_name} ${r.last_name}','${deviceId}')">Check Out</button>
+            <button class="btn btn-danger btn-sm" onclick="openExpireModal('${r.id}','${r.first_name} ${r.last_name}')">Release Hold</button>
+          </td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    if (waitlisted.length === 0) {
+      html += `<div class="table-card"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">No students on waitlist</div></div></div>`;
+    } else {
+      html += `<div class="table-card">
+        <div class="table-header"><div class="table-title">Waitlist Queue</div></div>
+        <table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
+      waitlisted.forEach(r => {
+        html += `<tr>
+          <td><span class="pos-num">${r.waitlist_position}</span></td>
+          <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
+          <td><div style="font-size:12px">${r.email || '—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone || ''}</div></td>
+          <td>${formatDate(r.requested_at)}</td>
+          <td style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="openStudentModal('${r.student_id}')">View</button>
+            <button class="btn btn-danger btn-sm" onclick="cancelRequest('${r.id}','${panelId}')">Remove</button>
+          </td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    container.innerHTML += html;
+  } catch(e) {
+    container.innerHTML += `<div class="alert alert-danger">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadAgreements() {
+  try {
+    const data = await sbGet('agreements', `?semester=eq.${SEMESTER}&order=signed_at.desc&select=*`);
+    allAgreements = data;
+    renderAgreementsTable(data);
+  } catch(e) {
+    document.getElementById('agreements-table').innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+  }
+}
+
+function renderAgreementsTable(data) {
+  if (data.length === 0) {
+    document.getElementById('agreements-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No agreements signed yet</div></div>`;
+    return;
+  }
+  let html = `<table><thead><tr><th>Student ID</th><th>Signed Name</th><th>Signed At</th><th>Semester</th></tr></thead><tbody>`;
+  data.forEach(a => {
+    html += `<tr>
+      <td class="td-id">${a.student_id}</td>
+      <td>${a.signature || '—'}</td>
+      <td>${formatDateTime(a.signed_at)}</td>
+      <td>${a.semester}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('agreements-table').innerHTML = html;
+}
+
+function filterAgreements() {
+  const q = document.getElementById('agreement-search').value.toLowerCase();
+  const filtered = allAgreements.filter(a =>
+    a.student_id?.toLowerCase().includes(q) ||
+    a.signature?.toLowerCase().includes(q)
+  );
+  renderAgreementsTable(filtered);
+}
+
+async function loadAGHS() {
+  try {
+    const data = await sbGet('device_requests', '?campus=eq.AGHS&status=eq.aghs&order=requested_at.desc&select=*');
+    if (data.length === 0) {
+      document.getElementById('aghs-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📍</div><div class="empty-text">No AGHS requests</div></div>`;
+      return;
+    }
+    let html = `<table><thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
+    data.forEach(r => {
+      html += `<tr>
+        <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
+        <td>${deviceLabel(r.device_type)}</td>
+        <td><div style="font-size:12px">${r.email || '—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone || ''}</div></td>
+        <td>${formatDate(r.requested_at)}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-gold btn-sm" onclick="fulfillAGHS('${r.id}')">Fulfilled</button>
+          <button class="btn btn-danger btn-sm" onclick="cancelRequest('${r.id}','aghs')">Cancel</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('aghs-table').innerHTML = html;
+  } catch(e) {
+    document.getElementById('aghs-table').innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadInventory() {
+  try {
+    const data = await sbGet('inventory', '?select=*&order=device_type.asc,campus.asc');
+    if (data.length === 0) {
+      document.getElementById('inventory-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No inventory loaded yet</div><div class="empty-sub">Upload an Alma report to get started</div></div>`;
+      return;
+    }
+    let html = `<table><thead><tr><th>Device</th><th>Campus</th><th>Available</th><th>Total</th><th>Last Updated</th></tr></thead><tbody>`;
+    data.forEach(r => {
+      html += `<tr>
+        <td>${deviceLabel(r.device_type)}</td>
+        <td>${r.campus === 'shared' ? 'All Campuses' : r.campus}</td>
+        <td><strong style="color:${r.available_count > 0 ? 'var(--success)' : 'var(--danger)'}">${r.available_count}</strong></td>
+        <td>${r.total_count}</td>
+        <td>${formatDate(r.last_updated)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('inventory-table').innerHTML = html;
+  } catch(e) {}
+}
+
+// ── NOTIFY MODAL ──────────────────────────────────────────────────────────────
+let notifyDeviceId, notifyCampus;
+function openNotifyModal(deviceId, campus) {
+  notifyDeviceId = deviceId;
+  notifyCampus = campus;
+  const dt = DEVICE_TYPES.find(x => x.id === deviceId);
+  document.getElementById('modal-notify-sub').textContent = `${dt?.label} — ${campus === 'shared' ? 'All Campuses' : campus}`;
+  document.getElementById('modal-notify-body').innerHTML = `
+    <p style="font-size:13px;color:var(--text-mid)">This will mark the next student on the waitlist as "Ready for Pickup" and send them an email notification. They will have 7 days to pick up the device.</p>
+    <div class="alert alert-warning" style="margin-top:12px">Make sure a device is physically available before proceeding.</div>`;
+  openModal('modal-notify');
+}
+
+async function confirmNotify() {
+  const btn = document.getElementById('btn-confirm-notify');
+  btn.innerHTML = '<span class="spinner"></span> Processing...';
+  btn.disabled = true;
+  try {
+    const next = await sbGet('device_requests',
+      `?device_type=eq.${notifyDeviceId}&campus=eq.${notifyCampus}&status=eq.waitlisted&order=waitlist_position.asc&limit=1&select=*`);
+    if (next.length === 0) {
+      document.getElementById('modal-notify-body').innerHTML = `<div class="alert alert-info">No students currently on this waitlist.</div>`;
+      return;
+    }
+    const r = next[0];
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await sbPatch('device_requests', `?id=eq.${r.id}`, {
+      status: 'ready',
+      notified_at: new Date().toISOString(),
+      expires_at: expires
+    });
+    closeModal('modal-notify');
+    loadWaitlist('wl-' + notifyDeviceId + (notifyCampus !== 'shared' ? '-' + notifyCampus.toLowerCase() : ''));
+    loadWaitlistCounts();
+  } catch(e) {
+    document.getElementById('modal-notify-body').innerHTML += `<div class="alert alert-danger">Error: ${e.message}</div>`;
+  } finally {
+    btn.innerHTML = 'Send Notification &amp; Mark Ready';
+    btn.disabled = false;
+  }
+}
+
+// ── CHECKOUT MODAL ────────────────────────────────────────────────────────────
+function openCheckoutModal(id, name, deviceId) {
+  activeCheckoutId = id;
+  const dt = DEVICE_TYPES.find(x => x.id === deviceId);
+  document.getElementById('modal-checkout-sub').textContent = `Check out ${dt?.label} to ${name}?`;
+  document.getElementById('modal-checkout-body').innerHTML = `
+    <p style="font-size:13px;color:var(--text-mid)">This will mark the device as checked out and close this request. The student's record will be updated in the system.</p>`;
+  openModal('modal-checkout');
+}
+
+async function confirmCheckout() {
+  try {
+    await sbPatch('device_requests', `?id=eq.${activeCheckoutId}`, {
+      status: 'checked-out',
+      checked_out_at: new Date().toISOString()
+    });
+    closeModal('modal-checkout');
+    loadOverview();
+    loadWaitlistCounts();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── EXPIRE MODAL ──────────────────────────────────────────────────────────────
+function openExpireModal(id, name) {
+  activeExpireId = id;
+  document.getElementById('modal-expire-body').innerHTML = `
+    <p style="font-size:13px;color:var(--text-mid)"><strong>${name}</strong> did not pick up their device within 7 days. Releasing their hold will move the next person up in the queue.</p>`;
+  openModal('modal-expire');
+}
+
+async function confirmExpire() {
+  try {
+    await sbPatch('device_requests', `?id=eq.${activeExpireId}`, { status: 'expired' });
+    closeModal('modal-expire');
+    loadOverview();
+    loadWaitlistCounts();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── CANCEL REQUEST ────────────────────────────────────────────────────────────
+async function cancelRequest(id, panelId) {
+  if (!confirm('Remove this request from the waitlist?')) return;
+  try {
+    await sbPatch('device_requests', `?id=eq.${id}`, { status: 'cancelled' });
+    if (panelId === 'aghs') loadAGHS();
+    else loadWaitlist(panelId);
+    loadWaitlistCounts();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function fulfillAGHS(id) {
+  if (!confirm('Mark this AGHS request as fulfilled?')) return;
+  try {
+    await sbPatch('device_requests', `?id=eq.${id}`, {
+      status: 'checked-out', checked_out_at: new Date().toISOString()
+    });
+    loadAGHS();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── STUDENT MODAL ─────────────────────────────────────────────────────────────
+async function openStudentModal(studentId) {
+  document.getElementById('modal-student-id').textContent = studentId;
+  document.getElementById('modal-student-body').innerHTML = '<div class="spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--navy)"></div>';
+  openModal('modal-student');
+  try {
+    const [student, requests] = await Promise.all([
+      sbGet('students', `?student_id=eq.${studentId}&select=*`),
+      sbGet('device_requests', `?student_id=eq.${studentId}&order=requested_at.desc&select=*`)
+    ]);
+    const s = student[0] || {};
+    document.getElementById('modal-student-name').textContent = `${s.first_name || ''} ${s.last_name || ''}`.trim() || studentId;
+    let html = `<div style="font-size:13px;color:var(--text-mid);margin-bottom:16px">${s.email || ''} ${s.phone ? '· ' + s.phone : ''}</div>`;
+    html += `<div class="form-label" style="margin-bottom:8px">All Requests This Semester</div>`;
+    if (requests.length === 0) {
+      html += `<div style="font-size:13px;color:var(--text-light)">No requests found.</div>`;
+    } else {
+      requests.forEach(r => {
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cream-dark)">
+          <div>
+            <div style="font-size:13px;font-weight:500">${deviceLabel(r.device_type)}</div>
+            <div style="font-size:12px;color:var(--text-light)">${r.campus === 'shared' ? 'Any Campus' : r.campus} · Requested ${formatDate(r.requested_at)}</div>
+          </div>
+          ${statusBadge(r.status)}
+        </div>`;
+      });
+    }
+    document.getElementById('modal-student-body').innerHTML = html;
+  } catch(e) {
+    document.getElementById('modal-student-body').innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+  }
+}
+
+// ── INVENTORY UPLOAD ──────────────────────────────────────────────────────────
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('dragging');
+  const file = e.dataTransfer.files[0];
+  if (file) processInventoryFile(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processInventoryFile(file);
+}
+
+async function processInventoryFile(file) {
+  document.getElementById('upload-preview').innerHTML = `<div class="alert alert-info">📂 Processing: <strong>${file.name}</strong>...</div>`;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const text = e.target.result;
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length < 2) {
+      document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">File appears empty or has no data rows.</div>`;
+      return;
+    }
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
+
+    // Try to detect columns
+    const deviceCol = headers.findIndex(h => h.includes('title') || h.includes('material') || h.includes('item') || h.includes('description'));
+    const locationCol = headers.findIndex(h => h.includes('location') || h.includes('campus') || h.includes('library'));
+    const statusCol = headers.findIndex(h => h.includes('status') || h.includes('process'));
+
+    // Count by device type and campus
+    const counts = {};
+    const DEVICE_KEYWORDS = {
+      hotspot: ['hotspot', 'hot spot', 'wifi', 'wireless'],
+      chromebook: ['chromebook', 'chrome book'],
+      laptop: ['laptop', 'lenovo', 't14', 't490', 'specialty'],
+      calculator: ['calculator', 'ti-30', 'ti-83', 'ti 30', 'ti 83']
+    };
+    const CAMPUS_KEYWORDS = {
+      SLO: ['slo', 'san luis', 'main'],
+      NCC: ['ncc', 'north county', 'paso robles', 'paso']
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/"/g,''));
+      const row = cols.join(' ').toLowerCase();
+
+      let device = null;
+      for (const [did, keywords] of Object.entries(DEVICE_KEYWORDS)) {
+        if (keywords.some(kw => row.includes(kw))) { device = did; break; }
+      }
+      let campus = null;
+      for (const [c, keywords] of Object.entries(CAMPUS_KEYWORDS)) {
+        if (keywords.some(kw => row.includes(kw))) { campus = c; break; }
+      }
+
+      if (device) {
+        const key = device === 'laptop' ? 'laptop_shared' : `${device}_${campus || 'SLO'}`;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+
+    // Preview
+    let prevHtml = '<div class="form-label" style="margin-bottom:8px">Detected Inventory</div><table><thead><tr><th>Device</th><th>Campus</th><th>Count</th></tr></thead><tbody>';
+    for (const [key, count] of Object.entries(counts)) {
+      const [did, campus] = key.split('_');
+      prevHtml += `<tr><td>${deviceLabel(did)}</td><td>${campus === 'shared' ? 'All' : campus.toUpperCase()}</td><td><strong>${count}</strong></td></tr>`;
+    }
+    prevHtml += '</tbody></table>';
+    document.getElementById('upload-preview').innerHTML = prevHtml;
+
+    // Save to Supabase
+    try {
+      for (const [key, count] of Object.entries(counts)) {
+        const [did, campus] = key.split('_');
+        await fetch(`${SUPABASE_URL}/rest/v1/inventory`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates,return=minimal'
+          },
+          body: JSON.stringify({
+            device_type: did,
+            campus: campus,
+            available_count: count,
+            total_count: count,
+            last_updated: new Date().toISOString()
+          })
+        });
+      }
+      document.getElementById('upload-result').innerHTML = `<div class="alert alert-success">✓ Inventory updated successfully. ${Object.keys(counts).length} device categories imported.</div>`;
+      loadInventory();
+    } catch(err) {
+      document.getElementById('upload-result').innerHTML = `<div class="alert alert-danger">Error saving to database: ${err.message}</div>`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── EMAIL SETTINGS ────────────────────────────────────────────────────────────
+function updateEmailPreview() {
+  const body = (document.getElementById('email-body')?.value || emailSettings.body)
+    .replace('{name}', 'Jane Smith')
+    .replace('{device}', 'WiFi Hotspot')
+    .replace('{campus}', 'SLO')
+    .replace('{deadline}', formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
+  const el = document.getElementById('email-preview');
+  if (el) el.textContent = body;
+}
+
+function saveEmailSettings() {
+  emailSettings.fromName = document.getElementById('email-from-name').value;
+  emailSettings.replyTo = document.getElementById('email-reply-to').value;
+  emailSettings.subject = document.getElementById('email-subject').value;
+  emailSettings.body = document.getElementById('email-body').value;
+  localStorage.setItem('ccl_email_settings', JSON.stringify(emailSettings));
+  showAlert('panel-email', 'Settings saved.', 'success');
+}
+
+function saveSendGridKey() {
+  const key = document.getElementById('sendgrid-key').value;
+  localStorage.setItem('ccl_sendgrid_key', key);
+  alert('SendGrid key saved locally.');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('ccl_email_settings');
+  if (saved) {
+    try {
+      emailSettings = JSON.parse(saved);
+      if (document.getElementById('email-body')) {
+        document.getElementById('email-from-name').value = emailSettings.fromName;
+        document.getElementById('email-reply-to').value = emailSettings.replyTo;
+        document.getElementById('email-subject').value = emailSettings.subject;
+        document.getElementById('email-body').value = emailSettings.body;
+      }
+    } catch(e) {}
+  }
+  document.getElementById('email-body')?.addEventListener('input', updateEmailPreview);
+});
+</script>
+</body>
+</html>
