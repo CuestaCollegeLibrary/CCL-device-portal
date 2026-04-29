@@ -2270,71 +2270,93 @@ function setLanguage(lang) {
   applyTranslations();
 }
 
+function qs(sel) { return document.querySelector(sel); }
+function qsi(id) { return document.getElementById(id); }
+function setText(sel, text, useId) {
+  const el = useId ? qsi(sel) : qs(sel);
+  if (el) el.textContent = text;
+}
+function setHTML(sel, html) { const el = qs(sel); if (el) el.innerHTML = html; }
+
 function applyTranslations() {
-  // Hero
-  document.querySelector('.portal-hero h1').textContent = t('portalTitle');
-  document.querySelector('.portal-hero p').textContent = t('portalSubtitle');
+  try {
+    // Hero
+    setText('.portal-hero h1', t('portalTitle'));
+    setText('.portal-hero p', t('portalSubtitle'));
 
-  // Step labels
-  document.querySelector('#step-1 .step-label').textContent = t('step1');
-  document.querySelector('#step-2 .step-label').textContent = t('step2');
-  document.querySelector('#step-3 .step-label').textContent = t('step3');
-  document.querySelector('#step-4 .step-label').textContent = t('step4');
+    // Step labels
+    setText('#step-1 .step-label', t('step1'));
+    setText('#step-2 .step-label', t('step2'));
+    setText('#step-3 .step-label', t('step3'));
+    setText('#step-4 .step-label', t('step4'));
 
-  // Step 1
-  document.querySelector('#portal-step-1 .card-title').textContent = t('step1Title');
-  document.querySelector('#portal-step-1 .card-sub').textContent = t('step1Sub');
-  setLabel('s-firstname', t('firstName'));
-  setLabel('s-lastname', t('lastName'));
-  setLabel('s-studentid', t('studentId'));
-  setPlaceholder('s-studentid', t('studentIdHelper'));
-  setLabel('s-email', t('email'));
-  setPlaceholder('s-email', t('emailHelper'));
-  setLabel('s-phone', t('phone'));
-  setPlaceholder('s-phone', t('phoneHelper'));
-  document.getElementById('btn-step1').textContent = t('continueBtn');
+    // Step 1
+    setText('#portal-step-1 .card-title', t('step1Title'));
+    setText('#portal-step-1 .card-sub', t('step1Sub'));
+    setLabel('s-firstname', t('firstName'));
+    setLabel('s-lastname', t('lastName'));
+    setLabel('s-studentid', t('studentId'));
+    setPlaceholder('s-studentid', t('studentIdHelper'));
+    setLabel('s-email', t('email'));
+    setPlaceholder('s-email', t('emailHelper'));
+    setLabel('s-phone', t('phone'));
+    setPlaceholder('s-phone', t('phoneHelper'));
+    const btnStep1 = qsi('btn-step1');
+    if (btnStep1) btnStep1.textContent = t('continueBtn');
 
-  // Step 2
-  document.querySelector('#portal-step-2 .card-title').textContent = t('step2Title');
-  document.querySelector('#portal-step-2 .card-sub').innerHTML = t('step2Sub') + ' <em>Summer 2026</em>';
-  document.querySelector('#portal-step-2 .agreement-scroll').innerHTML = currentLang === 'es' ? AGREEMENT_ES : AGREEMENT_EN;
-  document.querySelector('.check-row label[for="agree-check"]').textContent = t('checkLabel');
-  setLabel('s-signature', t('signLabel'));
-  setPlaceholder('s-signature', t('signPlaceholder'));
-  const step2Btns = document.querySelectorAll('#portal-step-2 button');
-  step2Btns[0].textContent = t('backBtn');
-  step2Btns[1].textContent = t('signBtn');
+    // Step 2
+    setText('#portal-step-2 .card-title', t('step2Title'));
+    setHTML('#portal-step-2 .card-sub', t('step2Sub') + ' <em>Summer 2026</em>');
+    setHTML('#portal-step-2 .agreement-scroll', currentLang === 'es' ? AGREEMENT_ES : AGREEMENT_EN);
+    // Re-attach checkbox label after innerHTML reset
+    const agreeLabel = qs('.check-row label[for="agree-check"]');
+    if (agreeLabel) agreeLabel.textContent = t('checkLabel');
+    setLabel('s-signature', t('signLabel'));
+    setPlaceholder('s-signature', t('signPlaceholder'));
+    const step2Btns = document.querySelectorAll('#portal-step-2 button');
+    if (step2Btns[0]) step2Btns[0].textContent = t('backBtn');
+    if (step2Btns[1]) step2Btns[1].textContent = t('signBtn');
 
-  // Step 3
-  document.querySelector('#portal-step-3 .card-title').textContent = t('selectCampusTitle');
-  document.querySelector('#portal-step-3 .card-sub').textContent = t('selectCampusSub');
-  document.querySelector('#campus-SLO .campus-card-name').textContent = t('sloName');
-  document.querySelector('#campus-SLO .campus-card-sub').textContent = t('sloSub');
-  document.querySelector('#campus-NCC .campus-card-name').textContent = t('nccName');
-  document.querySelector('#campus-NCC .campus-card-sub').textContent = t('nccSub');
-  document.querySelector('label[for="aghs-check"]').textContent = t('aghsCheck');
-  document.getElementById('aghs-note').textContent = t('aghsNote');
-  document.querySelector('#device-select-card .card-title').textContent = t('selectDeviceTitle');
-  document.querySelector('#device-select-card .card-sub').textContent = t('selectDeviceSub');
-  const step3Btns = document.querySelectorAll('#device-select-card button');
-  step3Btns[0].textContent = t('backBtn');
-  step3Btns[1].textContent = t('reviewBtn');
+    // Step 3 - campus card (first card in step 3)
+    const step3Cards = document.querySelectorAll('#portal-step-3 .card-title');
+    if (step3Cards[0]) step3Cards[0].textContent = t('selectCampusTitle');
+    const step3Subs = document.querySelectorAll('#portal-step-3 .card-sub');
+    if (step3Subs[0]) step3Subs[0].textContent = t('selectCampusSub');
+    setText('#campus-SLO .campus-card-name', t('sloName'));
+    setText('#campus-SLO .campus-card-sub', t('sloSub'));
+    setText('#campus-NCC .campus-card-name', t('nccName'));
+    setText('#campus-NCC .campus-card-sub', t('nccSub'));
+    const aghsLabel = qs('label[for="aghs-check"]');
+    if (aghsLabel) aghsLabel.textContent = t('aghsCheck');
+    const aghsNote = qsi('aghs-note');
+    if (aghsNote) aghsNote.textContent = t('aghsNote');
+    // Step 3 - device card (second card in step 3)
+    const step3Cards2 = document.querySelectorAll('#portal-step-3 .card-title');
+    if (step3Cards2[1]) step3Cards2[1].textContent = t('selectDeviceTitle');
+    if (step3Subs[1]) step3Subs[1].textContent = t('selectDeviceSub');
+    const step3Btns = document.querySelectorAll('#device-select-card button');
+    if (step3Btns[0]) step3Btns[0].textContent = t('backBtn');
+    if (step3Btns[1]) step3Btns[1].textContent = t('reviewBtn');
 
-  // Step 4
-  document.querySelector('#portal-step-4 .card-title').textContent = t('step4Title');
-  document.querySelector('#portal-step-4 .card-sub').textContent = t('step4Sub');
-  setLabel('s-notif', t('notifLabel'));
-  const notifSel = document.getElementById('s-notif');
-  if (notifSel) {
-    notifSel.options[0].text = t('notifEmail');
-    notifSel.options[1].text = t('notifMyCuesta');
-    notifSel.options[2].text = t('notifPhone');
+    // Step 4
+    setText('#portal-step-4 .card-title', t('step4Title'));
+    setText('#portal-step-4 .card-sub', t('step4Sub'));
+    setLabel('s-notif', t('notifLabel'));
+    const notifSel = qsi('s-notif');
+    if (notifSel && notifSel.options.length >= 3) {
+      notifSel.options[0].text = t('notifEmail');
+      notifSel.options[1].text = t('notifMyCuesta');
+      notifSel.options[2].text = t('notifPhone');
+    }
+    const step4Btns = document.querySelectorAll('#portal-step-4 button');
+    if (step4Btns[0]) step4Btns[0].textContent = t('backBtn');
+
+    // Re-render device grid if campus already selected
+    if (selectedCampus) renderDeviceGrid();
+
+  } catch(e) {
+    console.warn('Translation error:', e);
   }
-  const step4Btns = document.querySelectorAll('#portal-step-4 button');
-  step4Btns[0].textContent = t('backBtn');
-
-  // Re-render device grid if visible
-  if (selectedCampus) renderDeviceGrid();
 }
 
 function setLabel(inputId, text) {
