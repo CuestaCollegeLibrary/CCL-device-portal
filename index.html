@@ -296,7 +296,7 @@ tr:hover td{background:#f8fbf8}
           <div class="form-group"><label class="form-label" id="t-ln">Last Name *</label><input class="form-input" id="s-ln" placeholder="Last name"></div>
         </div>
         <div class="form-group"><label class="form-label" id="t-sid">Student ID *</label><input class="form-input" id="s-sid" placeholder="900XXXXXX"></div>
-        <div class="form-group"><label class="form-label" id="t-email">Email *</label><input class="form-input" id="s-email" type="email" placeholder="email@example.com"></div>
+        <div class="form-group"><label class="form-label" id="t-email">Email *</label><input class="form-input" id="s-email" type="email" placeholder="email@example.com"><div style="font-size:12px;color:var(--text-light);margin-top:4px" id="t-emailhint">This is the email address your waitlist notifications will be sent to — use the one you check most often.</div></div>
         <div class="form-group"><label class="form-label" id="t-phone">Phone</label><input class="form-input" id="s-phone" placeholder="(XXX) XXX-XXXX"></div>
         <button class="btn btn-primary btn-full" id="btn-s1" onclick="doStep1()"><span id="t-continue">Continue</span></button>
       </div>
@@ -418,11 +418,16 @@ tr:hover td{background:#f8fbf8}
         <div id="confirm-devices" style="margin:14px 0"></div>
         <div class="form-group">
           <label class="form-label" id="t-notiflabel">Notification Preference</label>
-          <select class="form-input" id="s-notif">
-            <option value="email" id="t-notif1">Email — address I entered on this form</option>
-            <option value="mycuesta" id="t-notif2">Email — my.cuesta.edu address</option>
-            <option value="phone" id="t-notif3">Phone call — number entered on this form</option>
-          </select>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <div class="check-row" style="margin-bottom:0">
+              <input type="checkbox" id="notif-email" checked>
+              <label for="notif-email" id="t-notif1">Email — address I entered on this form</label>
+            </div>
+            <div class="check-row" style="margin-bottom:0">
+              <input type="checkbox" id="notif-phone">
+              <label for="notif-phone" id="t-notif2">Phone call — number entered on this form</label>
+            </div>
+          </div>
         </div>
         <div style="display:flex;gap:10px">
           <button class="btn btn-outline" onclick="goStep(3)" id="t-back3">Back</button>
@@ -630,13 +635,14 @@ Cuesta College Library</textarea>
 
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-notify">
-  <div class="modal">
-    <div class="modal-title">Notify Student</div>
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">Notify Students</div>
     <div class="modal-sub" id="notify-sub"></div>
     <div id="notify-body"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('modal-notify')">Cancel</button>
-      <button class="btn btn-primary" id="btn-do-notify" onclick="confirmNotify()">Send Email &amp; Mark Notified</button>
+      <button class="btn btn-outline" id="btn-open-email" onclick="openEmailDraft()">✉️ Open in Email</button>
+      <button class="btn btn-primary" id="btn-do-notify" onclick="confirmNotify()">✓ Mark All as Notified</button>
     </div>
   </div>
 </div>
@@ -711,13 +717,15 @@ const TR = {
     s4title:'Review & Submit', s4sub:'Confirm your request details below.',
     notiflabel:'Notification Preference',
     notif1:'Email — address I entered on this form',
-    notif2:'Email — my.cuesta.edu address',
-    notif3:'Phone call — number entered on this form',
+    notif2:'Phone call — number entered on this form',
+    emailhint:'This is the email address your waitlist notifications will be sent to — use the one you check most often.',
     submitbtn:'Submit Request',
     successtitle:'Request Submitted!',
     anotherbtn:'Submit Another Request',
     herotitle:'Cuesta College Library',
     herosub:'Electronic Device Request & Loan Agreement',
+    navStudent:'Request a Device',
+    navStaff:'Staff',
     open:'Open — First Come First Served',
     waitlist:'Waitlist Active',
     special:'Special Request',
@@ -740,13 +748,15 @@ const TR = {
     s4title:'Revisar y Enviar', s4sub:'Confirme los detalles de su solicitud.',
     notiflabel:'Preferencia de Notificación',
     notif1:'Correo — dirección ingresada en este formulario',
-    notif2:'Correo — dirección my.cuesta.edu',
-    notif3:'Llamada telefónica — número ingresado en este formulario',
+    notif2:'Llamada telefónica — número ingresado en este formulario',
+    emailhint:'Este es el correo electrónico al que se enviarán sus notificaciones de lista de espera — use el que revisa con más frecuencia.',
     submitbtn:'Enviar Solicitud',
     successtitle:'¡Solicitud Enviada!',
     anotherbtn:'Enviar Otra Solicitud',
     herotitle:'Biblioteca del Colegio Cuesta',
     herosub:'Solicitud de Dispositivo Electrónico y Acuerdo de Préstamo',
+    navStudent:'Solicitar un Dispositivo',
+    navStaff:'Personal',
     open:'Disponible — Por Orden de Llegada',
     waitlist:'Lista de Espera Activa',
     special:'Solicitud Especial',
@@ -779,6 +789,8 @@ function setLang(l){
   // Directly update hero elements
   document.getElementById('hero-title').textContent = t('herotitle');
   document.getElementById('hero-sub').textContent = t('herosub');
+  document.getElementById('nav-student').textContent = t('navStudent');
+  document.getElementById('nav-staff').textContent = t('navStaff');
   applyTranslations();
 }
 
@@ -794,7 +806,7 @@ function applyTranslations(){
     't-sloname':'sloname','t-slosub':'slosub','t-nccname':'nccname','t-nccsub':'nccsub',
     't-aghslabel':'aghslabel','t-devicetitle':'devicetitle','t-devicesub':'devicesub',
     't-reviewbtn':'reviewbtn','t-s4title':'s4title','t-s4sub':'s4sub',
-    't-notiflabel':'notiflabel','t-notif1':'notif1','t-notif2':'notif2','t-notif3':'notif3',
+    't-notiflabel':'notiflabel','t-notif1':'notif1','t-notif2':'notif2','t-emailhint':'emailhint',
     't-submitbtn':'submitbtn','t-successtitle':'successtitle','t-anotherbtn':'anotherbtn',
   };
   for(const [id,key] of Object.entries(ids)){
@@ -888,9 +900,16 @@ async function doStep1(){
   const btn = document.getElementById('btn-s1');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
-    const existing = await sbGet('agreements',`?student_id=eq.${sid}&semester=eq.${semesterCode}&select=id`);
-    if(existing.length>0){ studentData.agreementId=existing[0].id; goStep(3); renderDeviceGrid(); }
-    else { goStep(2); }
+    const existing = await sbGet('agreements',`?student_id=eq.${sid}&semester=eq.${semesterCode}&select=*`);
+    if(existing.length>0){
+      // Already signed this semester — show agreement step with note, pre-fill signature
+      studentData.agreementId=existing[0].id;
+      studentData.alreadySigned=true;
+      const sigEl=document.getElementById('s-sig');
+      if(sigEl && existing[0].signature) sigEl.value=existing[0].signature;
+      showAlert('a-step2',`You have already signed the agreement for ${semesterCode}. You may re-confirm below to submit another device request.`,'info');
+    }
+    goStep(2);
   } catch(e){ showAlert('a-step1','Error checking records. Please try again.','danger'); }
   finally{ btn.disabled=false; btn.innerHTML=`<span id="t-continue">${t('continue')}</span>`; }
 }
@@ -903,8 +922,18 @@ async function doStep2(){
   if(!sig){ showAlert('a-step2','Please type your full name as a signature.','danger'); return; }
   const btn=document.getElementById('btn-s2'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
-    const res=await sbPost('agreements',[{student_id:studentData.student_id, semester:semesterCode, signature:sig, signed_at:new Date().toISOString(), language:lang}]);
-    studentData.agreementId=res[0]?.id;
+    let res;
+    if(studentData.alreadySigned && studentData.agreementId){
+      // Already signed — just update signature and language, don't create new record
+      await fetch(`${SUPABASE_URL}/rest/v1/agreements?id=eq.${studentData.agreementId}`,{
+        method:'PATCH',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({signature:sig,language:lang,signed_at:new Date().toISOString()})
+      });
+    } else {
+      res=await sbPost('agreements',[{student_id:studentData.student_id, semester:semesterCode, signature:sig, signed_at:new Date().toISOString(), language:lang}]);
+      studentData.agreementId=res?.[0]?.id;
+    }
     goStep(3); renderDeviceGrid();
   } catch(e){ showAlert('a-step2','Error saving agreement: '+e.message,'danger'); }
   finally{ btn.disabled=false; btn.innerHTML=`<span id="t-signbtn">${t('signbtn')}</span>`; }
@@ -1007,7 +1036,9 @@ function renderConfirmation(){
 
 async function doSubmit(){
   clearAlert('a-step4');
-  const notif=document.getElementById('s-notif').value;
+  const notifEmail=document.getElementById('notif-email').checked;
+  const notifPhone=document.getElementById('notif-phone').checked;
+  const notif=[notifEmail?'email':null, notifPhone?'phone':null].filter(Boolean).join(',') || 'email';
   const btn=document.getElementById('btn-submit'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
     // Upsert student
@@ -1059,6 +1090,8 @@ function resetPortal(){
   studentData={}; selectedCampus=null; selectedDevices=[]; isAGHS=false;
   ['s-fn','s-ln','s-sid','s-email','s-phone','s-sig'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('agree-cb').checked=false;
+  document.getElementById('notif-email').checked=true;
+  document.getElementById('notif-phone').checked=false;
   document.getElementById('device-card').style.display='none';
   document.querySelectorAll('.campus-card').forEach(el=>el.classList.remove('selected'));
   document.getElementById('aghs-cb').checked=false;
@@ -1077,6 +1110,7 @@ async function loadDashboard(){
   document.getElementById('email-reply').value=emailTemplate.reply;
   document.getElementById('email-subject').value=emailTemplate.subject;
   document.getElementById('email-body').value=emailTemplate.body;
+  updateEmailPreview();
   // pre-fill semester fields
   document.getElementById('sem-label').value=semesterLabel;
   document.getElementById('sem-code').value=semesterCode;
@@ -1247,13 +1281,20 @@ async function loadWaitlistPanel(panelId){
       html+=`<div class="table-card">
         <div class="table-header"><div class="table-title">📝 Requests (${requested.length})</div></div>
         <table><thead><tr><th>Student</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
+      html+=`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">
+            <input type="checkbox" id="sel-all-req-${panelId}" onchange="toggleSelectAllReq('${panelId}')" style="width:15px;height:15px;accent-color:var(--green)">
+            <label for="sel-all-req-${panelId}" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelectedReq('${panelId}','${devLabel(deviceId)}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}')">✉️ Notify Selected</button>
+          </div>`;
       requested.forEach(r=>{
         html+=`<tr>
+          <td><input type="checkbox" class="req-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" style="width:15px;height:15px;accent-color:var(--green)"></td>
           <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
           <td>${fmtDate(r.requested_at)}</td>
           <td style="display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}','${r.campus==='shared'?'Library':r.campus+' Library'}','${r.email}')">Notify Ready</button>
+            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}','${r.email}')">Notify Ready</button>
             <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
           </td></tr>`;
       });
@@ -1283,32 +1324,103 @@ async function toggleWaitlist(deviceId, campus, on){
 }
 
 // ── NOTIFY MODAL ──────────────────────────────────────────────────────────────
+// Notify state
+let notifyIds = [];
+let notifyBccEmails = [];
+let notifyDevice = '';
+let notifyCampus = '';
+
 function openNotifyModal(id, name, device, campus, email){
-  activeNotifyId=id;
-  document.getElementById('notify-sub').textContent=`${device} — ${campus}`;
-  const deadline=new Date(Date.now()+7*24*60*60*1000);
-  const body=(emailTemplate.body||'')
-    .replace('{name}',name).replace('{device}',device)
-    .replace('{campus}',campus).replace('{deadline}',fmtDate(deadline));
-  document.getElementById('notify-body').innerHTML=`
-    <div style="font-size:13px;color:var(--text-mid);margin-bottom:12px">This will send an email to <strong>${email}</strong> and mark them as "Notified". They have 7 days to pick up.</div>
-    <div class="notif-preview">${body}</div>`;
+  // Single student — wrap in array
+  openNotifyModalMulti([{id, name, email}], device, campus);
+}
+
+function openNotifyModalMulti(students, device, campus){
+  notifyIds = students.map(s => s.id);
+  notifyBccEmails = students.map(s => s.email).filter(Boolean);
+  notifyDevice = device;
+  notifyCampus = campus;
+
+  const deadline = new Date(Date.now() + 7*24*60*60*1000);
+  const subject = (emailTemplate.subject || 'A {device} IS ON HOLD FOR YOU AT CUESTA COLLEGE LIBRARY IN {campus}')
+    .replace(/{device}/g, device)
+    .replace(/{campus}/g, campus);
+  // For multi-notify, use generic greeting since multiple students
+  const bodyTemplate = emailTemplate.body || '';
+  const previewBody = bodyTemplate
+    .replace('{name}', students.length === 1 ? students[0].name : 'Student')
+    .replace('{device}', device)
+    .replace('{campus}', campus)
+    .replace('{deadline}', fmtDate(deadline));
+
+  document.getElementById('notify-sub').textContent = `${device} — ${campus}`;
+
+  let studentList = students.map(s =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream-dark)">
+      <span style="font-size:13px;font-weight:500">${s.name}</span>
+      <span style="font-size:12px;color:var(--text-light)">${s.email||'no email'}</span>
+    </div>`).join('');
+
+  document.getElementById('notify-body').innerHTML = `
+    <div class="alert alert-info" style="margin-bottom:14px">
+      Click <strong>Open in Email</strong> to open a pre-filled draft. Student emails will be in BCC so they cannot see each other. Send from your inbox, then click <strong>Mark All as Notified</strong>.
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:6px">NOTIFYING ${students.length} STUDENT${students.length>1?'S':''}</div>
+      ${studentList}
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:2px">SUBJECT</div>
+      <div style="font-size:13px">${subject}</div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:4px">EMAIL BODY PREVIEW</div>
+      <div class="notif-preview">${previewBody}</div>
+    </div>`;
+
   openModal('modal-notify');
 }
 
+function openEmailDraft(){
+  const deadline = new Date(Date.now() + 7*24*60*60*1000);
+  const subject = encodeURIComponent(
+    (emailTemplate.subject || 'A {device} IS ON HOLD FOR YOU AT CUESTA COLLEGE LIBRARY IN {campus}')
+      .replace(/{device}/g, notifyDevice)
+      .replace(/{campus}/g, notifyCampus)
+  );
+  const otherCampusDraft = notifyCampus.includes('SLO') ? 'NCC' : notifyCampus.includes('NCC') ? 'SLO' : 'other';
+  const body = encodeURIComponent(
+    (emailTemplate.body || '')
+      .replace(/{name}/g, 'Student')
+      .replace(/{device}/g, notifyDevice)
+      .replace(/{campus}/g, notifyCampus)
+      .replace(/{othercampus}/g, otherCampusDraft)
+      .replace(/{deadline}/g, fmtDate(new Date(Date.now() + 7*24*60*60*1000)))
+  );
+  const bcc = encodeURIComponent(notifyBccEmails.join(','));
+  // mailto with BCC — works in Outlook, Gmail, Apple Mail
+  window.location.href = `mailto:?bcc=${bcc}&subject=${subject}&body=${body}`;
+}
+
 async function confirmNotify(){
-  const btn=document.getElementById('btn-do-notify'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Sending...';
+  const btn = document.getElementById('btn-do-notify');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...';
   try {
-    const expires=new Date(Date.now()+7*24*60*60*1000).toISOString();
-    await sbPatch('device_requests',`?id=eq.${activeNotifyId}`,{status:'notified',notified_at:new Date().toISOString(),expires_at:expires});
+    const expires = new Date(Date.now() + 7*24*60*60*1000).toISOString();
+    for(const id of notifyIds){
+      await sbPatch('device_requests', `?id=eq.${id}`, {
+        status:'notified',
+        notified_at: new Date().toISOString(),
+        expires_at: expires
+      });
+    }
     closeModal('modal-notify');
-    // Reload active waitlist panel
-    const active=document.querySelector('.tab-panel.active');
+    const active = document.querySelector('.tab-panel.active');
     if(active && active.id.startsWith('panel-wl-')) loadWaitlistPanel(active.id.replace('panel-',''));
     loadWaitlistCounts();
     loadOverview();
-  } catch(e){ alert('Error: '+e.message); }
-  finally{ btn.disabled=false; btn.innerHTML='Send Email &amp; Mark Notified'; }
+  } catch(e){ alert('Error: ' + e.message); }
+  finally{ btn.disabled = false; btn.innerHTML = '✓ Mark All as Notified'; }
 }
 
 // ── PICKUP MODAL ──────────────────────────────────────────────────────────────
@@ -1418,6 +1530,28 @@ async function openStudentModal(sid){
       ${statusBadge(r.status)}</div>`; });
     document.getElementById('modal-stu-body').innerHTML=html;
   } catch(e){ document.getElementById('modal-stu-body').innerHTML=`<div class="alert alert-danger">Error: ${e.message}</div>`; }
+}
+
+// ── SELECT / NOTIFY HELPERS ──────────────────────────────────────────────────
+function toggleSelectAll(panelId){
+  const allCb = document.getElementById('sel-all-'+panelId);
+  document.querySelectorAll('.wl-cb-'+panelId).forEach(cb => cb.checked = allCb.checked);
+}
+function toggleSelectAllReq(panelId){
+  const allCb = document.getElementById('sel-all-req-'+panelId);
+  document.querySelectorAll('.req-cb-'+panelId).forEach(cb => cb.checked = allCb.checked);
+}
+function notifySelected(panelId, device, campus){
+  const checked = Array.from(document.querySelectorAll('.wl-cb-'+panelId+':checked'));
+  if(!checked.length){ alert('Please select at least one student to notify.'); return; }
+  const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email}));
+  openNotifyModalMulti(students, device, campus);
+}
+function notifySelectedReq(panelId, device, campus){
+  const checked = Array.from(document.querySelectorAll('.req-cb-'+panelId+':checked'));
+  if(!checked.length){ alert('Please select at least one student to notify.'); return; }
+  const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email}));
+  openNotifyModalMulti(students, device, campus);
 }
 
 // ── AUTO-EXPIRE ────────────────────────────────────────────────────────────────
@@ -1596,11 +1730,16 @@ async function exportArchive(archiveId){
 
 // ── EMAIL TEMPLATE ────────────────────────────────────────────────────────────
 function updateEmailPreview(){
+  const subj=(document.getElementById('email-subject')?.value||emailTemplate.subject)
+    .replace(/{device}/g,'WiFi Hotspot').replace(/{campus}/g,'SLO');
   const body=(document.getElementById('email-body')?.value||emailTemplate.body)
-    .replace('{name}','Jane Smith').replace('{device}','WiFi Hotspot')
-    .replace('{campus}','SLO').replace('{deadline}',fmtDate(new Date(Date.now()+7*24*60*60*1000)));
+    .replace(/{name}/g,'Jane Smith')
+    .replace(/{device}/g,'WiFi Hotspot')
+    .replace(/{campus}/g,'SLO')
+    .replace(/{othercampus}/g,'NCC')
+    .replace(/{deadline}/g,fmtDate(new Date(Date.now()+7*24*60*60*1000)));
   const el=document.getElementById('email-preview');
-  if(el) el.textContent=body;
+  if(el) el.textContent='Subject: ' + subj + '\n\n' + body;
 }
 
 function saveEmailTemplate(){
