@@ -624,6 +624,41 @@ Cuesta College Library</textarea>
             <div class="notif-preview" id="email-preview"></div>
             <button class="btn btn-primary" onclick="saveEmailTemplate()">Save Template</button>
           </div>
+          <div class="card" style="margin-top:16px">
+            <div class="card-title">Spanish Email Template (Plantilla en Español)</div>
+            <div class="card-sub">Sent to students who submitted the form in Spanish.</div>
+            <div class="form-group"><label class="form-label">Subject / Asunto</label><input class="form-input" id="email-subject-es"></div>
+            <div class="form-group">
+              <label class="form-label">Body / Cuerpo — use {device}, {campus}, {othercampus}, {deadline}</label>
+              <textarea class="form-input" id="email-body-es" rows="10" style="resize:vertical" oninput="updateEmailPreviewES()"></textarea>
+            </div>
+            <div class="card-title" style="font-size:13px;margin-bottom:8px">Vista previa</div>
+            <div class="notif-preview" id="email-preview-es"></div>
+            <button class="btn btn-primary" onclick="saveEmailTemplateES()">Guardar plantilla en español</button>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <div class="card-title">Spanish Email Template (Plantilla en Español)</div>
+            <div class="card-sub">Sent to students who submitted the form in Spanish.</div>
+            <div class="form-group"><label class="form-label">Subject / Asunto</label><input class="form-input" id="email-subject-es" value="UN {device} ESTÁ RESERVADO PARA USTED EN LA BIBLIOTECA DEL COLEGIO CUESTA EN {campus}"></div>
+            <div class="form-group">
+              <label class="form-label">Body / Cuerpo — use {device}, {campus}, {othercampus}, {deadline}</label>
+              <textarea class="form-input" id="email-body-es" rows="10" style="resize:vertical" oninput="updateEmailPreviewES()">Hi there,
+
+Un/Una {device} está listo/a para que lo/la recoja en la Biblioteca del Campus {campus} del Colegio Cuesta. Si desea recogerlo/la en la Biblioteca del Campus {othercampus}, por favor háganos saber.
+
+Aquí están los horarios de la biblioteca - https://www.cuesta.edu/student-support/library/contact-library-2.html
+
+El/La {device} estará reservado/a a su nombre en el mostrador de circulación por una semana. Si no recoge el/la {device} antes del {deadline}, será puesto/a a disposición de otro/a estudiante que lo necesite.
+
+¡Que tenga un excelente semestre y no dude en contactarnos si necesita algo!
+
+Gracias,
+Biblioteca del Colegio Cuesta</textarea>
+            </div>
+            <div class="card-title" style="font-size:13px;margin-bottom:8px">Vista previa</div>
+            <div class="notif-preview" id="email-preview-es"></div>
+            <button class="btn btn-primary" onclick="saveEmailTemplateES()">Save Spanish Template</button>
+          </div>
         </div>
 
         <!-- Archive panels injected dynamically -->
@@ -1066,7 +1101,7 @@ async function doSubmit(){
         student_id:studentData.student_id, first_name:studentData.first_name,
         last_name:studentData.last_name, email:studentData.email, phone:studentData.phone,
         device_type:did, campus, status, waitlist_position:pos,
-        notification_pref:notif, semester:semesterCode,
+        notification_pref:notif, semester:semesterCode, language:lang,
         requested_at:new Date().toISOString()
       }]);
       results.push({dt,status,pos});
@@ -1111,6 +1146,11 @@ async function loadDashboard(){
   document.getElementById('email-subject').value=emailTemplate.subject;
   document.getElementById('email-body').value=emailTemplate.body;
   updateEmailPreview();
+  const esSubjEl=document.getElementById('email-subject-es');
+  const esBodyEl=document.getElementById('email-body-es');
+  if(esSubjEl) esSubjEl.value=emailTemplateES.subject;
+  if(esBodyEl) esBodyEl.value=emailTemplateES.body;
+  updateEmailPreviewES();
   // pre-fill semester fields
   document.getElementById('sem-label').value=semesterLabel;
   document.getElementById('sem-code').value=semesterCode;
@@ -1166,7 +1206,7 @@ async function loadOverview(){
     recent.forEach(r=>{
       html+=`<tr><td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
         <td>${devLabel(r.device_type)}</td><td>${r.campus==='shared'?'Any':r.campus}</td>
-        <td>${statusBadge(r.status)}</td><td>${fmtDate(r.requested_at)}</td>
+        <td>${statusBadge(r.status)}</td><td>${fmtDT(r.requested_at)}</td>
         <td><button class="btn btn-outline btn-sm" onclick="openStudentModal('${r.student_id}')">View</button></td></tr>`;
     });
     html+='</tbody></table>';
@@ -1240,8 +1280,8 @@ async function loadWaitlistPanel(panelId){
         html+=`<tr>
           <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
-          <td>${fmtDate(r.notified_at)}</td>
-          <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDate(r.expires_at)}${exp?' ⚠️':''}</td>
+          <td>${fmtDT(r.notified_at)}</td>
+          <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDT(r.expires_at)}${exp?' ⚠️':''}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-gold btn-sm" onclick="openPickupModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}')">Picked Up</button>
             <button class="btn btn-danger btn-sm" onclick="expireRequest('${r.id}','${panelId}')">Expire</button>
@@ -1265,7 +1305,7 @@ async function loadWaitlistPanel(panelId){
             <td><span class="pos-num">${r.waitlist_position}</span></td>
             <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
             <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||''}</div></td>
-            <td>${fmtDate(r.requested_at)}</td>
+            <td>${fmtDT(r.requested_at)}</td>
             <td style="display:flex;gap:6px">
               <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}','${r.campus==='shared'?'Library':r.campus+' Library'}','${r.email}')">Notify</button>
               <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
@@ -1289,12 +1329,12 @@ async function loadWaitlistPanel(panelId){
           </div>`;
       requested.forEach(r=>{
         html+=`<tr>
-          <td><input type="checkbox" class="req-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" style="width:15px;height:15px;accent-color:var(--green)"></td>
+          <td><input type="checkbox" class="req-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
           <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
-          <td>${fmtDate(r.requested_at)}</td>
+          <td>${fmtDT(r.requested_at)}</td>
           <td style="display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}','${r.email}')">Notify Ready</button>
+            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}','${r.email}','${r.language||"en"}')">Notify Ready</button>
             <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
           </td></tr>`;
       });
@@ -1493,7 +1533,7 @@ async function loadAGHS(){
       <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
       <td>${devLabel(r.device_type)}</td>
       <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||''}</div></td>
-      <td>${fmtDate(r.requested_at)}</td>
+      <td>${fmtDT(r.requested_at)}</td>
       <td style="display:flex;gap:6px">
         <button class="btn btn-gold btn-sm" onclick="fulfillAGHS('${r.id}')">Fulfilled</button>
         <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','aghs')">Cancel</button>
@@ -1526,7 +1566,7 @@ async function openStudentModal(sid){
     let html=`<div style="font-size:12px;color:var(--success);margin-bottom:12px">${agr.length?'✓ Agreement signed this semester':'⚠ No agreement on file this semester'}</div>`;
     html+='<div class="form-label" style="margin-bottom:8px">All Requests This Semester</div>';
     reqs.forEach(r=>{ html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cream-dark)">
-      <div><div style="font-size:13px;font-weight:500">${devLabel(r.device_type)}</div><div style="font-size:12px;color:var(--text-light)">${r.campus==='shared'?'Any Campus':r.campus} · ${fmtDate(r.requested_at)}</div></div>
+      <div><div style="font-size:13px;font-weight:500">${devLabel(r.device_type)}</div><div style="font-size:12px;color:var(--text-light)">${r.campus==='shared'?'Any Campus':r.campus} · ${fmtDT(r.requested_at)}</div></div>
       ${statusBadge(r.status)}</div>`; });
     document.getElementById('modal-stu-body').innerHTML=html;
   } catch(e){ document.getElementById('modal-stu-body').innerHTML=`<div class="alert alert-danger">Error: ${e.message}</div>`; }
@@ -1544,13 +1584,13 @@ function toggleSelectAllReq(panelId){
 function notifySelected(panelId, device, campus){
   const checked = Array.from(document.querySelectorAll('.wl-cb-'+panelId+':checked'));
   if(!checked.length){ alert('Please select at least one student to notify.'); return; }
-  const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email}));
+  const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email, language:cb.dataset.language||'en'}));
   openNotifyModalMulti(students, device, campus);
 }
 function notifySelectedReq(panelId, device, campus){
   const checked = Array.from(document.querySelectorAll('.req-cb-'+panelId+':checked'));
   if(!checked.length){ alert('Please select at least one student to notify.'); return; }
-  const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email}));
+  const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email, language:cb.dataset.language||'en'}));
   openNotifyModalMulti(students, device, campus);
 }
 
@@ -1711,7 +1751,7 @@ async function loadArchivePanel(panelId){
     html+=`<div class="table-card">
       <div class="table-header"><div class="table-title">All Requests (${reqs.length})</div></div>
       <table><thead><tr><th>Student ID</th><th>Device</th><th>Campus</th><th>Status</th><th>Requested</th></tr></thead><tbody>`;
-    reqs.forEach(r=>{ html+=`<tr><td class="td-id">${r.student_id}</td><td>${devLabel(r.device_type)}</td><td>${r.campus==='shared'?'Any':r.campus}</td><td>${statusBadge(r.status)}</td><td>${fmtDate(r.requested_at)}</td></tr>`; });
+    reqs.forEach(r=>{ html+=`<tr><td class="td-id">${r.student_id}</td><td>${devLabel(r.device_type)}</td><td>${r.campus==='shared'?'Any':r.campus}</td><td>${statusBadge(r.status)}</td><td>${fmtDT(r.requested_at)}</td></tr>`; });
     html+='</tbody></table></div>';
     container.innerHTML+=html;
   } catch(e){ container.innerHTML+=`<div class="alert alert-danger">Error: ${e.message}</div>`; }
@@ -1747,7 +1787,28 @@ function saveEmailTemplate(){
   emailTemplate.subject=document.getElementById('email-subject').value;
   emailTemplate.body=document.getElementById('email-body').value;
   localStorage.setItem('ccl_email_template',JSON.stringify(emailTemplate));
-  alert('Email template saved.');
+  alert('English email template saved.');
+}
+
+function saveEmailTemplateES(){
+  emailTemplateES.subject=document.getElementById('email-subject-es').value;
+  emailTemplateES.body=document.getElementById('email-body-es').value;
+  emailTemplateES.reply=emailTemplate.reply;
+  localStorage.setItem('ccl_email_template_es',JSON.stringify(emailTemplateES));
+  alert('Spanish email template saved.');
+}
+
+function updateEmailPreviewES(){
+  const subj=(document.getElementById('email-subject-es')?.value||emailTemplateES.subject)
+    .replace(/{device}/g,'Hotspot WiFi').replace(/{campus}/g,'SLO');
+  const body=(document.getElementById('email-body-es')?.value||emailTemplateES.body)
+    .replace(/{name}/g,'Estudiante')
+    .replace(/{device}/g,'Hotspot WiFi')
+    .replace(/{campus}/g,'SLO')
+    .replace(/{othercampus}/g,'NCC')
+    .replace(/{deadline}/g,fmtDate(new Date(Date.now()+7*24*60*60*1000)));
+  const el=document.getElementById('email-preview-es');
+  if(el) el.textContent='Asunto: ' + subj + '\n\n' + body;
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -1755,6 +1816,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   // Load saved email template
   const saved=localStorage.getItem('ccl_email_template');
   if(saved){ try{ emailTemplate=JSON.parse(saved); }catch(e){} }
+  const savedES=localStorage.getItem('ccl_email_template_es');
+  if(savedES){ try{ emailTemplateES=JSON.parse(savedES); }catch(e){} }
   // Load semester config for student portal
   try {
     const cfg=await sbGet('semester_config','?select=*&limit=1&order=created_at.desc');
