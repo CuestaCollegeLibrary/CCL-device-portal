@@ -776,6 +776,9 @@ function setLang(l){
   document.getElementById('lang-es').classList.toggle('active', l==='es');
   document.getElementById('agreement-text-en').style.display = l==='en' ? 'block' : 'none';
   document.getElementById('agreement-text-es').style.display = l==='es' ? 'block' : 'none';
+  // Directly update hero elements
+  document.getElementById('hero-title').textContent = t('herotitle');
+  document.getElementById('hero-sub').textContent = t('herosub');
   applyTranslations();
 }
 
