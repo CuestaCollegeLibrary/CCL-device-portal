@@ -729,8 +729,14 @@ let activePickupId = null;
 let allAgreements = [];
 let emailTemplate = {
   reply: 'circulation@cuesta.edu',
-  subject: 'Your device is ready — Cuesta College Library',
-  body: `Hi {name},\n\nYour requested {device} is now available for pickup at the {campus} Library.\n\nPlease pick up your device by {deadline}. If you do not pick it up within one week, your spot will be released to the next person on the waitlist and you will need to rejoin.\n\nBring your student ID to the library circulation desk during open hours.\n\nQuestions? Email circulation@cuesta.edu\n\nThank you,\nCuesta College Library`
+  subject: 'A {device} IS ON HOLD FOR YOU AT CUESTA COLLEGE LIBRARY IN {campus}',
+  body: 'Hi there,\n\nA {device} is ready for you to pick up at the Cuesta College {campus} Campus Library. If you would like to pick it up from the {othercampus} Campus Library, please let us know.\n\nHere are the library hours - https://www.cuesta.edu/student-support/library/contact-library-2.html\n\nThe {device} will be held under your name at the circulation desk for one week. If you do not pick up the {device} by/on {deadline}, it will be released for check out by another student in need.\n\nHave a great semester and don\'t hesitate to contact us if you need anything!\n\nThanks,\nCuesta College Library'
+};
+
+let emailTemplateES = {
+  reply: 'circulation@cuesta.edu',
+  subject: 'UN {device} ESTÁ RESERVADO PARA USTED EN LA BIBLIOTECA DEL COLEGIO CUESTA EN {campus}',
+  body: 'Hola,\n\nUn/Una {device} está listo/a para que lo/la recoja en la Biblioteca del Campus {campus} del Colegio Cuesta. Si desea recogerlo/la en la Biblioteca del Campus {othercampus}, por favor háganos saber.\n\nAquí están los horarios de la biblioteca - https://www.cuesta.edu/student-support/library/contact-library-2.html\n\nEl/La {device} estará reservado/a a su nombre en el mostrador de circulación por una semana. Si no recoge el/la {device} antes del {deadline}, será puesto/a a disposición de otro/a estudiante que lo necesite.\n\n¡Que tenga un excelente semestre y no dude en contactarnos si necesita algo!\n\nGracias,\nBiblioteca del Colegio Cuesta'
 };
 
 // ── TRANSLATIONS ──────────────────────────────────────────────────────────────
@@ -1376,70 +1382,88 @@ function openNotifyModal(id, name, device, campus, email){
 }
 
 function openNotifyModalMulti(students, device, campus){
+  // Detect language mix
+  const esStudents = students.filter(s => s.language === 'es');
+  const enStudents = students.filter(s => s.language !== 'es');
+  if(esStudents.length > 0 && enStudents.length > 0){
+    alert('You have selected students who submitted in different languages (' + enStudents.length + ' English, ' + esStudents.length + ' Spanish). Please notify them separately so each group receives the correct language email. Deselect one language group, notify, then repeat.');
+    return;
+  }
+
+  const isSpanish = esStudents.length > 0;
+  const tmpl = isSpanish ? emailTemplateES : emailTemplate;
+
   notifyIds = students.map(s => s.id);
   notifyBccEmails = students.map(s => s.email).filter(Boolean);
   notifyDevice = device;
   notifyCampus = campus;
 
+  const otherCampus = campus.includes('SLO') ? 'NCC' : campus.includes('NCC') ? 'SLO' : 'otro';
   const deadline = new Date(Date.now() + 7*24*60*60*1000);
-  const subject = (emailTemplate.subject || 'A {device} IS ON HOLD FOR YOU AT CUESTA COLLEGE LIBRARY IN {campus}')
+  const subject = (tmpl.subject || '')
+    .replace(/{device}/g, device).replace(/{campus}/g, campus);
+  const previewBody = (tmpl.body || '')
+    .replace(/{name}/g, 'Student')
     .replace(/{device}/g, device)
-    .replace(/{campus}/g, campus);
-  // For multi-notify, use generic greeting since multiple students
-  const bodyTemplate = emailTemplate.body || '';
-  const previewBody = bodyTemplate
-    .replace('{name}', students.length === 1 ? students[0].name : 'Student')
-    .replace('{device}', device)
-    .replace('{campus}', campus)
-    .replace('{deadline}', fmtDate(deadline));
+    .replace(/{campus}/g, campus)
+    .replace(/{othercampus}/g, otherCampus)
+    .replace(/{deadline}/g, fmtDate(deadline));
 
-  document.getElementById('notify-sub').textContent = `${device} — ${campus}`;
+  const isSingle = students.length === 1;
+  const mailInfo = isSingle
+    ? '<span style="color:var(--text-light)">To:</span> ' + students[0].email + ' &nbsp;|&nbsp; <span style="color:var(--text-light)">CC:</span> circulation@cuesta.edu'
+    : '<span style="color:var(--text-light)">To:</span> circulation@cuesta.edu &nbsp;|&nbsp; <span style="color:var(--text-light)">BCC:</span> ' + students.map(s=>s.email).join(', ');
 
-  let studentList = students.map(s =>
-    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream-dark)">
-      <span style="font-size:13px;font-weight:500">${s.name}</span>
-      <span style="font-size:12px;color:var(--text-light)">${s.email||'no email'}</span>
-    </div>`).join('');
+  const studentList = students.map(s =>
+    '<div style="padding:5px 0;border-bottom:1px solid var(--cream-dark);display:flex;justify-content:space-between;align-items:center">' +
+    '<span style="font-size:13px;font-weight:500">' + s.name + '</span>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    (s.language==='es' ? '<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 6px;border-radius:10px;font-weight:600">ES</span>' : '') +
+    '<span style="font-size:12px;color:var(--text-light)">' + (s.email||'no email') + '</span>' +
+    '</div></div>'
+  ).join('');
 
-  document.getElementById('notify-body').innerHTML = `
-    <div class="alert alert-info" style="margin-bottom:14px">
-      Click <strong>Open in Email</strong> to open a pre-filled draft. Student emails will be in BCC so they cannot see each other. Send from your inbox, then click <strong>Mark All as Notified</strong>.
-    </div>
-    <div style="margin-bottom:12px">
-      <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:6px">NOTIFYING ${students.length} STUDENT${students.length>1?'S':''}</div>
-      ${studentList}
-    </div>
-    <div style="margin-bottom:8px">
-      <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:2px">SUBJECT</div>
-      <div style="font-size:13px">${subject}</div>
-    </div>
-    <div>
-      <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:4px">EMAIL BODY PREVIEW</div>
-      <div class="notif-preview">${previewBody}</div>
-    </div>`;
+  document.getElementById('notify-sub').textContent = device + ' — ' + campus + ' — ' + students.length + ' student' + (students.length>1?'s':'') + (isSpanish?' (Spanish)':'');
+
+  document.getElementById('notify-body').innerHTML =
+    '<div class="alert alert-info" style="margin-bottom:14px">Click <strong>Open in Email</strong> to open a pre-filled draft. After sending, click <strong>Mark All as Notified</strong>.</div>' +
+    (isSpanish ? '<div class="alert alert-warning" style="margin-bottom:14px">These students submitted in <strong>Spanish</strong> — the Spanish email template will be used.</div>' : '') +
+    '<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Notifying ' + students.length + ' Student' + (students.length>1?'s':'') + '</div>' + studentList + '</div>' +
+    '<div style="background:var(--cream);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px">' +
+    '<div style="font-size:12px">' + mailInfo + '</div>' +
+    '<div style="font-size:12px;margin-top:4px"><span style="color:var(--text-light)">Subject:</span> ' + subject + '</div></div>' +
+    '<div><div style="font-size:11px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Email Preview</div>' +
+    '<div class="notif-preview">' + previewBody + '</div></div>';
 
   openModal('modal-notify');
 }
 
 function openEmailDraft(){
-  const deadline = new Date(Date.now() + 7*24*60*60*1000);
+  const isSpanish = document.getElementById('notify-sub').textContent.includes('Spanish');
+  const tmpl = isSpanish ? emailTemplateES : emailTemplate;
+  const otherCampus = notifyCampus.includes('SLO') ? 'NCC' : notifyCampus.includes('NCC') ? 'SLO' : 'otro';
   const subject = encodeURIComponent(
-    (emailTemplate.subject || 'A {device} IS ON HOLD FOR YOU AT CUESTA COLLEGE LIBRARY IN {campus}')
-      .replace(/{device}/g, notifyDevice)
-      .replace(/{campus}/g, notifyCampus)
+    (tmpl.subject || '').replace(/{device}/g, notifyDevice).replace(/{campus}/g, notifyCampus)
   );
-  const otherCampusDraft = notifyCampus.includes('SLO') ? 'NCC' : notifyCampus.includes('NCC') ? 'SLO' : 'other';
   const body = encodeURIComponent(
-    (emailTemplate.body || '')
+    (tmpl.body || '')
       .replace(/{name}/g, 'Student')
       .replace(/{device}/g, notifyDevice)
       .replace(/{campus}/g, notifyCampus)
-      .replace(/{othercampus}/g, otherCampusDraft)
+      .replace(/{othercampus}/g, otherCampus)
       .replace(/{deadline}/g, fmtDate(new Date(Date.now() + 7*24*60*60*1000)))
   );
-  const bcc = encodeURIComponent(notifyBccEmails.join(','));
-  // mailto with BCC — works in Outlook, Gmail, Apple Mail
-  window.location.href = `mailto:?bcc=${bcc}&subject=${subject}&body=${body}`;
+  const cc = encodeURIComponent('circulation@cuesta.edu');
+  const isSingle = notifyIds.length === 1;
+  let mailto;
+  if(isSingle){
+    const to = encodeURIComponent(notifyBccEmails[0] || '');
+    mailto = 'mailto:' + to + '?cc=' + cc + '&subject=' + subject + '&body=' + body;
+  } else {
+    const bcc = encodeURIComponent(notifyBccEmails.join(','));
+    mailto = 'mailto:circulation@cuesta.edu?bcc=' + bcc + '&subject=' + subject + '&body=' + body;
+  }
+  window.location.href = mailto;
 }
 
 async function confirmNotify(){
