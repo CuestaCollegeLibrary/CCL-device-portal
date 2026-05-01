@@ -1305,15 +1305,22 @@ async function loadWaitlistPanel(panelId){
       if(!waitlisted.length){
         html+=`<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">Waitlist is empty</div></div>`;
       } else {
-        html+=`<table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
+        html+=`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">
+            <input type="checkbox" id="sel-all-${panelId}" onchange="toggleSelectAll('${panelId}')" style="width:15px;height:15px;accent-color:var(--green)">
+            <label for="sel-all-${panelId}" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelected('${panelId}','${devLabel(deviceId).toUpperCase()}','${dbCampus==="shared"?"Shared":dbCampus+" Library"}')">✉️ Notify Selected</button>
+          </div>
+          <table><thead><tr><th style="width:36px"></th><th>#</th><th>Student</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
         waitlisted.forEach(r=>{
           html+=`<tr>
+            <td><input type="checkbox" class="wl-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
             <td><span class="pos-num">${r.waitlist_position}</span></td>
             <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
             <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||''}</div></td>
             <td>${fmtDT(r.requested_at)}</td>
             <td style="display:flex;gap:6px">
-              <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}','${r.campus==='shared'?'Library':r.campus+' Library'}','${r.email}')">Notify</button>
+              <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${dbCampus==="shared"?"Shared":dbCampus+" Library"}','${r.email}','${r.language||"en"}')">Notify</button>
               <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
             </td></tr>`;
         });
@@ -1340,7 +1347,7 @@ async function loadWaitlistPanel(panelId){
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
           <td>${fmtDT(r.requested_at)}</td>
           <td style="display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}','${r.email}','${r.language||"en"}')">Notify Ready</button>
+            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}','${r.email}','${r.language||"en"}')">Notify Ready</button>
             <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
           </td></tr>`;
       });
