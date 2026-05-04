@@ -1257,10 +1257,11 @@ async function loadWaitlistPanel(panelId){
     </div>`;
 
   try {
-    const [waitlisted,notified,requested]=await Promise.all([
+    const [waitlisted,notified,requested,past]=await Promise.all([
       sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.waitlisted&order=waitlist_position.asc&select=*`),
       sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.notified&order=notified_at.asc&select=*`),
       sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.requested&order=requested_at.asc&select=*`),
+      sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=in.(picked-up,expired)&order=waitlist_position.asc,requested_at.asc&select=*`),
     ]);
 
     // Waitlist toggle
@@ -1294,7 +1295,7 @@ async function loadWaitlistPanel(panelId){
           <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDT(r.expires_at)}${exp?' ⚠️':''}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-gold btn-sm" onclick="openPickupModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}')">Picked Up</button>
-            <button class="btn btn-danger btn-sm" onclick="expireRequest('${r.id}','${panelId}')">Expire</button>
+
           </td></tr>`;
       });
       html+='</tbody></table></div>';
@@ -1360,6 +1361,35 @@ async function loadWaitlistPanel(panelId){
 
     if(!isOn && !requested.length && !notified.length){
       html+=`<div class="table-card"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No requests yet</div></div></div>`;
+    }
+
+    // Past waitlist section
+    if(past.length){
+      html+=`<div class="table-card" style="margin-top:8px">
+        <div class="table-header">
+          <div class="table-title" style="color:var(--text-light)">📁 Past Entries (${past.length})</div>
+        </div>
+        <table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Requested</th><th>Notified</th><th>Status</th></tr></thead><tbody>`;
+      past.forEach(r=>{
+        const isPickedUp = r.status==='picked-up';
+        html+=`<tr style="opacity:0.75">
+          <td>${r.waitlist_position ? `<span class="pos-num">${r.waitlist_position}</span>` : '—'}</td>
+          <td>
+            <div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div>
+            <div class="td-id">${r.student_id}</div>
+          </td>
+          <td><div style="font-size:12px">${r.email||'—'}</div></td>
+          <td style="font-size:12px">${fmtDT(r.requested_at)}</td>
+          <td style="font-size:12px">${r.notified_at ? fmtDT(r.notified_at) : '—'}</td>
+          <td>
+            ${isPickedUp
+              ? `<span class="status status-picked-up">✓ Picked Up ${r.picked_up_at ? fmtDate(r.picked_up_at) : ''}</span>`
+              : `<span class="status status-expired">✗ Expired ${r.expires_at ? fmtDate(r.expires_at) : ''}</span>`
+            }
+          </td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
     }
 
     container.innerHTML+=html;
