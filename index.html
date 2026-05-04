@@ -1387,9 +1387,9 @@ let notifyBccEmails = [];
 let notifyDevice = '';
 let notifyCampus = '';
 
-function openNotifyModal(id, name, device, campus, email){
-  // Single student — wrap in array
-  openNotifyModalMulti([{id, name, email}], device, campus);
+function openNotifyModal(id, name, device, campus, email, language){
+  // Single student — wrap in array with language
+  openNotifyModalMulti([{id:id, name:name, email:email, language:language||'en'}], device, campus);
 }
 
 function openNotifyModalMulti(students, device, campus){
