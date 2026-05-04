@@ -736,7 +736,7 @@ let emailTemplate = {
 let emailTemplateES = {
   reply: 'circulation@cuesta.edu',
   subject: 'UN {device} ESTÁ RESERVADO PARA USTED EN LA BIBLIOTECA DEL COLEGIO CUESTA EN {campus}',
-  body: 'Hola,\n\nUn/Una {device} está listo/a para que lo/la recoja en la Biblioteca del Campus {campus} del Colegio Cuesta. Si desea recogerlo/la en la Biblioteca del Campus {othercampus}, por favor háganos saber.\n\nAquí están los horarios de la biblioteca - https://www.cuesta.edu/student-support/library/contact-library-2.html\n\nEl/La {device} estará reservado/a a su nombre en el mostrador de circulación por una semana. Si no recoge el/la {device} antes del {deadline}, será puesto/a a disposición de otro/a estudiante que lo necesite.\n\n¡Que tenga un excelente semestre y no dude en contactarnos si necesita algo!\n\nGracias,\nBiblioteca del Colegio Cuesta'
+  body: 'Hola,\n\nUn/Una {device} está listo/a para recoger en la Biblioteca del Campus {campus} del Colegio Cuesta. Si desea recogerlo/la en la Biblioteca del Campus {othercampus}, por favor háganos saber.\n\nAquí están los horarios de la biblioteca - https://www.cuesta.edu/student-support/library/contact-library-2.html\n\nEl/La {device} estará reservado/a a su nombre en el mostrador de circulación por una semana. Si no recoge el/la {device} antes del {deadline}, será entregado/a para préstamo a otro/a estudiante que lo necesite.\n\n¡Que tenga un excelente semestre y no dude en contactarnos si necesita algo!\n\nGracias,\nBiblioteca del Colegio Cuesta'
 };
 
 // ── TRANSLATIONS ──────────────────────────────────────────────────────────────
@@ -918,6 +918,10 @@ function clearAlert(cid){ const el=document.getElementById(cid); if(el) el.inner
 function fmtDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function fmtDT(d){ if(!d) return '—'; return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function devLabel(id){ const d=DEVICES.find(x=>x.id===id); return d?(lang==='es'?d.labelEs:d.label):id; }
+function shortCampus(c){ if(!c) return ''; var u=c.toUpperCase(); if(u.includes('NCC')||u==='NC') return 'NC'; if(u.includes('SLO')) return 'SLO'; return c; }
+function otherShortCampus(c){ return shortCampus(c)==='SLO'?'NC':'SLO'; }
+function shortCampus(c){ if(!c) return ''; c=c.toUpperCase(); if(c.includes('NCC')||c.includes('NC')) return 'NC'; if(c.includes('SLO')) return 'SLO'; return c; }
+function otherShortCampus(c){ return shortCampus(c)==='SLO'?'NC':'SLO'; }
 function wlKey(deviceId, campus){ return deviceId==='laptop'?'laptop_shared':`${deviceId}_${campus}`; }
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1309,7 +1313,7 @@ async function loadWaitlistPanel(panelId){
           <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">
             <input type="checkbox" id="sel-all-${panelId}" onchange="toggleSelectAll('${panelId}')" style="width:15px;height:15px;accent-color:var(--green)">
             <label for="sel-all-${panelId}" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>
-            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelected('${panelId}','${devLabel(deviceId).toUpperCase()}','${dbCampus==="shared"?"Shared":dbCampus+" Library"}')">✉️ Notify Selected</button>
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelected('${panelId}','${devLabel(deviceId).toUpperCase()}','${shortCampus(dbCampus)}')">✉️ Notify Selected</button>
           </div>
           <table><thead><tr><th style="width:36px"></th><th>#</th><th>Student</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
         waitlisted.forEach(r=>{
@@ -1320,7 +1324,7 @@ async function loadWaitlistPanel(panelId){
             <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||''}</div></td>
             <td>${fmtDT(r.requested_at)}</td>
             <td style="display:flex;gap:6px">
-              <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${dbCampus==="shared"?"Shared":dbCampus+" Library"}','${r.email}','${r.language||"en"}')">Notify</button>
+              <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify</button>
               <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
             </td></tr>`;
         });
@@ -1406,7 +1410,7 @@ function openNotifyModalMulti(students, device, campus){
   notifyDevice = device;
   notifyCampus = campus;
 
-  const otherCampus = campus.includes('SLO') ? 'NCC' : campus.includes('NCC') ? 'SLO' : 'otro';
+  const otherCampus = campus.includes('SLO') ? 'NC' : campus.includes('NC') ? 'SLO' : 'otro';
   const deadline = new Date(Date.now() + 7*24*60*60*1000);
   const subject = (tmpl.subject || '')
     .replace(/{device}/g, device).replace(/{campus}/g, campus);
@@ -1449,7 +1453,7 @@ function openNotifyModalMulti(students, device, campus){
 function openEmailDraft(){
   const isSpanish = window._notifyIsSpanish || false;
   const tmpl = isSpanish ? emailTemplateES : emailTemplate;
-  const otherCampus = notifyCampus.includes('SLO') ? 'NCC' : notifyCampus.includes('NCC') ? 'SLO' : 'otro';
+  const otherCampus = notifyCampus.includes('SLO') ? 'NC' : notifyCampus.includes('NC') ? 'SLO' : 'otro';
   const subject = encodeURIComponent(
     (tmpl.subject || '').replace(/{device}/g, notifyDevice).replace(/{campus}/g, notifyCampus)
   );
@@ -1808,7 +1812,7 @@ function updateEmailPreview(){
     .replace(/{name}/g,'Jane Smith')
     .replace(/{device}/g,'WiFi Hotspot')
     .replace(/{campus}/g,'SLO')
-    .replace(/{othercampus}/g,'NCC')
+    .replace(/{othercampus}/g,'NC')
     .replace(/{deadline}/g,fmtDate(new Date(Date.now()+7*24*60*60*1000)));
   const el=document.getElementById('email-preview');
   if(el) el.textContent='Subject: ' + subj + '\n\n' + body;
@@ -1837,7 +1841,7 @@ function updateEmailPreviewES(){
     .replace(/{name}/g,'Estudiante')
     .replace(/{device}/g,'Hotspot WiFi')
     .replace(/{campus}/g,'SLO')
-    .replace(/{othercampus}/g,'NCC')
+    .replace(/{othercampus}/g,'NC')
     .replace(/{deadline}/g,fmtDate(new Date(Date.now()+7*24*60*60*1000)));
   const el=document.getElementById('email-preview-es');
   if(el) el.textContent='Asunto: ' + subj + '\n\n' + body;
