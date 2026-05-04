@@ -1424,7 +1424,7 @@ function openNotifyModalMulti(students, device, campus){
   const isSingle = students.length === 1;
   const mailInfo = isSingle
     ? '<span style="color:var(--text-light)">To:</span> ' + students[0].email + ' &nbsp;|&nbsp; <span style="color:var(--text-light)">CC:</span> circulation@cuesta.edu'
-    : '<span style="color:var(--text-light)">To:</span> circulation@cuesta.edu &nbsp;|&nbsp; <span style="color:var(--text-light)">BCC:</span> ' + students.map(s=>s.email).join(', ');
+    : '<span style="color:var(--text-light)">To:</span> circulation@cuesta.edu &nbsp;|&nbsp; <span style="color:var(--text-light)">BCC:</span> ' + students.map(s=>s.email).join('; ');
 
   const studentList = students.map(s =>
     '<div style="padding:5px 0;border-bottom:1px solid var(--cream-dark);display:flex;justify-content:space-between;align-items:center">' +
@@ -1472,7 +1472,7 @@ function openEmailDraft(){
     const to = encodeURIComponent(notifyBccEmails[0] || '');
     mailto = 'mailto:' + to + '?cc=' + cc + '&subject=' + subject + '&body=' + body;
   } else {
-    const bcc = encodeURIComponent(notifyBccEmails.join(','));
+    const bcc = encodeURIComponent(notifyBccEmails.join(';'));
     mailto = 'mailto:circulation@cuesta.edu?bcc=' + bcc + '&subject=' + subject + '&body=' + body;
   }
   window.location.href = mailto;
