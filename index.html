@@ -1261,7 +1261,7 @@ async function loadWaitlistPanel(panelId){
       sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.waitlisted&order=waitlist_position.asc&select=*`),
       sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.notified&order=notified_at.asc&select=*`),
       sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.requested&order=requested_at.asc&select=*`),
-      sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=in.(picked-up,expired)&order=waitlist_position.asc,requested_at.asc&select=*`),
+      sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=in.(picked-up,expired,cancelled)&order=waitlist_position.asc,requested_at.asc&select=*`),
     ]);
 
     // Waitlist toggle
@@ -1295,6 +1295,7 @@ async function loadWaitlistPanel(panelId){
           <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDT(r.expires_at)}${exp?' ⚠️':''}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-gold btn-sm" onclick="openPickupModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}')">Picked Up</button>
+            <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
 
           </td></tr>`;
       });
@@ -1326,6 +1327,7 @@ async function loadWaitlistPanel(panelId){
             <td>${fmtDT(r.requested_at)}</td>
             <td style="display:flex;gap:6px">
               <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify</button>
+              <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
               <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
             </td></tr>`;
         });
@@ -1382,9 +1384,11 @@ async function loadWaitlistPanel(panelId){
           <td style="font-size:12px">${fmtDT(r.requested_at)}</td>
           <td style="font-size:12px">${r.notified_at ? fmtDT(r.notified_at) : '—'}</td>
           <td>
-            ${isPickedUp
+            ${r.status==='picked-up'
               ? `<span class="status status-picked-up">✓ Picked Up ${r.picked_up_at ? fmtDate(r.picked_up_at) : ''}</span>`
-              : `<span class="status status-expired">✗ Expired ${r.expires_at ? fmtDate(r.expires_at) : ''}</span>`
+              : r.status==='expired'
+              ? `<span class="status status-expired">✗ Expired ${r.expires_at ? fmtDate(r.expires_at) : ''}</span>`
+              : `<span class="status status-cancelled">✗ No Longer Needed</span>`
             }
           </td>
         </tr>`;
@@ -1658,6 +1662,19 @@ function notifySelectedReq(panelId, device, campus){
   if(!checked.length){ alert('Please select at least one student to notify.'); return; }
   const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email, language:cb.dataset.language||'en'}));
   openNotifyModalMulti(students, device, campus);
+}
+
+async function markNoLongerNeeded(id, panelId){
+  if(!confirm('Mark this student as no longer needing the device? They will be moved to the past entries list.')) return;
+  try {
+    await sbPatch('device_requests', `?id=eq.${id}`, {
+      status: 'cancelled',
+      updated_at: new Date().toISOString()
+    });
+    loadWaitlistPanel(panelId);
+    loadWaitlistCounts();
+    loadOverview();
+  } catch(e){ alert('Error: ' + e.message); }
 }
 
 // ── AUTO-EXPIRE ────────────────────────────────────────────────────────────────
