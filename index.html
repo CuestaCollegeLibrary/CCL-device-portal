@@ -1284,7 +1284,7 @@ async function loadWaitlistPanel(panelId){
       notified.forEach(r=>{
         const exp=r.expires_at&&new Date(r.expires_at)<new Date();
         html+=`<tr>
-          <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
+          <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
           <td>${fmtDT(r.notified_at)}</td>
           <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDT(r.expires_at)}${exp?' ⚠️':''}</td>
@@ -1316,7 +1316,7 @@ async function loadWaitlistPanel(panelId){
           html+=`<tr>
             <td><input type="checkbox" class="wl-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
             <td><span class="pos-num">${r.waitlist_position}</span></td>
-            <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
+            <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
             <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||''}</div></td>
             <td>${fmtDT(r.requested_at)}</td>
             <td style="display:flex;gap:6px">
@@ -1343,7 +1343,7 @@ async function loadWaitlistPanel(panelId){
       requested.forEach(r=>{
         html+=`<tr>
           <td><input type="checkbox" class="req-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
-          <td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
+          <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
           <td>${fmtDT(r.requested_at)}</td>
           <td style="display:flex;gap:6px">
@@ -1398,6 +1398,7 @@ function openNotifyModalMulti(students, device, campus){
   }
 
   const isSpanish = esStudents.length > 0;
+  window._notifyIsSpanish = isSpanish;
   const tmpl = isSpanish ? emailTemplateES : emailTemplate;
 
   notifyIds = students.map(s => s.id);
@@ -1446,7 +1447,7 @@ function openNotifyModalMulti(students, device, campus){
 }
 
 function openEmailDraft(){
-  const isSpanish = document.getElementById('notify-sub').textContent.includes('Spanish');
+  const isSpanish = window._notifyIsSpanish || false;
   const tmpl = isSpanish ? emailTemplateES : emailTemplate;
   const otherCampus = notifyCampus.includes('SLO') ? 'NCC' : notifyCampus.includes('NCC') ? 'SLO' : 'otro';
   const subject = encodeURIComponent(
