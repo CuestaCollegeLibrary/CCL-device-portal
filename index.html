@@ -118,7 +118,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 /* CAMPUS SELECT */
 .campus-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.campus-card{border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px;cursor:pointer;transition:all 0.15s;text-align:center}
+.campus-card{border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px;cursor:pointer;transition:all 0.15s;text-align:center;background:var(--white);pointer-events:all;display:block}
 .campus-card:hover{border-color:var(--green-light)}
 .campus-card.selected{border-color:var(--gold);background:#fffbf0}
 .campus-name{font-size:14px;font-weight:600;color:var(--green)}
@@ -405,16 +405,16 @@ tr:hover td{background:#f8fbf8}
         <div class="card-title" id="t-campustitle">Select Campus</div>
         <div class="card-sub" id="t-campussub">Choose where you will pick up your device(s).</div>
         <div class="campus-row">
-          <div class="campus-card" id="cc-SLO" onclick="selectCampus('SLO')">
+          <button class="campus-card" id="cc-SLO" onclick="selectCampus('SLO')" type="button" style="cursor:pointer;width:100%;text-align:center;font-family:inherit">
             <div style="font-size:22px;margin-bottom:5px">🏛️</div>
             <div class="campus-name" id="t-sloname">SLO Library</div>
             <div class="campus-sub" id="t-slosub">San Luis Obispo</div>
-          </div>
-          <div class="campus-card" id="cc-NCC" onclick="selectCampus('NCC')">
+          </button>
+          <button class="campus-card" id="cc-NCC" onclick="selectCampus('NCC')" type="button" style="cursor:pointer;width:100%;text-align:center;font-family:inherit">
             <div style="font-size:22px;margin-bottom:5px">📚</div>
             <div class="campus-name" id="t-nccname">NCC Library</div>
             <div class="campus-sub" id="t-nccsub">Paso Robles</div>
-          </div>
+          </button>
         </div>
         <div class="check-row" style="margin-bottom:0">
           <input type="checkbox" id="aghs-cb" onchange="toggleAGHS()">
@@ -1002,7 +1002,7 @@ async function doStep2(){
 function selectCampus(c){
   selectedCampus=c; isAGHS=false;
   document.getElementById('aghs-cb').checked=false;
-  document.querySelectorAll('.campus-card').forEach(el=>el.classList.remove('selected'));
+  document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
   document.getElementById('cc-'+c).classList.add('selected');
   var dc = document.getElementById('device-card');
   if(dc){ dc.style.display='block'; } else { alert('ERROR: device-card element not found'); return; }
@@ -1015,7 +1015,7 @@ function toggleAGHS(){
   isAGHS=document.getElementById('aghs-cb').checked;
   if(isAGHS){
     selectedCampus='AGHS';
-    document.querySelectorAll('.campus-card').forEach(el=>el.classList.remove('selected'));
+    document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
     document.getElementById('device-card').style.display='block';
     renderDeviceGrid();
   } else {
@@ -1046,12 +1046,12 @@ async function renderDeviceGrid(){
         : `<span class="device-badge badge-open">${t('open')}</span>`;
     const name = lang==='es'?dt.labelEs:dt.label;
     const note = lang==='es'?dt.noteEs:dt.note;
-    html+=`<div class="device-card" onclick="toggleDevice('${dt.id}')" id="dcard-${dt.id}">
+    html+=`<button type="button" class="device-card" onclick="toggleDevice('${dt.id}')" id="dcard-${dt.id}" style="cursor:pointer;width:100%;text-align:left;font-family:inherit;background:var(--white)">
       <div class="device-icon">${dt.icon}</div>
       <div class="device-name">${name}</div>
       <div class="device-note">${note}</div>
       ${badge}
-    </div>`;
+    </button>`;
   });
   grid.innerHTML=html;
 }
@@ -1155,7 +1155,7 @@ function resetPortal(){
   document.getElementById('notif-email').checked=true;
   document.getElementById('notif-phone').checked=false;
   document.getElementById('device-card').style.display='none';
-  document.querySelectorAll('.campus-card').forEach(el=>el.classList.remove('selected'));
+  document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
   document.getElementById('aghs-cb').checked=false;
   goStep(1);
 }
