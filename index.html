@@ -932,8 +932,6 @@ function clearAlert(cid){ const el=document.getElementById(cid); if(el) el.inner
 function fmtDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function fmtDT(d){ if(!d) return '—'; return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function devLabel(id){ const d=DEVICES.find(x=>x.id===id); return d?(lang==='es'?d.labelEs:d.label):id; }
-function shortCampus(c){ if(!c) return ''; var u=c.toUpperCase(); if(u.includes('NCC')||u==='NC') return 'NC'; if(u.includes('SLO')) return 'SLO'; return c; }
-function otherShortCampus(c){ return shortCampus(c)==='SLO'?'NC':'SLO'; }
 function shortCampus(c){ if(!c) return ''; c=c.toUpperCase(); if(c.includes('NCC')||c.includes('NC')) return 'NC'; if(c.includes('SLO')) return 'SLO'; return c; }
 function otherShortCampus(c){ return shortCampus(c)==='SLO'?'NC':'SLO'; }
 function wlKey(deviceId, campus){ return deviceId==='laptop'?'laptop_shared':`${deviceId}_${campus}`; }
