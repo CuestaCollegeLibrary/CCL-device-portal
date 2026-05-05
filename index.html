@@ -432,6 +432,7 @@ tr:hover td{background:#f8fbf8}
           <button class="btn btn-primary" style="flex:1" id="t-reviewbtn" onclick="doStep3()">Review Request</button>
         </div>
       </div>
+    </div>
 
     <!-- Step 4 -->
     <div id="ps-4" style="display:none">
@@ -459,6 +460,7 @@ tr:hover td{background:#f8fbf8}
           <button class="btn btn-gold" style="flex:1" id="btn-submit" onclick="doSubmit()"><span id="t-submitbtn">Submit Request</span></button>
         </div>
       </div>
+    </div>
 
     <!-- Step 5 Success -->
     <div id="ps-5" style="display:none">
@@ -470,6 +472,7 @@ tr:hover td{background:#f8fbf8}
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- STAFF VIEW -->
@@ -660,36 +663,12 @@ Cuesta College Library</textarea>
             <div class="notif-preview" id="email-preview-es"></div>
             <button class="btn btn-primary" onclick="saveEmailTemplateES()">Guardar plantilla en español</button>
           </div>
-          <div class="card" style="margin-top:16px">
-            <div class="card-title">Spanish Email Template (Plantilla en Español)</div>
-            <div class="card-sub">Sent to students who submitted the form in Spanish.</div>
-            <div class="form-group"><label class="form-label">Subject / Asunto</label><input class="form-input" id="email-subject-es" value="UN {device} ESTÁ RESERVADO PARA USTED EN LA BIBLIOTECA DEL COLEGIO CUESTA EN {campus}"></div>
-            <div class="form-group">
-              <label class="form-label">Body / Cuerpo — use {device}, {campus}, {othercampus}, {deadline}</label>
-              <textarea class="form-input" id="email-body-es" rows="10" style="resize:vertical" oninput="updateEmailPreviewES()">Hi there,
-
-Un/Una {device} está listo/a para que lo/la recoja en la Biblioteca del Campus {campus} del Colegio Cuesta. Si desea recogerlo/la en la Biblioteca del Campus {othercampus}, por favor háganos saber.
-
-Aquí están los horarios de la biblioteca - https://www.cuesta.edu/student-support/library/contact-library-2.html
-
-El/La {device} estará reservado/a a su nombre en el mostrador de circulación por una semana. Si no recoge el/la {device} antes del {deadline}, será puesto/a a disposición de otro/a estudiante que lo necesite.
-
-¡Que tenga un excelente semestre y no dude en contactarnos si necesita algo!
-
-Gracias,
-Biblioteca del Colegio Cuesta</textarea>
-            </div>
-            <div class="card-title" style="font-size:13px;margin-bottom:8px">Vista previa</div>
-            <div class="notif-preview" id="email-preview-es"></div>
-            <button class="btn btn-primary" onclick="saveEmailTemplateES()">Save Spanish Template</button>
-          </div>
         </div>
 
         <!-- Archive panels injected dynamically -->
         <div id="archive-panels"></div>
       </main>
     </div>
-  </div>
 </div>
 
 <!-- MODALS -->
@@ -727,6 +706,13 @@ Biblioteca del Colegio Cuesta</textarea>
 </div>
 
 <script>
+// Global error handler for debugging
+window.onerror = function(msg, src, line, col, err) {
+  var dbg = document.getElementById('js-error-banner');
+  if(!dbg){ dbg=document.createElement('div'); dbg.id='js-error-banner'; dbg.style.cssText='position:fixed;top:64px;left:0;right:0;background:#c0392b;color:white;padding:10px 16px;font-family:monospace;font-size:12px;z-index:9999;'; document.body.appendChild(dbg); }
+  dbg.textContent = 'JS Error: ' + msg + ' (line ' + line + ')';
+  return false;
+};
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://btxbzfzopeujlnsyxrgc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0eGJ6ZnpvcGV1amxuc3l4cmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0ODMyODksImV4cCI6MjA5MzA1OTI4OX0.OCvJtgaynwro1jwmR9UrCZMVtR6RHNBJ8eY-xG-efYQ';
