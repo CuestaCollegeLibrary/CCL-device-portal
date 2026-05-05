@@ -1004,8 +1004,11 @@ function selectCampus(c){
   document.getElementById('aghs-cb').checked=false;
   document.querySelectorAll('.campus-card').forEach(el=>el.classList.remove('selected'));
   document.getElementById('cc-'+c).classList.add('selected');
-  document.getElementById('device-card').style.display='block';
-  renderDeviceGrid();
+  var dc = document.getElementById('device-card');
+  if(dc){ dc.style.display='block'; } else { alert('ERROR: device-card element not found'); return; }
+  var grid = document.getElementById('device-grid');
+  if(!grid){ alert('ERROR: device-grid element not found'); return; }
+  renderDeviceGrid().catch(function(e){ alert('renderDeviceGrid error: ' + e.message); });
 }
 
 function toggleAGHS(){
