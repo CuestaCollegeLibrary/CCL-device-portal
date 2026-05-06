@@ -6,6 +6,7 @@
 <title>CCL Device Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+html{overflow-x:hidden}
 :root {
   --green: #0f2d1f; --green-mid: #1a4a2e; --green-light: #23623d;
   --gold: #c9a84c; --gold-light: #e8c97a;
@@ -19,7 +20,7 @@
   --radius: 12px; --radius-sm: 8px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;overflow-x:hidden}
 
 /* HEADER */
 .site-header{background:var(--green);padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.2)}
@@ -44,7 +45,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .portal-hero p{color:rgba(255,255,255,0.75);font-size:14px;position:relative}
 .gold-line{width:48px;height:3px;background:var(--gold);margin:14px auto;border-radius:2px}
 
-.portal-body{max-width:640px;margin:0 auto;padding:28px 16px 80px;width:100%}
+.portal-body{max-width:640px;width:100%;margin:0 auto;padding:28px 16px 80px;box-sizing:border-box}
 
 /* STEPS */
 .steps{display:flex;align-items:center;margin-bottom:28px}
@@ -59,7 +60,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .step-line.done{background:var(--success)}
 
 /* CARDS */
-.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:16px}
+.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:16px;box-sizing:border-box}
 .card-title{font-size:16px;font-weight:600;color:var(--green);margin-bottom:4px}
 .card-sub{font-size:13px;color:var(--text-light);margin-bottom:18px}
 
@@ -94,7 +95,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .alert-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
 
 /* AGREEMENT */
-.agreement-scroll{height:280px;max-height:280px;overflow-y:auto;overflow-x:hidden;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.7;color:var(--text-mid);background:#fafaf8;margin-bottom:14px}
+.agreement-scroll{height:280px;max-height:280px;overflow-y:auto;overflow-x:hidden;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.7;color:var(--text-mid);background:#fafaf8;margin-bottom:14px;box-sizing:border-box}
 .agreement-scroll h3{color:var(--green);font-size:13px;font-weight:600;margin:14px 0 5px}
 .agreement-scroll p{margin-bottom:8px}
 .agreement-scroll ul{padding-left:18px;margin-bottom:8px}
@@ -118,7 +119,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 /* CAMPUS SELECT */
 .campus-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.campus-card{border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px;cursor:pointer;transition:all 0.15s;text-align:center;background:var(--white);pointer-events:all;display:block}
+.campus-card{border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px;cursor:pointer;transition:all 0.15s;text-align:center;background:var(--white);pointer-events:all;display:block;position:relative}
+.campus-card.selected{border-color:var(--gold);background:#fffbf0}
+.campus-card.selected::after{content:'✓';position:absolute;top:8px;right:10px;color:var(--green);font-weight:700;font-size:14px}
+.campus-card:hover{border-color:var(--green-light)}
 .campus-card:hover{border-color:var(--green-light)}
 .campus-card.selected{border-color:var(--gold);background:#fffbf0}
 .campus-name{font-size:14px;font-weight:600;color:var(--green)}
@@ -267,7 +271,7 @@ tr:hover td{background:#f8fbf8}
 </header>
 
 <!-- STUDENT VIEW -->
-<div id="view-student" class="view active">
+<div id="view-student" class="view active" style="min-height:calc(100vh - 64px);background:var(--cream)">
   <div class="portal-hero">
     <div class="semester-badge" id="hero-semester">Summer 2026</div>
     <h1 id="hero-title">Cuesta College Library</h1>
@@ -403,34 +407,32 @@ tr:hover td{background:#f8fbf8}
 
     <!-- Step 3 -->
     <div id="ps-3" style="display:none">
-      <div style="background:white;border-radius:12px;box-shadow:0 4px 24px rgba(15,45,31,0.10);padding:24px;margin-bottom:16px">
-        <div style="font-size:16px;font-weight:600;color:#0f2d1f;margin-bottom:4px" id="t-campustitle">Select Campus</div>
-        <div style="font-size:13px;color:#7a9485;margin-bottom:18px" id="t-campussub">Choose where you will pick up your device(s).</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <button type="button" id="cc-SLO" onclick="selectCampus('SLO')"
-            style="border:2px solid #c8ddd0;border-radius:8px;padding:14px;cursor:pointer;background:white;text-align:center;font-family:inherit;transition:all 0.15s">
+      <div class="card">
+        <div class="card-title" id="t-campustitle">Select Campus</div>
+        <div class="card-sub" id="t-campussub">Choose where you will pick up your device(s).</div>
+        <div class="campus-row">
+          <button type="button" class="campus-card" id="cc-SLO" onclick="selectCampus('SLO')">
             <div style="font-size:22px;margin-bottom:5px">🏛️</div>
-            <div style="font-size:14px;font-weight:600;color:#0f2d1f" id="t-sloname">SLO Library</div>
-            <div style="font-size:12px;color:#7a9485" id="t-slosub">San Luis Obispo</div>
+            <div class="campus-name" id="t-sloname">SLO Library</div>
+            <div class="campus-sub" id="t-slosub">San Luis Obispo</div>
           </button>
-          <button type="button" id="cc-NCC" onclick="selectCampus('NCC')"
-            style="border:2px solid #c8ddd0;border-radius:8px;padding:14px;cursor:pointer;background:white;text-align:center;font-family:inherit;transition:all 0.15s">
+          <button type="button" class="campus-card" id="cc-NCC" onclick="selectCampus('NCC')">
             <div style="font-size:22px;margin-bottom:5px">📚</div>
-            <div style="font-size:14px;font-weight:600;color:#0f2d1f" id="t-nccname">NCC Library</div>
-            <div style="font-size:12px;color:#7a9485" id="t-nccsub">Paso Robles</div>
+            <div class="campus-name" id="t-nccname">NCC Library</div>
+            <div class="campus-sub" id="t-nccsub">Paso Robles</div>
           </button>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:11px;background:#f0f5f1;border-radius:8px;cursor:pointer">
-          <input type="checkbox" id="aghs-cb" onchange="toggleAGHS()" style="width:16px;height:16px;cursor:pointer;accent-color:#0f2d1f">
-          <label for="aghs-cb" id="t-aghslabel" style="font-size:13px;font-weight:500;cursor:pointer;color:#0f1f15">I need a device at South County (AGHS) — special request</label>
+        <div class="check-row" style="margin-bottom:0">
+          <input type="checkbox" id="aghs-cb" onchange="toggleAGHS()">
+          <label for="aghs-cb" id="t-aghslabel">I need a device at South County (AGHS) — special request</label>
         </div>
       </div>
 
-      <div id="device-card" style="display:none;background:white;border-radius:12px;box-shadow:0 4px 24px rgba(15,45,31,0.10);padding:24px;margin-bottom:16px">
-        <div style="font-size:16px;font-weight:600;color:#0f2d1f;margin-bottom:4px" id="t-devicetitle">Select Device(s)</div>
-        <div style="font-size:13px;color:#7a9485;margin-bottom:18px" id="t-devicesub">Select all devices you need. Each creates an independent request.</div>
+      <div class="card" id="device-card" style="display:none">
+        <div class="card-title" id="t-devicetitle">Select Device(s)</div>
+        <div class="card-sub" id="t-devicesub">Select all devices you need. Each creates an independent request.</div>
         <div id="a-step3"></div>
-        <div id="device-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"></div>
+        <div class="device-grid" id="device-grid"></div>
         <div style="display:flex;gap:10px;margin-top:4px">
           <button type="button" class="btn btn-outline" onclick="goStep(2)" id="t-back2">Back</button>
           <button type="button" class="btn btn-primary" style="flex:1" id="t-reviewbtn" onclick="doStep3()">Review Request</button>
@@ -1002,8 +1004,17 @@ async function doStep2(){
         body:JSON.stringify({signature:sigVal,language:lang,signed_at:new Date().toISOString()})
       });
     } else {
-      res=await sbPost('agreements',[{student_id:studentData.student_id, semester:semesterCode, signature:sigVal, signed_at:new Date().toISOString(), language:lang}]);
-      studentData.agreementId=res?.[0]?.id;
+      // Use upsert to handle case where agreement already exists
+      const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/agreements`, {
+        method:'POST',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,
+          'Content-Type':'application/json',
+          'Prefer':'resolution=merge-duplicates,return=representation'},
+        body:JSON.stringify([{student_id:studentData.student_id, semester:semesterCode,
+          signature:sigVal, signed_at:new Date().toISOString(), language:lang}])
+      });
+      const upsertData = await upsertRes.json();
+      studentData.agreementId = upsertData?.[0]?.id;
     }
     goStep(3); renderDeviceGrid();
   } catch(e){ showAlert('a-step2','Error saving agreement: '+e.message,'danger'); }
