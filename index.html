@@ -35,7 +35,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .nav-btn.active{background:var(--gold);color:var(--green);font-weight:600}
 
 /* VIEWS */
-.view{display:none}.view.active{display:block}
+.view{display:none}.view.active{display:block;background:var(--cream);min-height:calc(100vh - 64px)}
 
 /* PORTAL HERO */
 .portal-hero{background:linear-gradient(135deg,var(--green) 0%,var(--green-mid) 60%,var(--green-light) 100%);padding:40px 32px 36px;text-align:center;color:var(--white);position:relative;overflow:hidden}
@@ -45,7 +45,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .portal-hero p{color:rgba(255,255,255,0.75);font-size:14px;position:relative}
 .gold-line{width:48px;height:3px;background:var(--gold);margin:14px auto;border-radius:2px}
 
-.portal-body{max-width:640px;width:100%;margin:0 auto;padding:28px 16px 80px;box-sizing:border-box}
+.portal-body{max-width:640px;width:100%;margin:0 auto;padding:28px 16px 80px;box-sizing:border-box;display:block}
 
 /* STEPS */
 .steps{display:flex;align-items:center;margin-bottom:28px}
@@ -60,14 +60,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .step-line.done{background:var(--success)}
 
 /* CARDS */
-.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:16px;box-sizing:border-box}
+.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:16px;box-sizing:border-box;overflow:hidden;word-break:break-word}
 .card-title{font-size:16px;font-weight:600;color:var(--green);margin-bottom:4px}
 .card-sub{font-size:13px;color:var(--text-light);margin-bottom:18px}
 
 /* FORMS */
 .form-group{margin-bottom:14px}
 .form-label{display:block;font-size:13px;font-weight:500;color:var(--text-mid);margin-bottom:5px}
-.form-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--white);transition:border-color 0.15s;outline:none}
+.form-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--white);transition:border-color 0.15s;outline:none;box-sizing:border-box;max-width:100%}
 .form-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(15,45,31,0.08)}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
@@ -271,7 +271,7 @@ tr:hover td{background:#f8fbf8}
 </header>
 
 <!-- STUDENT VIEW -->
-<div id="view-student" class="view active" style="min-height:calc(100vh - 64px);background:var(--cream)">
+<div id="view-student" class="view active">
   <div class="portal-hero">
     <div class="semester-badge" id="hero-semester">Summer 2026</div>
     <h1 id="hero-title">Cuesta College Library</h1>
@@ -304,7 +304,6 @@ tr:hover td{background:#f8fbf8}
         <div class="form-group"><label class="form-label" id="t-phone">Phone</label><input class="form-input" id="s-phone" placeholder="(XXX) XXX-XXXX"></div>
         <button class="btn btn-primary btn-full" id="btn-s1" onclick="doStep1()"><span id="t-continue">Continue</span></button>
       </div>
-    </div>
     </div>
 
     <!-- Step 2 -->
