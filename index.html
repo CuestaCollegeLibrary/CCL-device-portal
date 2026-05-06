@@ -974,9 +974,15 @@ async function doStep1(){
 // ── STEP 2 ────────────────────────────────────────────────────────────────────
 async function doStep2(){
   clearAlert('a-step2');
-  if(!document.getElementById('agree-cb').checked){ showAlert('a-step2','You must check the acknowledgment box.','danger'); return; }
-  const sig=document.getElementById('s-sig').value.trim();
-  if(!sig){ showAlert('a-step2','Please type your full name as a signature.','danger'); return; }
+  const cb = document.getElementById('agree-cb');
+  const sig = document.getElementById('s-sig');
+  console.log('doStep2 called, checked:', cb ? cb.checked : 'MISSING', 'sig:', sig ? sig.value.trim() : 'MISSING');
+  if(!cb || !cb.checked){ showAlert('a-step2','You must check the acknowledgment box.','danger'); return; }
+  const sigVal = sig ? sig.value.trim() : '';
+  if(!sigVal){ showAlert('a-step2','Please type your full name as a signature.','danger'); return; }
+  // Skip Supabase for now and go directly to step 3
+  goStep(3);
+  return;
   const btn=document.getElementById('btn-s2'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
     let res;
