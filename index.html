@@ -44,7 +44,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .portal-hero p{color:rgba(255,255,255,0.75);font-size:14px;position:relative}
 .gold-line{width:48px;height:3px;background:var(--gold);margin:14px auto;border-radius:2px}
 
-.portal-body{max-width:640px;margin:0 auto;padding:28px 16px 80px}
+.portal-body{max-width:640px;margin:0 auto;padding:28px 16px 80px;width:100%}
 
 /* STEPS */
 .steps{display:flex;align-items:center;margin-bottom:28px}
@@ -94,7 +94,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .alert-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
 
 /* AGREEMENT */
-.agreement-scroll{height:280px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.7;color:var(--text-mid);background:#fafaf8;margin-bottom:14px}
+.agreement-scroll{height:280px;max-height:280px;overflow-y:auto;overflow-x:hidden;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.7;color:var(--text-mid);background:#fafaf8;margin-bottom:14px}
 .agreement-scroll h3{color:var(--green);font-size:13px;font-weight:600;margin:14px 0 5px}
 .agreement-scroll p{margin-bottom:8px}
 .agreement-scroll ul{padding-left:18px;margin-bottom:8px}
@@ -924,6 +924,17 @@ function goStep(n){
     s.className = 'step'+(i<n?' done':i===n?' active':'');
     if(l) l.className = 'step-line'+(i<n?' done':'');
   });
+  // Reset all buttons to prevent stuck disabled state
+  ['btn-s1','btn-s2','btn-submit'].forEach(function(id){
+    var btn = document.getElementById(id);
+    if(btn){ btn.disabled = false; }
+  });
+  var s1btn = document.getElementById('btn-s1');
+  if(s1btn && n===1) s1btn.innerHTML = '<span id="t-continue">'+t('continue')+'</span>';
+  var s2btn = document.getElementById('btn-s2');
+  if(s2btn && n===2) s2btn.innerHTML = '<span id="t-signbtn">'+t('signbtn')+'</span>';
+  // Clear any error alerts when navigating back
+  ['a-step1','a-step2','a-step3','a-step4'].forEach(function(id){ clearAlert(id); });
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
