@@ -998,15 +998,31 @@ async function doStep2(){
 
 // ── STEP 3 ────────────────────────────────────────────────────────────────────
 function selectCampus(c){
-  selectedCampus=c; isAGHS=false;
-  document.getElementById('aghs-cb').checked=false;
-  document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
-  document.getElementById('cc-'+c).classList.add('selected');
-  var dc = document.getElementById('device-card');
-  if(dc){ dc.style.display='block'; } else { alert('ERROR: device-card element not found'); return; }
-  var grid = document.getElementById('device-grid');
-  if(!grid){ alert('ERROR: device-grid element not found'); return; }
-  renderDeviceGrid().catch(function(e){ alert('renderDeviceGrid error: ' + e.message); });
+  try {
+    selectedCampus=c; isAGHS=false;
+    var aghs = document.getElementById('aghs-cb');
+    if(aghs) aghs.checked=false;
+    document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
+    var cc = document.getElementById('cc-'+c);
+    if(cc) cc.classList.add('selected');
+    var dc = document.getElementById('device-card');
+    if(!dc){ alert('device-card missing'); return; }
+    dc.style.display='block';
+    var grid = document.getElementById('device-grid');
+    if(!grid){ alert('device-grid missing'); return; }
+    // Render directly without Supabase
+    var html = '';
+    DEVICES.forEach(function(dt) {
+      html += '<button type="button" onclick="toggleDevice(\''+dt.id+'\');" id="dcard-'+dt.id+'" style="border:2px solid #ccc;border-radius:8px;padding:14px;cursor:pointer;background:white;width:100%;text-align:left;margin-bottom:8px;">';
+      html += '<div style="font-size:22px">'+dt.icon+'</div>';
+      html += '<div style="font-weight:600;color:#0f2d1f">'+(lang==='es'?dt.labelEs:dt.label)+'</div>';
+      html += '<div style="font-size:11px;color:#7a9485">'+(lang==='es'?dt.noteEs:dt.note)+'</div>';
+      html += '</button>';
+    });
+    grid.innerHTML = html;
+  } catch(e) {
+    alert('selectCampus error: ' + e.message + '\n' + e.stack);
+  }
 }
 
 function toggleAGHS(){
