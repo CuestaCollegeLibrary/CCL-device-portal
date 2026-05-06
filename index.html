@@ -301,6 +301,7 @@ tr:hover td{background:#f8fbf8}
         <button class="btn btn-primary btn-full" id="btn-s1" onclick="doStep1()"><span id="t-continue">Continue</span></button>
       </div>
     </div>
+    </div>
 
     <!-- Step 2 -->
     <div id="ps-2" style="display:none">
@@ -464,6 +465,7 @@ tr:hover td{background:#f8fbf8}
         </div>
       </div>
     </div>
+    </div>
 
     <!-- Step 5 Success -->
     <div id="ps-5" style="display:none">
@@ -472,10 +474,8 @@ tr:hover td{background:#f8fbf8}
         <div class="card-title" style="font-size:20px;margin-bottom:8px" id="t-successtitle">Request Submitted!</div>
         <div id="success-msg" style="color:var(--text-mid);font-size:14px;line-height:1.7;margin-bottom:20px"></div>
         <button class="btn btn-outline" onclick="resetPortal()" id="t-anotherbtn">Submit Another Request</button>
-      </div>
     </div>
   </div>
-</div>
 
 <!-- STAFF VIEW -->
 <div id="view-staff" class="view">
@@ -671,6 +671,7 @@ Cuesta College Library</textarea>
         <div id="archive-panels"></div>
       </main>
     </div>
+</div>
 </div>
 
 <!-- MODALS -->
@@ -976,15 +977,9 @@ async function doStep1(){
 // ── STEP 2 ────────────────────────────────────────────────────────────────────
 async function doStep2(){
   clearAlert('a-step2');
-  const cb = document.getElementById('agree-cb');
-  const sig = document.getElementById('s-sig');
-  console.log('doStep2 called, checked:', cb ? cb.checked : 'MISSING', 'sig:', sig ? sig.value.trim() : 'MISSING');
-  if(!cb || !cb.checked){ showAlert('a-step2','You must check the acknowledgment box.','danger'); return; }
-  const sigVal = sig ? sig.value.trim() : '';
+  if(!document.getElementById('agree-cb').checked){ showAlert('a-step2','You must check the acknowledgment box.','danger'); return; }
+  const sigVal = document.getElementById('s-sig').value.trim();
   if(!sigVal){ showAlert('a-step2','Please type your full name as a signature.','danger'); return; }
-  // Skip Supabase for now and go directly to step 3
-  goStep(3);
-  return;
   const btn=document.getElementById('btn-s2'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
     let res;
@@ -1005,32 +1000,16 @@ async function doStep2(){
 }
 
 // ── STEP 3 ────────────────────────────────────────────────────────────────────
-function selectCampus(c){
-  try {
-    selectedCampus=c; isAGHS=false;
-    var aghs = document.getElementById('aghs-cb');
-    if(aghs) aghs.checked=false;
-    document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
-    var cc = document.getElementById('cc-'+c);
-    if(cc) cc.classList.add('selected');
-    var dc = document.getElementById('device-card');
-    if(!dc){ alert('device-card missing'); return; }
-    dc.style.display='block';
-    var grid = document.getElementById('device-grid');
-    if(!grid){ alert('device-grid missing'); return; }
-    // Render directly without Supabase
-    var html = '';
-    DEVICES.forEach(function(dt) {
-      html += '<button type="button" onclick="toggleDevice(\''+dt.id+'\');" id="dcard-'+dt.id+'" style="border:2px solid #ccc;border-radius:8px;padding:14px;cursor:pointer;background:white;width:100%;text-align:left;margin-bottom:8px;">';
-      html += '<div style="font-size:22px">'+dt.icon+'</div>';
-      html += '<div style="font-weight:600;color:#0f2d1f">'+(lang==='es'?dt.labelEs:dt.label)+'</div>';
-      html += '<div style="font-size:11px;color:#7a9485">'+(lang==='es'?dt.noteEs:dt.note)+'</div>';
-      html += '</button>';
-    });
-    grid.innerHTML = html;
-  } catch(e) {
-    alert('selectCampus error: ' + e.message + '\n' + e.stack);
-  }
+function selectCampus(campus){
+  selectedCampus=campus; isAGHS=false;
+  var aghs = document.getElementById('aghs-cb');
+  if(aghs) aghs.checked=false;
+  document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
+  var cc = document.getElementById('cc-'+campus);
+  if(cc) cc.classList.add('selected');
+  var dc = document.getElementById('device-card');
+  if(dc) dc.style.display='block';
+  renderDeviceGrid();
 }
 
 function toggleAGHS(){
