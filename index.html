@@ -401,35 +401,37 @@ tr:hover td{background:#f8fbf8}
 
     <!-- Step 3 -->
     <div id="ps-3" style="display:none">
-      <div class="card">
-        <div class="card-title" id="t-campustitle">Select Campus</div>
-        <div class="card-sub" id="t-campussub">Choose where you will pick up your device(s).</div>
-        <div class="campus-row">
-          <button class="campus-card" id="cc-SLO" onclick="selectCampus('SLO')" type="button" style="cursor:pointer;width:100%;text-align:center;font-family:inherit">
+      <div style="background:white;border-radius:12px;box-shadow:0 4px 24px rgba(15,45,31,0.10);padding:24px;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:600;color:#0f2d1f;margin-bottom:4px" id="t-campustitle">Select Campus</div>
+        <div style="font-size:13px;color:#7a9485;margin-bottom:18px" id="t-campussub">Choose where you will pick up your device(s).</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <button type="button" id="cc-SLO" onclick="selectCampus('SLO')"
+            style="border:2px solid #c8ddd0;border-radius:8px;padding:14px;cursor:pointer;background:white;text-align:center;font-family:inherit;transition:all 0.15s">
             <div style="font-size:22px;margin-bottom:5px">🏛️</div>
-            <div class="campus-name" id="t-sloname">SLO Library</div>
-            <div class="campus-sub" id="t-slosub">San Luis Obispo</div>
+            <div style="font-size:14px;font-weight:600;color:#0f2d1f" id="t-sloname">SLO Library</div>
+            <div style="font-size:12px;color:#7a9485" id="t-slosub">San Luis Obispo</div>
           </button>
-          <button class="campus-card" id="cc-NCC" onclick="selectCampus('NCC')" type="button" style="cursor:pointer;width:100%;text-align:center;font-family:inherit">
+          <button type="button" id="cc-NCC" onclick="selectCampus('NCC')"
+            style="border:2px solid #c8ddd0;border-radius:8px;padding:14px;cursor:pointer;background:white;text-align:center;font-family:inherit;transition:all 0.15s">
             <div style="font-size:22px;margin-bottom:5px">📚</div>
-            <div class="campus-name" id="t-nccname">NCC Library</div>
-            <div class="campus-sub" id="t-nccsub">Paso Robles</div>
+            <div style="font-size:14px;font-weight:600;color:#0f2d1f" id="t-nccname">NCC Library</div>
+            <div style="font-size:12px;color:#7a9485" id="t-nccsub">Paso Robles</div>
           </button>
         </div>
-        <div class="check-row" style="margin-bottom:0">
-          <input type="checkbox" id="aghs-cb" onchange="toggleAGHS()">
-          <label for="aghs-cb" id="t-aghslabel">I need a device at South County (AGHS) — special request</label>
+        <div style="display:flex;align-items:center;gap:10px;padding:11px;background:#f0f5f1;border-radius:8px;cursor:pointer">
+          <input type="checkbox" id="aghs-cb" onchange="toggleAGHS()" style="width:16px;height:16px;cursor:pointer;accent-color:#0f2d1f">
+          <label for="aghs-cb" id="t-aghslabel" style="font-size:13px;font-weight:500;cursor:pointer;color:#0f1f15">I need a device at South County (AGHS) — special request</label>
         </div>
       </div>
 
-      <div class="card" id="device-card" style="display:none">
-        <div class="card-title" id="t-devicetitle">Select Device(s)</div>
-        <div class="card-sub" id="t-devicesub">Select all devices you need. Each creates an independent request.</div>
+      <div id="device-card" style="display:none;background:white;border-radius:12px;box-shadow:0 4px 24px rgba(15,45,31,0.10);padding:24px;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:600;color:#0f2d1f;margin-bottom:4px" id="t-devicetitle">Select Device(s)</div>
+        <div style="font-size:13px;color:#7a9485;margin-bottom:18px" id="t-devicesub">Select all devices you need. Each creates an independent request.</div>
         <div id="a-step3"></div>
-        <div class="device-grid" id="device-grid"></div>
+        <div id="device-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"></div>
         <div style="display:flex;gap:10px;margin-top:4px">
-          <button class="btn btn-outline" onclick="goStep(2)" id="t-back2">Back</button>
-          <button class="btn btn-primary" style="flex:1" id="t-reviewbtn" onclick="doStep3()">Review Request</button>
+          <button type="button" class="btn btn-outline" onclick="goStep(2)" id="t-back2">Back</button>
+          <button type="button" class="btn btn-primary" style="flex:1" id="t-reviewbtn" onclick="doStep3()">Review Request</button>
         </div>
       </div>
     </div>
