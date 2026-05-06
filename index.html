@@ -948,8 +948,8 @@ function clearAlert(cid){ const el=document.getElementById(cid); if(el) el.inner
 function fmtDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function fmtDT(d){ if(!d) return '—'; return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function devLabel(id){ const d=DEVICES.find(x=>x.id===id); return d?(lang==='es'?d.labelEs:d.label):id; }
-function shortCampus(c){ if(!c) return ''; c=c.toUpperCase(); if(c.includes('NCC')||c.includes('NC')) return 'NC'; if(c.includes('SLO')) return 'SLO'; return c; }
-function otherShortCampus(c){ return shortCampus(c)==='SLO'?'NC':'SLO'; }
+function shortCampus(c){ if(!c) return ''; var u=c.toUpperCase(); if(u==='SHARED') return 'SLO'; if(u.includes('NCC')||u==='NC') return 'NC'; if(u.includes('SLO')) return 'SLO'; return c; }
+function otherShortCampus(c){ var s=shortCampus(c); if(s==='AGHS') return 'SLO'; return s==='SLO'?'NC':'SLO'; }
 function wlKey(deviceId, campus){ return deviceId==='laptop'?'laptop_shared':`${deviceId}_${campus}`; }
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1484,7 +1484,7 @@ function openNotifyModalMulti(students, device, campus){
   notifyDevice = device;
   notifyCampus = campus;
 
-  const otherCampus = campus.includes('SLO') ? 'NC' : campus.includes('NC') ? 'SLO' : 'otro';
+  const otherCampus = campus==='AGHS' ? 'SLO or NC' : campus.includes('SLO') ? 'NC' : campus.includes('NC') ? 'SLO' : 'otro';
   const deadline = new Date(Date.now() + 7*24*60*60*1000);
   const subject = (tmpl.subject || '')
     .replace(/{device}/g, device).replace(/{campus}/g, campus);
@@ -1527,7 +1527,7 @@ function openNotifyModalMulti(students, device, campus){
 function openEmailDraft(){
   const isSpanish = window._notifyIsSpanish || false;
   const tmpl = isSpanish ? emailTemplateES : emailTemplate;
-  const otherCampus = notifyCampus.includes('SLO') ? 'NC' : notifyCampus.includes('NC') ? 'SLO' : 'otro';
+  const otherCampus = notifyCampus==='AGHS' ? 'SLO or NC' : notifyCampus.includes('SLO') ? 'NC' : notifyCampus.includes('NC') ? 'SLO' : 'otro';
   const subject = encodeURIComponent(
     (tmpl.subject || '').replace(/{device}/g, notifyDevice).replace(/{campus}/g, notifyCampus)
   );
