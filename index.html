@@ -432,6 +432,20 @@ tr:hover td{background:#f8fbf8}
         <div class="card-sub" id="t-devicesub">Select all devices you need. Each creates an independent request.</div>
         <div id="a-step3"></div>
         <div class="device-grid" id="device-grid"></div>
+        <div id="laptop-justification" style="display:none;margin-bottom:14px">
+          <div style="background:#fffbf0;border:1.5px solid var(--gold);border-radius:var(--radius-sm);padding:14px">
+            <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:6px" id="t-laptopjust">📋 Specialty Laptop — Required Information</div>
+            <div style="font-size:12px;color:var(--text-light);margin-bottom:10px" id="t-laptopjustsub">Specialty laptops are reserved for specific software not available online. Please provide your course details.</div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label class="form-label" id="t-crn">CRN / Class Name *</label>
+              <input class="form-input" id="laptop-crn" placeholder="e.g. CRN 12345 or ARCH 201">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label" id="t-prof">Professor / Instructor *</label>
+              <input class="form-input" id="laptop-prof" placeholder="e.g. Prof. Smith">
+            </div>
+          </div>
+        </div>
         <div style="display:flex;gap:10px;margin-top:4px">
           <button type="button" class="btn btn-outline" onclick="goStep(2)" id="t-back2">Back</button>
           <button type="button" class="btn btn-primary" style="flex:1" id="t-reviewbtn" onclick="doStep3()">Review Request</button>
@@ -791,7 +805,7 @@ let overdueTemplate = {
 let overdueTemplateES = {
   reply: 'circulation@cuesta.edu',
   subject: 'DISPOSITIVO ELECTRÓNICO CON ATRASO',
-  body: 'Según nuestros registros, el dispositivo electrónico que tomó prestado de la Biblioteca del Colegio Cuesta debía devolverse el {due_date} y ahora tiene un atraso considerable.\n\nEl Acuerdo de Dispositivos Electrónicos de la Biblioteca establece que todos los dispositivos deben devolverse al final de cada sesión/semestre. Además, el formulario de acuerdo debe completarse cada semestre. No hay período de gracia para los cargos por retraso. Los dispositivos deben devolverse limpios y en buen estado de funcionamiento.\n\nSi el/los dispositivo(s) en su cuenta no se devuelven antes del {two_weeks}, será(n) desactivado(s)/bloqueado(s), y es posible que se le aplique un cargo o un bloqueo en su cuenta de biblioteca.\n\nLos estudiantes con cargos por retraso o artículos perdidos/atrasados/dañados en su cuenta no podrán pedir prestado NINGÚN artículo de la biblioteca hasta que todos los cargos se hayan resuelto y/o los artículos se hayan devuelto.\n\nLos dispositivos NO deben devolverse en los buzones de libros, y deben devolverse en persona durante las horas de atención, que se pueden encontrar en https://www.cuesta.edu/library/about/hourspolicy.html\n\nSi tiene preguntas, por favor contáctenos.\n\nGracias,\nBiblioteca del Colegio Cuesta'
+  body: 'Según nuestros archivos, el dispositivo electrónico que tomó prestado de la Biblioteca del Colegio Cuesta debía ser devuelto el {due_date} y ahora tiene un atraso considerable.\n\nEl Acuerdo de Dispositivos Electrónicos de la Biblioteca establece que todos los dispositivos deben devolverse al final de cada sesión/semestre. Además, el formulario de acuerdo debe completarse cada semestre.\n\nLos dispositivos deben devolverse limpios y en buen estado.\n\nSi el/los dispositivo(s) en su cuenta no se devuelven antes del {two_weeks}, será(n) desactivado(s)/bloqueado(s), y es posible que se le aplique un cargo a su cuenta.\n\nLos estudiantes con cargos por retraso o artículos perdidos/atrasados/dañados en su cuenta no podrán pedir prestado NINGÚN artículo de la biblioteca hasta que todos los cargos se hayan resuelto y/o los artículos se hayan devuelto.\n\nLos dispositivos NO deben devolverse en los buzones de libros, y deben devolverse en persona durante las horas que está abierta la biblioteca, que se pueden encontrar aquí: https://www.cuesta.edu/library/about/hourspolicy.html\n\nSi tiene preguntas, por favor contáctenos.\n\nGracias,\nBiblioteca del Colegio Cuesta'
 };
 
 let emailTemplateES = {
@@ -827,6 +841,10 @@ const TR = {
     herotitle:'Cuesta College Library',
     herosub:'Electronic Device Request & Loan Agreement',
     navStudent:'Request a Device',
+    laptopjust:'📋 Specialty Laptop — Required Information',
+    laptopjustsub:'Specialty laptops are reserved for specific software not available online. Please provide your course details.',
+    crn:'CRN / Class Name *',
+    prof:'Professor / Instructor *',
     navStaff:'Staff',
     open:'Open — First Come First Served',
     waitlist:'Waitlist Active',
@@ -858,6 +876,10 @@ const TR = {
     herotitle:'Biblioteca del Colegio Cuesta',
     herosub:'Acuerdo de Préstamo y Solicitud de Dispositivo Electrónico',
     navStudent:'Solicitar un Dispositivo',
+    laptopjust:'📋 Laptop Especializada — Información Requerida',
+    laptopjustsub:'Las laptops especializadas están reservadas para software específico no disponible en línea. Por favor proporcione los detalles de su curso.',
+    crn:'CRN / Nombre del Curso *',
+    prof:'Profesor / Instructor *',
     navStaff:'Personal',
     semesterBadge:'verano del 2026',
     open:'Disponible — Por Orden de Llegada',
@@ -913,6 +935,7 @@ function applyTranslations(){
     't-aghslabel':'aghslabel','t-devicetitle':'devicetitle','t-devicesub':'devicesub',
     't-reviewbtn':'reviewbtn','t-s4title':'s4title','t-s4sub':'s4sub',
     't-notiflabel':'notiflabel','t-notif1':'notif1','t-notif2':'notif2','t-emailhint':'emailhint',
+    't-laptopjust':'laptopjust','t-laptopjustsub':'laptopjustsub','t-crn':'crn','t-prof':'prof',
     't-submitbtn':'submitbtn','t-successtitle':'successtitle','t-anotherbtn':'anotherbtn',
   };
   for(const [id,key] of Object.entries(ids)){
@@ -1130,12 +1153,32 @@ function toggleDevice(id){
   const idx=selectedDevices.indexOf(id);
   if(idx===-1){ selectedDevices.push(id); card.classList.add('selected'); }
   else{ selectedDevices.splice(idx,1); card.classList.remove('selected'); }
+  // Show/hide laptop justification field
+  const laptopSelected = selectedDevices.includes('laptop');
+  const justDiv = document.getElementById('laptop-justification');
+  if(justDiv) justDiv.style.display = laptopSelected ? 'block' : 'none';
+  if(!laptopSelected){
+    const crnEl = document.getElementById('laptop-crn');
+    const profEl = document.getElementById('laptop-prof');
+    if(crnEl) crnEl.value = '';
+    if(profEl) profEl.value = '';
+  }
 }
 
 function doStep3(){
   clearAlert('a-step3');
   if(!selectedCampus){ showAlert('a-step3','Please select a campus.','danger'); return; }
   if(!selectedDevices.length){ showAlert('a-step3','Please select at least one device.','danger'); return; }
+  if(selectedDevices.includes('laptop')){
+    const crn = document.getElementById('laptop-crn').value.trim();
+    const prof = document.getElementById('laptop-prof').value.trim();
+    if(!crn || !prof){
+      showAlert('a-step3','Please enter your CRN/Class and Professor for the Specialty Laptop request.','danger');
+      return;
+    }
+    studentData.laptopCRN = crn;
+    studentData.laptopProf = prof;
+  }
   goStep(4); renderConfirmation();
 }
 
@@ -1198,6 +1241,7 @@ async function doSubmit(){
         last_name:studentData.last_name, email:studentData.email, phone:studentData.phone,
         device_type:did, campus, status, waitlist_position:pos,
         notification_pref:notif, semester:semesterCode, language:lang,
+        notes: did==='laptop' ? ('CRN/Class: ' + (studentData.laptopCRN||'') + ' | Professor: ' + (studentData.laptopProf||'')) : null,
         requested_at:new Date().toISOString()
       }]);
       results.push({dt,status,pos});
