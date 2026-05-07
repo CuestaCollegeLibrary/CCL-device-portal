@@ -435,7 +435,7 @@ tr:hover td{background:#f8fbf8}
         <div id="laptop-justification" style="display:none;margin-bottom:14px">
           <div style="background:#fffbf0;border:1.5px solid var(--gold);border-radius:var(--radius-sm);padding:14px">
             <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:6px" id="t-laptopjust">📋 Specialty Laptop — Required Information</div>
-            <div style="font-size:12px;color:var(--text-light);margin-bottom:10px" id="t-laptopjustsub">Specialty laptops are reserved for specific software not available online. Please provide your course details.</div>
+            <div style="font-size:12px;color:var(--text-light);margin-bottom:10px" id="t-laptopjustsub">Specialized laptops are reserved for specific classes which use software not available online. Please provide your course details to confirm your eligibility.</div>
             <div class="form-group" style="margin-bottom:10px">
               <label class="form-label" id="t-crn">CRN / Class Name *</label>
               <input class="form-input" id="laptop-crn" placeholder="e.g. CRN 12345 or ARCH 201">
@@ -842,7 +842,7 @@ const TR = {
     herosub:'Electronic Device Request & Loan Agreement',
     navStudent:'Request a Device',
     laptopjust:'📋 Specialty Laptop — Required Information',
-    laptopjustsub:'Specialty laptops are reserved for specific software not available online. Please provide your course details.',
+    laptopjustsub:'Specialized laptops are reserved for specific classes which use software not available online. Please provide your course details to confirm your eligibility.',
     crn:'CRN / Class Name *',
     prof:'Professor / Instructor *',
     navStaff:'Staff',
@@ -877,7 +877,7 @@ const TR = {
     herosub:'Acuerdo de Préstamo y Solicitud de Dispositivo Electrónico',
     navStudent:'Solicitar un Dispositivo',
     laptopjust:'📋 Laptop Especializada — Información Requerida',
-    laptopjustsub:'Las laptops especializadas están reservadas para software específico no disponible en línea. Por favor proporcione los detalles de su curso.',
+    laptopjustsub:'Las laptops especializadas están reservadas para clases específicas que utilizan software no disponible en línea. Por favor proporcione los detalles de su curso para confirmar su elegibilidad.',
     crn:'CRN / Nombre del Curso *',
     prof:'Profesor / Instructor *',
     navStaff:'Personal',
@@ -1429,7 +1429,7 @@ async function loadWaitlistPanel(panelId){
         const exp=r.expires_at&&new Date(r.expires_at)<new Date();
         html+=`<tr>
           <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
-          <td><div style="font-size:12px">${r.email||'—'}</div></td>
+          <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||'—'}</div></td>
           <td>${fmtDT(r.notified_at)}</td>
           <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDT(r.expires_at)}${exp?' ⚠️':''}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1462,8 +1462,9 @@ async function loadWaitlistPanel(panelId){
             <td><input type="checkbox" class="wl-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
             <td><span class="pos-num">${r.waitlist_position}</span></td>
             <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
-            <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||''}</div></td>
+            <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||'—'}</div></td>
             <td>${fmtDT(r.requested_at)}</td>
+            <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'}</td>
             <td style="display:flex;gap:6px">
               <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify</button>
               <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
@@ -1980,7 +1981,7 @@ async function processAlmaReport(file){
       rows.forEach(row => {
         const title = (getCol(row,'title') || '').toLowerCase();
         const material = (getCol(row,'material type','materialtype') || '').toLowerCase();
-        const loanDate = getCol(row,'loan date','loandate');
+        const loanDate = getCol(row,'loan date','loandate','loan date/time','loan datetime','checkout date','checkout date/time');
         const dueDate = getCol(row,'due date','duedate');
         const returnDate = getCol(row,'return date','returndate');
         const firstName = getCol(row,'first name','firstname') || '';
@@ -2090,9 +2091,11 @@ async function generateReport(){
         if(!l.sid || sidsSeen.has(l.sid)) return;
         sidsSeen.add(l.sid);
         if(!agreementSIDs.has(l.sid)){
-          // Get all devices this student checked out
-          const theirDevices = almaData.filter(x => x.sid === l.sid).map(x => devLabel(x.deviceType)).join(', ');
-          noAgreementStudents.push({ sid: l.sid, firstName: l.firstName, lastName: l.lastName, devices: theirDevices });
+          const theirLoans = almaData.filter(x => x.sid === l.sid);
+          const theirDevices = theirLoans.map(x => devLabel(x.deviceType)).join(', ');
+          // Use earliest loan date for this student
+          const firstLoan = theirLoans.reduce((a,b) => (a.loanDate && b.loanDate && a.loanDate < b.loanDate) ? a : b, theirLoans[0]);
+          noAgreementStudents.push({ sid: l.sid, firstName: l.firstName, lastName: l.lastName, devices: theirDevices, loanDate: firstLoan?.loanDate || null });
         }
       });
     }
@@ -2140,9 +2143,9 @@ async function generateReport(){
     if(almaData && noAgreementStudents.length > 0){
       html += '<div class="table-card" style="margin-bottom:18px">';
       html += '<div class="table-header" style="cursor:pointer" onclick="toggleNoAgree()">';
-      html += '<div class="table-title" style="color:var(--danger)">⚠️ Checked Out Without Signed Agreement (' + noAgreementStudents.length + ') <span id="no-agree-arrow" style="font-size:12px">▼</span></div>';
+      html += '<div class="table-title" style="color:var(--danger)">⚠️ Checked Out Without Signed Agreement (' + noAgreementStudents.length + ') <span id="no-agree-arrow" style="font-size:12px">▶</span></div>';
       html += '<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();exportNoAgreement()">⬇ Export</button></div>';
-      html += '<div id="no-agree-body">';
+      html += '<div id="no-agree-body" style="display:none">';
       html += '<div class="alert alert-warning" style="margin:12px 14px 0">These students appear in the Alma checkout report but have no signed agreement on file for ' + semesterLabel + '.</div>';
       html += '<table><thead><tr><th>Student ID</th><th>Name</th><th>Devices Checked Out</th></tr></thead><tbody>';
       noAgreementStudents.forEach(s => {
@@ -2175,7 +2178,7 @@ async function generateReport(){
         '<label for="overdue-sel-all" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>' +
         '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Send Overdue Notice to Selected</button>' +
         '</div>';
-      html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Loan Date</th><th>Due Date</th><th>Days Overdue</th><th>Contact (Portal)</th></tr></thead><tbody>';
+      html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Loan Date</th><th>Due Date</th><th>Days Overdue</th><th>Email / Phone</th></tr></thead><tbody>';
       const today = new Date();
       Object.entries(byDueDate).forEach(([dueGroup, entries]) => {
         html += '<tr><td colspan="8" style="background:#f0f5f1;padding:8px 14px;font-size:12px;font-weight:600;color:var(--green)">📅 Due: ' + dueGroup + ' — ' + entries.length + ' student' + (entries.length>1?'s':'') + '</td></tr>';
