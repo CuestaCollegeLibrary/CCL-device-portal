@@ -2147,9 +2147,9 @@ async function generateReport(){
       html += '<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();exportNoAgreement()">⬇ Export</button></div>';
       html += '<div id="no-agree-body" style="display:none">';
       html += '<div class="alert alert-warning" style="margin:12px 14px 0">These students appear in the Alma checkout report but have no signed agreement on file for ' + semesterLabel + '.</div>';
-      html += '<table><thead><tr><th>Student ID</th><th>Name</th><th>Devices Checked Out</th></tr></thead><tbody>';
+      html += '<table><thead><tr><th>Student ID</th><th>Name</th><th>Devices Checked Out</th><th>First Checkout</th></tr></thead><tbody>';
       noAgreementStudents.forEach(s => {
-        html += '<tr style="background:#fff8f0"><td class="td-id">' + s.sid + '</td><td class="td-name">' + s.firstName + ' ' + s.lastName + '</td><td style="font-size:12px">' + s.devices + '</td></tr>';
+        html += '<tr style="background:#fff8f0"><td class="td-id">' + s.sid + '</td><td class="td-name">' + s.firstName + ' ' + s.lastName + '</td><td style="font-size:12px">' + s.devices + '</td><td style="font-size:12px">' + (s.loanDate ? fmtDT(s.loanDate) : '—') + '</td></tr>';
       });
       html += '</tbody></table></div></div>';
     } else if(almaData && noAgreementStudents.length === 0){
