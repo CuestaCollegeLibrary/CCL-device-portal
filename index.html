@@ -1237,6 +1237,7 @@ async function loadDashboard(){
   loadOverview();
   loadWaitlistCounts();
   loadArchiveNav();
+  restoreAlmaDisplay();
   // pre-fill email template fields
   document.getElementById('email-reply').value=emailTemplate.reply;
   document.getElementById('email-subject').value=emailTemplate.subject;
@@ -1267,25 +1268,9 @@ async function loadSemesterConfig(){
       semesterLabel=cfg[0].semester_label;
       semesterCode=cfg[0].semester_code;
       semesterDueDate=cfg[0].due_date||'';
+      window._savedAlmaData = cfg[0].alma_report_data || null;
       document.getElementById('hero-semester').textContent=semesterLabel;
-      // Restore alma data if previously uploaded this semester
-      if(cfg[0].alma_report_data && cfg[0].alma_report_data.length){
-        almaData = cfg[0].alma_report_data.map(l => ({
-          ...l,
-          loanDate: l.loanDate ? new Date(l.loanDate) : null,
-          dueDate: l.dueDate ? new Date(l.dueDate) : null,
-          returnDate: l.returnDate ? new Date(l.returnDate) : null,
-        }));
-        const resultEl = document.getElementById('alma-report-result');
-        if(resultEl){
-          const returnedCount = almaData.filter(l=>l.isReturned).length;
-          const overdueCount = almaData.filter(l=>l.isOverdue).length;
-          resultEl.innerHTML = '<div class="alert alert-success" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
-            '<span>✓ Loaded <strong>' + almaData.length + '</strong> device loans — <strong>' + returnedCount + '</strong> returned, <strong>' + overdueCount + '</strong> overdue. (Restored from saved data)</span>' +
-            '<button class="btn btn-outline btn-sm" onclick="clearAlmaReport()" style="white-space:nowrap">✕ Clear Upload</button>' +
-            '</div>';
-        }
-      }
+
       document.getElementById('agree-sub').textContent=`${semesterLabel} agreements`;
       document.getElementById('agree-table-title').textContent=`${semesterLabel} Agreements`;
       document.getElementById('overview-sub').textContent=`${semesterLabel}`;
@@ -1961,6 +1946,8 @@ async function processAlmaReport(file){
         const lastName = getCol(row,'last name','lastname') || '';
         const sid = String(getCol(row,'identifier 1','identifier1','student id','studentid') || '').trim();
         const barcode = getCol(row,'barcode') || '';
+        const prefEmail = (getCol(row,'preferred email','preferredemail','pref email') || '').trim();
+        const prefPhone = (getCol(row,'preferred phone','preferredphone','pref phone','preferred phone number') || '').trim();
 
         if(!title && !material) return; // skip blank rows
 
@@ -1980,7 +1967,7 @@ async function processAlmaReport(file){
         const isReturned = !!ret;
         const isOverdue = !ret && due && due < today;
 
-        loans.push({ firstName, lastName, sid, deviceType, loanDate: new Date(loanDate), dueDate: due, returnDate: ret, isReturned, isOverdue });
+        loans.push({ firstName, lastName, sid, deviceType, prefEmail, prefPhone, loanDate: new Date(loanDate), dueDate: due, returnDate: ret, isReturned, isOverdue });
       });
 
       almaData = loans;
@@ -2144,18 +2131,35 @@ async function generateReport(){
       overdueRows.forEach((l,i) => {
         const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
         const match = reqs.find(r => String(r.student_id).trim() === l.sid);
-        const contact = match ? (match.email ? match.email : (match.phone || '—')) : '—';
-        const email = match ? (match.email||'') : '';
         const lang = match ? (match.language||'en') : 'en';
+        const portalEmail = match ? (match.email||'') : '';
+        const portalPhone = match ? (match.phone||'') : '';
+
+        // Build contact cell - compare Alma preferred email to portal email
+        let emailDisplay = '';
+        if(l.prefEmail && portalEmail && l.prefEmail.toLowerCase() !== portalEmail.toLowerCase()){
+          // Different emails - show both
+          emailDisplay = '<div style="font-size:12px">' + l.prefEmail + ' <span style="color:var(--warning);font-size:10px">(Alma)</span></div>' +
+                         '<div style="font-size:12px">' + portalEmail + ' <span style="color:var(--text-light);font-size:10px">(Portal)</span></div>';
+        } else {
+          emailDisplay = '<div style="font-size:12px">' + (l.prefEmail || portalEmail || '—') + '</div>';
+        }
+        if(l.prefPhone || portalPhone){
+          emailDisplay += '<div style="font-size:11px;color:var(--text-light)">' + (l.prefPhone || portalPhone) + '</div>';
+        }
+
+        // Best email for mailto - prefer Alma preferred email
+        const bestEmail = l.prefEmail || portalEmail || '';
+
         html += '<tr style="background:#fff8f8">' +
-          '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + email + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
+          '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + bestEmail + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
           '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + (lang==='es'?' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>':'') + '</td>' +
           '<td class="td-id">' + (l.sid||'—') + '</td>' +
           '<td>' + devLabel(l.deviceType) + '</td>' +
           '<td style="font-size:12px">' + fmtDate(l.loanDate) + '</td>' +
           '<td style="font-size:12px;color:var(--danger)">' + fmtDate(l.dueDate) + '</td>' +
           '<td style="font-weight:700;color:var(--danger)">' + daysOver + 'd</td>' +
-          '<td style="font-size:12px">' + contact + '</td>' +
+          '<td>' + emailDisplay + '</td>' +
           '</tr>';
       });
       html += '</tbody></table></div>';
@@ -2173,13 +2177,19 @@ async function generateReport(){
 function exportOverdue(){
   if(!window._reportData || !window._reportData.overdueRows.length){ alert('No overdue data.'); return; }
   const today = new Date();
-  const rows = [['Student First','Student Last','Student ID','Device','Loan Date','Due Date','Days Overdue','Email (Portal)','Phone (Portal)']];
+  const rows = [['Student First','Student Last','Student ID','Device','Loan Date','Due Date','Days Overdue','Email (Alma)','Email (Portal)','Email Match','Phone']];
   window._reportData.overdueRows.forEach(l => {
     const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '';
     const match = window._reportData.reqs.find(r => String(r.student_id).trim() === l.sid);
+    const portalEmail = match ? (match.email||'') : '';
+    const portalPhone = match ? (match.phone||'') : '';
+    const almaEmail = l.prefEmail || '';
+    const almaPhone = l.prefPhone || '';
+    const emailsMatch = almaEmail && portalEmail && almaEmail.toLowerCase() === portalEmail.toLowerCase();
     rows.push([l.firstName||'', l.lastName||'', l.sid||'', devLabel(l.deviceType),
       l.loanDate ? fmtDate(l.loanDate) : '', l.dueDate ? fmtDate(l.dueDate) : '', daysOver,
-      match ? (match.email||'') : '', match ? (match.phone||'') : '']);
+      almaEmail, portalEmail, emailsMatch ? 'Match' : (almaEmail && portalEmail ? 'MISMATCH' : ''),
+      almaPhone || portalPhone]);
   });
   const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const a = document.createElement('a');
@@ -2374,6 +2384,25 @@ function updateEmailPreviewES(){
 // ── OVERDUE NOTIFICATIONS ────────────────────────────────────────────────────
 let overdueNotifyStudents = [];
 
+function restoreAlmaDisplay(){
+  if(!window._savedAlmaData || !window._savedAlmaData.length) return;
+  almaData = window._savedAlmaData.map(l => ({
+    ...l,
+    loanDate: l.loanDate ? new Date(l.loanDate) : null,
+    dueDate: l.dueDate ? new Date(l.dueDate) : null,
+    returnDate: l.returnDate ? new Date(l.returnDate) : null,
+  }));
+  const resultEl = document.getElementById('alma-report-result');
+  if(resultEl){
+    const returnedCount = almaData.filter(l=>l.isReturned).length;
+    const overdueCount = almaData.filter(l=>l.isOverdue).length;
+    resultEl.innerHTML = '<div class="alert alert-success" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
+      '<span>✓ <strong>' + almaData.length + '</strong> device loans loaded — <strong>' + returnedCount + '</strong> returned, <strong>' + overdueCount + '</strong> overdue.</span>' +
+      '<button class="btn btn-outline btn-sm" onclick="clearAlmaReport()" style="white-space:nowrap">✕ Clear Upload</button>' +
+      '</div>';
+  }
+}
+
 async function saveAlmaDataToSupabase(loans){
   try {
     const existing = await sbGet('semester_config','?select=id&limit=1&order=created_at.desc');
@@ -2556,25 +2585,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       semesterLabel=cfg[0].semester_label;
       semesterCode=cfg[0].semester_code;
       semesterDueDate=cfg[0].due_date||'';
+      window._savedAlmaData = cfg[0].alma_report_data || null;
       document.getElementById('hero-semester').textContent=semesterLabel;
-      // Restore alma data if previously uploaded this semester
-      if(cfg[0].alma_report_data && cfg[0].alma_report_data.length){
-        almaData = cfg[0].alma_report_data.map(l => ({
-          ...l,
-          loanDate: l.loanDate ? new Date(l.loanDate) : null,
-          dueDate: l.dueDate ? new Date(l.dueDate) : null,
-          returnDate: l.returnDate ? new Date(l.returnDate) : null,
-        }));
-        const resultEl = document.getElementById('alma-report-result');
-        if(resultEl){
-          const returnedCount = almaData.filter(l=>l.isReturned).length;
-          const overdueCount = almaData.filter(l=>l.isOverdue).length;
-          resultEl.innerHTML = '<div class="alert alert-success" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
-            '<span>✓ Loaded <strong>' + almaData.length + '</strong> device loans — <strong>' + returnedCount + '</strong> returned, <strong>' + overdueCount + '</strong> overdue. (Restored from saved data)</span>' +
-            '<button class="btn btn-outline btn-sm" onclick="clearAlmaReport()" style="white-space:nowrap">✕ Clear Upload</button>' +
-            '</div>';
-        }
-      }
+
     }
   } catch(e){}
   // Load waitlist settings for student portal
