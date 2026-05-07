@@ -687,6 +687,26 @@ Cuesta College Library</textarea>
           </div>
         </div>
 
+          <div class="card" style="margin-top:16px">
+            <div class="card-title">Overdue Notification — English</div>
+            <div class="card-sub">Sent to students with overdue devices. Use {due_date} and {two_weeks} as placeholders.</div>
+            <div class="form-group"><label class="form-label">Subject</label><input class="form-input" id="overdue-subject-en"></div>
+            <div class="form-group"><label class="form-label">Body</label><textarea class="form-input" id="overdue-body-en" rows="12" style="resize:vertical" oninput="updateOverduePreview()"></textarea></div>
+            <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:8px">Preview</div>
+            <div class="notif-preview" id="overdue-preview-en"></div>
+            <button class="btn btn-primary" onclick="saveOverdueTemplate()">Save Overdue Template (EN)</button>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-title">Overdue Notification — Spanish / Español</div>
+            <div class="card-sub">Use {due_date} and {two_weeks} as placeholders.</div>
+            <div class="form-group"><label class="form-label">Subject / Asunto</label><input class="form-input" id="overdue-subject-es"></div>
+            <div class="form-group"><label class="form-label">Body / Cuerpo</label><textarea class="form-input" id="overdue-body-es" rows="12" style="resize:vertical" oninput="updateOverduePreviewES()"></textarea></div>
+            <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:8px">Vista previa</div>
+            <div class="notif-preview" id="overdue-preview-es"></div>
+            <button class="btn btn-primary" onclick="saveOverdueTemplateES()">Guardar plantilla de atraso (ES)</button>
+          </div>
+
         <!-- Archive panels injected dynamically -->
         <div id="archive-panels"></div>
       </main>
@@ -715,6 +735,19 @@ Cuesta College Library</textarea>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('modal-pickup')">Cancel</button>
       <button class="btn btn-gold" onclick="confirmPickup()">✓ Mark as Picked Up</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overdue-notify">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-title">Send Overdue Notice</div>
+    <div class="modal-sub" id="overdue-notify-sub"></div>
+    <div id="overdue-notify-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-overdue-notify')">Cancel</button>
+      <button class="btn btn-outline" onclick="openOverdueEmailDraft()">✉️ Open in Email</button>
+      <button class="btn btn-primary" onclick="confirmOverdueNotify()">✓ Mark All Notified</button>
     </div>
   </div>
 </div>
@@ -764,6 +797,18 @@ let emailTemplate = {
   reply: 'circulation@cuesta.edu',
   subject: 'A {device} IS ON HOLD FOR YOU AT CUESTA COLLEGE LIBRARY IN {campus}',
   body: 'Hi there,\n\nA {device} is ready for you to pick up at the Cuesta College {campus} Campus Library. If you would like to pick it up from the {othercampus} Campus Library, please let us know.\n\nHere are the library hours - https://www.cuesta.edu/student-support/library/contact-library-2.html\n\nThe {device} will be held under your name at the circulation desk for one week. If you do not pick up the {device} by/on {deadline}, it will be released for check out by another student in need.\n\nHave a great semester and don\'t hesitate to contact us if you need anything!\n\nThanks,\nCuesta College Library'
+};
+
+let overdueTemplate = {
+  reply: 'circulation@cuesta.edu',
+  subject: 'OVERDUE ELECTRONIC DEVICE',
+  body: 'According to our records, the electronic device you borrowed from Cuesta College Library was due on {due_date}, and is now long overdue.\n\nThe Library Electronic Device Agreement states that all devices must be returned at the end of each session/semester. Additionally, the EDA form must be filled out each semester. There is no grace period for late fees. Devices must be returned in clean, working order.\n\nIf the device(s) on your account are not returned by {two_weeks}, it will be disabled/locked, and you may have a fee or hold placed on your library account.\n\nStudents with late fees or lost/overdue/damaged items on their account may not check out ANY items from the library until all fees are reconciled and/or items are returned.\n\nDevices are NOT to be returned in any of the book drops, and must be returned in-person during open hours, which can be found at https://www.cuesta.edu/library/about/hourspolicy.html\n\nIf you have questions, please contact us.\n\nThanks,\nCuesta College Library'
+};
+
+let overdueTemplateES = {
+  reply: 'circulation@cuesta.edu',
+  subject: 'DISPOSITIVO ELECTRÓNICO CON ATRASO',
+  body: 'Según nuestros registros, el dispositivo electrónico que tomó prestado de la Biblioteca del Colegio Cuesta debía devolverse el {due_date} y ahora tiene un atraso considerable.\n\nEl Acuerdo de Dispositivos Electrónicos de la Biblioteca establece que todos los dispositivos deben devolverse al final de cada sesión/semestre. Además, el formulario de acuerdo debe completarse cada semestre. No hay período de gracia para los cargos por retraso. Los dispositivos deben devolverse limpios y en buen estado de funcionamiento.\n\nSi el/los dispositivo(s) en su cuenta no se devuelven antes del {two_weeks}, será(n) desactivado(s)/bloqueado(s), y es posible que se le aplique un cargo o un bloqueo en su cuenta de biblioteca.\n\nLos estudiantes con cargos por retraso o artículos perdidos/atrasados/dañados en su cuenta no podrán pedir prestado NINGÚN artículo de la biblioteca hasta que todos los cargos se hayan resuelto y/o los artículos se hayan devuelto.\n\nLos dispositivos NO deben devolverse en los buzones de libros, y deben devolverse en persona durante las horas de atención, que se pueden encontrar en https://www.cuesta.edu/library/about/hourspolicy.html\n\nSi tiene preguntas, por favor contáctenos.\n\nGracias,\nBiblioteca del Colegio Cuesta'
 };
 
 let emailTemplateES = {
@@ -1219,6 +1264,21 @@ async function loadDashboard(){
   if(esSubjEl) esSubjEl.value=emailTemplateES.subject;
   if(esBodyEl) esBodyEl.value=emailTemplateES.body;
   updateEmailPreviewES();
+  // Load overdue templates
+  const savedOverdue=localStorage.getItem('ccl_overdue_template');
+  if(savedOverdue){ try{ Object.assign(overdueTemplate,JSON.parse(savedOverdue)); }catch(e){} }
+  const savedOverdueES=localStorage.getItem('ccl_overdue_template_es');
+  if(savedOverdueES){ try{ Object.assign(overdueTemplateES,JSON.parse(savedOverdueES)); }catch(e){} }
+  const oSubjEn=document.getElementById('overdue-subject-en');
+  const oBodyEn=document.getElementById('overdue-body-en');
+  const oSubjEs=document.getElementById('overdue-subject-es');
+  const oBodyEs=document.getElementById('overdue-body-es');
+  if(oSubjEn) oSubjEn.value=overdueTemplate.subject;
+  if(oBodyEn) oBodyEn.value=overdueTemplate.body;
+  if(oSubjEs) oSubjEs.value=overdueTemplateES.subject;
+  if(oBodyEs) oBodyEs.value=overdueTemplateES.body;
+  updateOverduePreview();
+  updateOverduePreviewES();
   // pre-fill semester fields
   document.getElementById('sem-label').value=semesterLabel;
   document.getElementById('sem-code').value=semesterCode;
@@ -1949,9 +2009,13 @@ async function generateReport(){
     ]);
 
     const nonAghs = reqs.filter(r => r.status !== 'aghs' && r.campus !== 'AGHS');
+
+    // Total device requests = every individual device request row (not deduplicated by student)
+    const totalDeviceRequests = nonAghs.length;
+
+    // Waitlist breakdown per device
     const byDevice = {};
     DEVICES.forEach(d => { byDevice[d.id] = {total:0, waitlisted:0, pickedUpFromWaitlist:0, pickedUpTotal:0, expired:0, times:[]}; });
-
     nonAghs.forEach(r => {
       if(!byDevice[r.device_type]) return;
       byDevice[r.device_type].total++;
@@ -1969,39 +2033,69 @@ async function generateReport(){
 
     // Alma enrichment
     let almaTotal = 0, almaReturned = 0, almaOverdue = 0;
+    let almaUniqueStudents = new Set();
+    let almaStudentSIDs = new Set(); // all 900#s in Alma report
     const almaByDevice = {};
     DEVICES.forEach(d => { almaByDevice[d.id] = {total:0, returned:0, overdue:0}; });
     let overdueRows = [];
+    let noAgreementStudents = [];
+
+    // Build agreement SID set
+    const agreementSIDs = new Set(agrs.map(a => String(a.student_id).trim()));
 
     if(almaData){
-      almaTotal = almaData.length;
       almaData.forEach(l => {
         if(almaByDevice[l.deviceType]){
           almaByDevice[l.deviceType].total++;
           if(l.isReturned){ almaByDevice[l.deviceType].returned++; almaReturned++; }
           if(l.isOverdue){ almaByDevice[l.deviceType].overdue++; almaOverdue++; }
         }
+        if(l.sid) almaStudentSIDs.add(l.sid);
         if(l.isOverdue) overdueRows.push(l);
+      });
+      almaTotal = almaData.length;
+      almaUniqueStudents = almaStudentSIDs;
+
+      // Find students in Alma report who have no signed agreement
+      const sidsSeen = new Set();
+      almaData.forEach(l => {
+        if(!l.sid || sidsSeen.has(l.sid)) return;
+        sidsSeen.add(l.sid);
+        if(!agreementSIDs.has(l.sid)){
+          // Get all devices this student checked out
+          const theirDevices = almaData.filter(x => x.sid === l.sid).map(x => devLabel(x.deviceType)).join(', ');
+          noAgreementStudents.push({ sid: l.sid, firstName: l.firstName, lastName: l.lastName, devices: theirDevices });
+        }
       });
     }
 
     // Build HTML
     let html = '';
 
-    // Top stats
-    html += '<div class="stats-row" style="margin-bottom:18px">';
+    // Top stats row 1
+    html += '<div class="stats-row" style="margin-bottom:14px">';
     html += '<div class="stat-card gold"><div class="stat-val">' + agrs.length + '</div><div class="stat-label">Agreements Signed</div></div>';
-    html += '<div class="stat-card blue"><div class="stat-val">' + nonAghs.length + '</div><div class="stat-label">Device Requests (Portal)</div></div>';
+    html += '<div class="stat-card blue"><div class="stat-val">' + totalDeviceRequests + '</div><div class="stat-label">Total Device Requests (Portal)</div></div>';
     html += '<div class="stat-card green"><div class="stat-val">' + (almaData ? almaTotal : nonAghs.filter(r=>r.status==='picked-up').length) + '</div><div class="stat-label">' + (almaData ? 'Total Checkouts (Alma)' : 'Picked Up') + '</div></div>';
-    html += '<div class="stat-card red"><div class="stat-val">' + (almaData ? almaOverdue : nonAghs.filter(r=>r.status==='expired').length) + '</div><div class="stat-label">' + (almaData ? 'Overdue (Alma)' : 'Expired Waitlist') + '</div></div>';
+    html += '<div class="stat-card red"><div class="stat-val">' + (almaData ? almaOverdue : nonAghs.filter(r=>r.status==='expired').length) + '</div><div class="stat-label">' + (almaData ? 'Overdue Devices' : 'Expired Waitlist Slots') + '</div></div>';
     html += '</div>';
 
-    // Waitlist breakdown
-    html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">Waitlist Breakdown by Device</div></div>';
-    html += '<table><thead><tr><th>Device</th><th>Requests</th><th>Went to Waitlist</th><th>Picked Up (Waitlist)</th><th>Expired</th><th>Avg Wait</th>';
+    // Top stats row 2 — Alma student counts (only if Alma loaded)
+    if(almaData){
+      const noAgreeCount = noAgreementStudents.length;
+      html += '<div class="stats-row" style="margin-bottom:18px">';
+      html += '<div class="stat-card green"><div class="stat-val">' + almaUniqueStudents.size + '</div><div class="stat-label">Unique Students (Alma)</div></div>';
+      html += '<div class="stat-card gold"><div class="stat-val">' + agreementSIDs.size + '</div><div class="stat-label">Unique Students (Agreements)</div></div>';
+      html += '<div class="stat-card ' + (noAgreeCount > 0 ? 'red' : 'green') + '"><div class="stat-val">' + noAgreeCount + '</div><div class="stat-label">Checked Out Without Agreement ⚠️</div></div>';
+      html += '<div class="stat-card blue"><div class="stat-val">' + almaReturned + '</div><div class="stat-label">Already Returned</div></div>';
+      html += '</div>';
+    }
+
+    // Waitlist + Alma breakdown table
+    html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">Breakdown by Device Type</div></div>';
+    html += '<table><thead><tr><th>Device</th><th>Requests</th><th>Waitlisted</th><th>Picked Up (Waitlist)</th><th>Expired</th><th>Avg Wait</th>';
     if(almaData) html += '<th>Alma Checkouts</th><th>Returned</th><th>Overdue</th>';
     html += '</tr></thead><tbody>';
-
     DEVICES.forEach(d => {
       const s = byDevice[d.id];
       const a = almaByDevice[d.id];
@@ -2014,56 +2108,73 @@ async function generateReport(){
     });
     html += '</tbody></table></div>';
 
-    // AGHS
-    const aghs = reqs.filter(r => r.campus === 'AGHS');
-    if(aghs.length){
-      html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">AGHS Special Requests: ' + aghs.length + '</div></div></div>';
+    // No-agreement students section
+    if(almaData && noAgreementStudents.length > 0){
+      html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header">';
+      html += '<div class="table-title" style="color:var(--danger)">⚠️ Checked Out Without Signed Agreement (' + noAgreementStudents.length + ')</div>';
+      html += '<button class="btn btn-outline btn-sm" onclick="exportNoAgreement()">⬇ Export</button></div>';
+      html += '<div class="alert alert-warning" style="margin:12px 14px 0">These students appear in the Alma checkout report but have no signed agreement on file for ' + semesterLabel + '.</div>';
+      html += '<table><thead><tr><th>Student ID</th><th>Name</th><th>Devices Checked Out</th></tr></thead><tbody>';
+      noAgreementStudents.forEach(s => {
+        html += '<tr style="background:#fff8f0"><td class="td-id">' + s.sid + '</td><td class="td-name">' + s.firstName + ' ' + s.lastName + '</td><td style="font-size:12px">' + s.devices + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else if(almaData && noAgreementStudents.length === 0){
+      html += '<div class="alert alert-success" style="margin-bottom:18px">✓ All students in the Alma report have a signed agreement on file for ' + semesterLabel + '.</div>';
     }
 
-    // Overdue section from Alma
-    if(almaData && overdueRows.length > 0){
-      html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title" style="color:var(--danger)">⚠️ Overdue Devices — Follow-Up Required (' + overdueRows.length + ')</div>';
-      html += '<button class="btn btn-outline btn-sm" onclick="exportOverdue()">⬇ Export Overdue</button></div>';
-      html += '<table><thead><tr><th>Student</th><th>ID</th><th>Device</th><th>Loan Date</th><th>Due Date</th><th>Days Overdue</th><th>Match in Portal</th></tr></thead><tbody>';
+    // AGHS
+    const aghs = reqs.filter(r => r.campus === 'AGHS');
+    if(aghs.length) html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">AGHS Special Requests: ' + aghs.length + '</div></div></div>';
 
+    // Overdue section
+    if(almaData && overdueRows.length > 0){
+      html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header">';
+      html += '<div class="table-title" style="color:var(--danger)">⚠️ Overdue Devices — Follow-Up Required (' + overdueRows.length + ')</div>';
+      html += '<button class="btn btn-outline btn-sm" onclick="exportOverdue()">⬇ Export Overdue</button></div>';
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">' +
+        '<input type="checkbox" id="overdue-sel-all" onchange="toggleOverdueSelectAll()" style="width:15px;height:15px;accent-color:var(--green)">' +
+        '<label for="overdue-sel-all" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>' +
+        '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Send Overdue Notice to Selected</button>' +
+        '</div>';
+      html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Loan Date</th><th>Due Date</th><th>Days Overdue</th><th>Contact (Portal)</th></tr></thead><tbody>';
       const today = new Date();
-      overdueRows.forEach(l => {
+      overdueRows.forEach((l,i) => {
         const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
-        // Try to match to portal record
-        const match = reqs.find(r => r.student_id === l.sid && r.device_type === l.deviceType);
-        const matchCell = match
-          ? '<span style="color:var(--success);font-size:12px">✓ ' + (match.email||match.phone||'found') + '</span>'
-          : '<span style="color:var(--text-light);font-size:12px">—</span>';
+        const match = reqs.find(r => String(r.student_id).trim() === l.sid);
+        const contact = match ? (match.email ? match.email : (match.phone || '—')) : '—';
+        const email = match ? (match.email||'') : '';
+        const lang = match ? (match.language||'en') : 'en';
         html += '<tr style="background:#fff8f8">' +
-          '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + '</td>' +
+          '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + email + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
+          '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + (lang==='es'?' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>':'') + '</td>' +
           '<td class="td-id">' + (l.sid||'—') + '</td>' +
           '<td>' + devLabel(l.deviceType) + '</td>' +
           '<td style="font-size:12px">' + fmtDate(l.loanDate) + '</td>' +
           '<td style="font-size:12px;color:var(--danger)">' + fmtDate(l.dueDate) + '</td>' +
           '<td style="font-weight:700;color:var(--danger)">' + daysOver + 'd</td>' +
-          '<td>' + matchCell + '</td>' +
+          '<td style="font-size:12px">' + contact + '</td>' +
           '</tr>';
       });
       html += '</tbody></table></div>';
     } else if(!almaData){
-      html += '<div class="alert alert-info" style="margin-bottom:18px">💡 Upload an Alma checkout report above to see overdue devices and enrich this report with actual checkout data.</div>';
+      html += '<div class="alert alert-info">💡 Upload an Alma checkout report above to see overdue devices, unique student counts, and agreement compliance.</div>';
     }
 
     document.getElementById('report-content').innerHTML = html;
-    window._reportData = { reqs, agrs, byDevice, almaData, overdueRows: overdueRows||[], semesterLabel, semesterCode };
+    window._reportData = { reqs, agrs, byDevice, almaData, overdueRows: overdueRows||[], noAgreementStudents: noAgreementStudents||[], semesterLabel, semesterCode };
 
   } catch(e){
     document.getElementById('report-content').innerHTML = '<div class="alert alert-danger">Error: ' + e.message + '</div>';
   }
 }
-
 function exportOverdue(){
   if(!window._reportData || !window._reportData.overdueRows.length){ alert('No overdue data.'); return; }
   const today = new Date();
   const rows = [['Student First','Student Last','Student ID','Device','Loan Date','Due Date','Days Overdue','Email (Portal)','Phone (Portal)']];
   window._reportData.overdueRows.forEach(l => {
     const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '';
-    const match = window._reportData.reqs.find(r => r.student_id === l.sid && r.device_type === l.deviceType);
+    const match = window._reportData.reqs.find(r => String(r.student_id).trim() === l.sid);
     rows.push([l.firstName||'', l.lastName||'', l.sid||'', devLabel(l.deviceType),
       l.loanDate ? fmtDate(l.loanDate) : '', l.dueDate ? fmtDate(l.dueDate) : '', daysOver,
       match ? (match.email||'') : '', match ? (match.phone||'') : '']);
@@ -2072,6 +2183,19 @@ function exportOverdue(){
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'Overdue_' + semesterLabel.replace(' ','_') + '.csv';
+  a.click();
+}
+
+function exportNoAgreement(){
+  if(!window._reportData || !window._reportData.noAgreementStudents.length){ alert('No data.'); return; }
+  const rows = [['Student ID','First Name','Last Name','Devices Checked Out']];
+  window._reportData.noAgreementStudents.forEach(s => {
+    rows.push([s.sid, s.firstName, s.lastName, s.devices]);
+  });
+  const csv = rows.map(r => r.map(v => '"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'No_Agreement_' + semesterLabel.replace(' ','_') + '.csv';
   a.click();
 }
 
@@ -2234,6 +2358,136 @@ function updateEmailPreviewES(){
     .replace(/{deadline}/g,fmtDate(new Date(Date.now()+7*24*60*60*1000)));
   const el=document.getElementById('email-preview-es');
   if(el) el.textContent='Asunto: ' + subj + '\n\n' + body;
+}
+
+// ── OVERDUE NOTIFICATIONS ────────────────────────────────────────────────────
+let overdueNotifyStudents = [];
+
+function toggleOverdueSelectAll(){
+  const allCb = document.getElementById('overdue-sel-all');
+  document.querySelectorAll('.overdue-cb').forEach(cb => cb.checked = allCb.checked);
+}
+
+function openOverdueNotifyModal(){
+  const checked = Array.from(document.querySelectorAll('.overdue-cb:checked'));
+  if(!checked.length){ alert('Please select at least one student.'); return; }
+
+  const students = checked.map(cb => ({
+    name: cb.dataset.name,
+    email: cb.dataset.email,
+    due: cb.dataset.due,
+    lang: cb.dataset.lang || 'en'
+  }));
+
+  const esStudents = students.filter(s => s.lang === 'es');
+  const enStudents = students.filter(s => s.lang !== 'es');
+  if(esStudents.length > 0 && enStudents.length > 0){
+    alert('You have selected students who submitted in different languages (' + enStudents.length + ' English, ' + esStudents.length + ' Spanish). Please notify them separately so each receives the correct language email.');
+    return;
+  }
+
+  overdueNotifyStudents = students;
+  const isSpanish = esStudents.length > 0;
+  window._overdueIsSpanish = isSpanish;
+  const tmpl = isSpanish ? overdueTemplateES : overdueTemplate;
+  const twoWeeks = fmtDate(new Date(Date.now() + 14*24*60*60*1000));
+
+  // Use first selected student's due date for preview
+  const previewDue = students[0].due;
+  const subject = (tmpl.subject || '');
+  const previewBody = (tmpl.body || '')
+    .replace(/{due_date}/g, previewDue)
+    .replace(/{two_weeks}/g, twoWeeks);
+
+  const isSingle = students.length === 1;
+  const mailInfo = isSingle
+    ? '<span style="color:var(--text-light)">To:</span> ' + students[0].email + ' &nbsp;|&nbsp; <span style="color:var(--text-light)">CC:</span> circulation@cuesta.edu'
+    : '<span style="color:var(--text-light)">To:</span> circulation@cuesta.edu &nbsp;|&nbsp; <span style="color:var(--text-light)">BCC:</span> ' + students.map(s=>s.email).join('; ');
+
+  const studentList = students.map(s =>
+    '<div style="padding:5px 0;border-bottom:1px solid var(--cream-dark);display:flex;justify-content:space-between;align-items:center">' +
+    '<span style="font-size:13px;font-weight:500">' + s.name + '</span>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    (s.lang==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 6px;border-radius:10px;font-weight:600">ES</span>':'') +
+    '<span style="font-size:12px;color:var(--text-light)">' + (s.email||'no email') + '</span>' +
+    '<span style="font-size:11px;color:var(--warning)">Due: ' + s.due + '</span>' +
+    '</div></div>'
+  ).join('');
+
+  document.getElementById('overdue-notify-sub').textContent = students.length + ' student' + (students.length>1?'s':'') + (isSpanish?' (Spanish)':'');
+  document.getElementById('overdue-notify-body').innerHTML =
+    '<div class="alert alert-info" style="margin-bottom:14px">Click <strong>Open in Email</strong> to open a pre-filled draft. After sending, click <strong>Mark All Notified</strong>.</div>' +
+    (isSpanish?'<div class="alert alert-warning" style="margin-bottom:14px">Using <strong>Spanish</strong> overdue template.</div>':'') +
+    '<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:600;color:var(--text-light);text-transform:uppercase;margin-bottom:6px">Notifying ' + students.length + ' student' + (students.length>1?'s':'') + '</div>' + studentList + '</div>' +
+    '<div style="background:var(--cream);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><div style="font-size:12px">' + mailInfo + '</div>' +
+    '<div style="font-size:12px;margin-top:4px"><span style="color:var(--text-light)">Subject:</span> ' + subject + '</div></div>' +
+    '<div><div style="font-size:11px;font-weight:600;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">Email Preview</div>' +
+    '<div class="notif-preview">' + previewBody + '</div></div>';
+
+  openModal('modal-overdue-notify');
+}
+
+function openOverdueEmailDraft(){
+  const isSpanish = window._overdueIsSpanish || false;
+  const tmpl = isSpanish ? overdueTemplateES : overdueTemplate;
+  const twoWeeks = fmtDate(new Date(Date.now() + 14*24*60*60*1000));
+  const isSingle = overdueNotifyStudents.length === 1;
+  const previewDue = overdueNotifyStudents[0]?.due || '';
+
+  const subject = encodeURIComponent(tmpl.subject || '');
+  const body = encodeURIComponent(
+    (tmpl.body || '')
+      .replace(/{due_date}/g, previewDue)
+      .replace(/{two_weeks}/g, twoWeeks)
+  );
+  const cc = encodeURIComponent('circulation@cuesta.edu');
+  const emails = overdueNotifyStudents.map(s => s.email).filter(Boolean);
+
+  let mailto;
+  if(isSingle){
+    mailto = 'mailto:' + encodeURIComponent(emails[0]||'') + '?cc=' + cc + '&subject=' + subject + '&body=' + body;
+  } else {
+    mailto = 'mailto:circulation@cuesta.edu?bcc=' + encodeURIComponent(emails.join(';')) + '&subject=' + subject + '&body=' + body;
+  }
+  window.location.href = mailto;
+}
+
+function confirmOverdueNotify(){
+  // Just close the modal - overdue notices are tracked via email, no DB status to update
+  closeModal('modal-overdue-notify');
+  alert('Remember to click "Mark All Notified" only after you have sent the email.');
+}
+
+function updateOverduePreview(){
+  const subj = document.getElementById('overdue-subject-en')?.value || overdueTemplate.subject;
+  const body = (document.getElementById('overdue-body-en')?.value || overdueTemplate.body)
+    .replace(/{due_date}/g, 'May 22, 2026')
+    .replace(/{two_weeks}/g, fmtDate(new Date(Date.now()+14*24*60*60*1000)));
+  const el = document.getElementById('overdue-preview-en');
+  if(el) el.textContent = 'Subject: ' + subj + '\n\n' + body;
+}
+
+function updateOverduePreviewES(){
+  const subj = document.getElementById('overdue-subject-es')?.value || overdueTemplateES.subject;
+  const body = (document.getElementById('overdue-body-es')?.value || overdueTemplateES.body)
+    .replace(/{due_date}/g, '22 de mayo de 2026')
+    .replace(/{two_weeks}/g, fmtDate(new Date(Date.now()+14*24*60*60*1000)));
+  const el = document.getElementById('overdue-preview-es');
+  if(el) el.textContent = 'Asunto: ' + subj + '\n\n' + body;
+}
+
+function saveOverdueTemplate(){
+  overdueTemplate.subject = document.getElementById('overdue-subject-en').value;
+  overdueTemplate.body = document.getElementById('overdue-body-en').value;
+  localStorage.setItem('ccl_overdue_template', JSON.stringify(overdueTemplate));
+  alert('Overdue template (EN) saved.');
+}
+
+function saveOverdueTemplateES(){
+  overdueTemplateES.subject = document.getElementById('overdue-subject-es').value;
+  overdueTemplateES.body = document.getElementById('overdue-body-es').value;
+  localStorage.setItem('ccl_overdue_template_es', JSON.stringify(overdueTemplateES));
+  alert('Overdue template (ES) saved.');
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
