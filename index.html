@@ -635,6 +635,7 @@ tr:hover td{background:#f8fbf8}
             <div class="card-sub">Update the semester label and code. The code is used to track agreements — changing it means all students must re-sign.</div>
             <div class="form-group"><label class="form-label">Semester Label (displayed on form)</label><input class="form-input" id="sem-label" placeholder="e.g. Fall 2026"></div>
             <div class="form-group"><label class="form-label">Semester Code (used for tracking, no spaces)</label><input class="form-input" id="sem-code" placeholder="e.g. Fall2026"></div>
+            <div class="form-group"><label class="form-label">Device Due Date (used in overdue email notifications)</label><input class="form-input" id="sem-due-date" type="date"><div style="font-size:12px;color:var(--text-light);margin-top:4px">This date will fill in the {due_date} placeholder in overdue notification emails.</div></div>
             <div id="sem-result"></div>
             <button class="btn btn-primary" onclick="saveSemester()">Save Semester Settings</button>
           </div>
@@ -1258,7 +1259,6 @@ async function loadDashboard(){
   document.getElementById('sem-label').value=semesterLabel;
   document.getElementById('sem-code').value=semesterCode;
   if(semesterDueDate && document.getElementById('sem-due-date')) document.getElementById('sem-due-date').value=semesterDueDate;
-  if(semesterDueDate) document.getElementById('sem-due-date').value=semesterDueDate;
 }
 
 async function loadSemesterConfig(){
