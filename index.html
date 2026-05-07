@@ -580,8 +580,26 @@ tr:hover td{background:#f8fbf8}
             <div class="page-title">Semester Report</div>
             <div class="page-sub">Summary statistics for the current semester.</div>
           </div>
-          <div id="report-content"><div class="empty-state"><div class="spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--green)"></div></div></div>
-          <div style="margin-top:16px;display:flex;gap:10px">
+
+          <!-- Alma Upload -->
+          <div class="card" style="margin-bottom:18px">
+            <div class="card-title">Upload Alma Checkout Report</div>
+            <div class="card-sub">Upload an Alma Item Circulation Statistics export (.xlsx) to enrich the report with actual checkout data, overdue tracking, and pickup counts.</div>
+            <div class="upload-zone" onclick="document.getElementById('alma-report-input').click()"
+                 ondragover="event.preventDefault();this.classList.add('dragging')"
+                 ondragleave="this.classList.remove('dragging')"
+                 ondrop="handleAlmaReportDrop(event)"
+                 style="border:2px dashed var(--border);border-radius:var(--radius-sm);padding:24px;text-align:center;cursor:pointer;transition:all 0.15s;background:#fafaf8">
+              <div style="font-size:28px;margin-bottom:6px">📂</div>
+              <div style="font-size:14px;font-weight:500;color:var(--text-mid)">Click to browse or drag &amp; drop</div>
+              <div style="font-size:12px;color:var(--text-light);margin-top:3px">Accepts .xlsx from Alma Item Circulation Statistics</div>
+            </div>
+            <input type="file" id="alma-report-input" accept=".xlsx" style="display:none" onchange="handleAlmaReportSelect(event)">
+            <div id="alma-report-result" style="margin-top:12px"></div>
+          </div>
+
+          <div id="report-content"><div class="empty-state"><div class="empty-icon">📈</div><div class="empty-text">Click Refresh Report to generate</div></div></div>
+          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="generateReport()">↻ Refresh Report</button>
             <button class="btn btn-outline" onclick="exportReport()">⬇ Export CSV</button>
           </div>
@@ -1136,7 +1154,7 @@ async function doSubmit(){
     const results=[];
     for(const did of selectedDevices){
       const dt=DEVICES.find(x=>x.id===did);
-      const campus=dt.shared?'shared':selectedCampus;
+      const campus=dt.shared?'SLO':selectedCampus;
       const key=dt.shared?'laptop_shared':wlKey(did,selectedCampus);
       const onWL=!isAGHS&&(waitlistSettings[key]||false);
       const status=isAGHS?'aghs':(onWL?'waitlisted':'requested');
@@ -1385,7 +1403,7 @@ async function loadWaitlistPanel(panelId){
           <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">
             <input type="checkbox" id="sel-all-req-${panelId}" onchange="toggleSelectAllReq('${panelId}')" style="width:15px;height:15px;accent-color:var(--green)">
             <label for="sel-all-req-${panelId}" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>
-            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelectedReq('${panelId}','${devLabel(deviceId)}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}')">✉️ Notify Selected</button>
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelectedReq('${panelId}','${devLabel(deviceId)}','${shortCampus(dbCampus)}')">✉️ Notify Selected</button>
           </div>`;
       requested.forEach(r=>{
         html+=`<tr>
@@ -1394,7 +1412,7 @@ async function loadWaitlistPanel(panelId){
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
           <td>${fmtDT(r.requested_at)}</td>
           <td style="display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${dbCampus==='shared'?'Shared':dbCampus+' Library'}','${r.email}','${r.language||"en"}')">Notify Ready</button>
+            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify Ready</button>
             <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
           </td></tr>`;
       });
@@ -1636,48 +1654,82 @@ function filterAgreements(){
 // ── AGHS ──────────────────────────────────────────────────────────────────────
 async function loadAGHS(){
   try {
-    const [active, past] = await Promise.all([
-      sbGet('device_requests','?campus=eq.AGHS&status=eq.aghs&order=requested_at.desc&select=*'),
-      sbGet('device_requests','?campus=eq.AGHS&status=in.(picked-up,cancelled,notified)&order=requested_at.desc&select=*'),
+    const [active, notified, past] = await Promise.all([
+      sbGet('device_requests','?campus=eq.AGHS&status=eq.aghs&order=requested_at.asc&select=*'),
+      sbGet('device_requests','?campus=eq.AGHS&status=eq.notified&order=notified_at.asc&select=*'),
+      sbGet('device_requests','?campus=eq.AGHS&status=in.(picked-up,cancelled,expired)&order=requested_at.desc&select=*'),
     ]);
     const el = document.getElementById('aghs-table');
     el.innerHTML = '';
 
-    // Active requests
-    if(!active.length){
-      el.innerHTML += '<div class="empty-state"><div class="empty-icon">📍</div><div class="empty-text">No active AGHS requests</div></div>';
-    } else {
+    // Notified - awaiting pickup
+    if(notified.length){
+      const card = document.createElement('div');
+      card.className = 'table-card';
+      card.style.marginBottom = '16px';
+      card.innerHTML = '<div class="table-header"><div class="table-title">⏰ Notified — Awaiting Pickup (' + notified.length + ')</div></div>';
       const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Notified</th><th>Expires</th><th>Actions</th></tr></thead>';
       const tbody = document.createElement('tbody');
-      active.forEach(r => {
+      notified.forEach(r => {
+        const exp = r.expires_at && new Date(r.expires_at) < new Date();
         const tr = document.createElement('tr');
         tr.innerHTML =
-          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + (r.language==='es' ? ' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>' : '') + '</div><div class="td-id">' + r.student_id + '</div></td>' +
+          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
-          '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + (r.phone||'') + '</div></td>' +
-          '<td>' + fmtDT(r.requested_at) + '</td>' +
+          '<td><div style="font-size:12px">' + (r.email||'—') + '</div></td>' +
+          '<td>' + fmtDT(r.notified_at) + '</td>' +
+          '<td style="color:' + (exp?'var(--danger)':'inherit') + '">' + fmtDate(r.expires_at) + (exp?' ⚠️':'') + '</td>' +
           '<td style="display:flex;gap:6px;flex-wrap:wrap"></td>';
         const td = tr.lastElementChild;
-        // Notify
-        const btnNotify = document.createElement('button');
-        btnNotify.className = 'btn btn-primary btn-sm';
-        btnNotify.textContent = 'Notify';
-        btnNotify.onclick = function(){ openNotifyModal(r.id, r.first_name+' '+r.last_name, devLabel(r.device_type).toUpperCase(), 'AGHS', r.email||'', r.language||'en'); };
-        td.appendChild(btnNotify);
-        // Fulfilled
-        const btnFulfill = document.createElement('button');
-        btnFulfill.className = 'btn btn-gold btn-sm';
-        btnFulfill.textContent = 'Fulfilled';
-        btnFulfill.onclick = function(){ fulfillAGHS(r.id); };
-        td.appendChild(btnFulfill);
-        // No Longer Needs
+        const btnPick = document.createElement('button');
+        btnPick.className = 'btn btn-gold btn-sm';
+        btnPick.textContent = 'Picked Up';
+        btnPick.onclick = function(){ openPickupModal(r.id, r.first_name+' '+r.last_name, devLabel(r.device_type)); };
+        td.appendChild(btnPick);
         const btnNLN = document.createElement('button');
         btnNLN.className = 'btn btn-warning btn-sm';
         btnNLN.textContent = 'No Longer Needs';
         btnNLN.onclick = function(){ markNoLongerNeeded(r.id, 'aghs'); };
         td.appendChild(btnNLN);
-        // Remove
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      card.appendChild(table);
+      el.appendChild(card);
+    }
+
+    // Active requests
+    const activeCard = document.createElement('div');
+    activeCard.className = 'table-card';
+    activeCard.style.marginBottom = '16px';
+    if(!active.length){
+      activeCard.innerHTML = '<div class="table-header"><div class="table-title">📋 Active Requests (0)</div></div><div class="empty-state"><div class="empty-icon">📍</div><div class="empty-text">No active AGHS requests</div></div>';
+    } else {
+      activeCard.innerHTML = '<div class="table-header"><div class="table-title">📋 Active Requests (' + active.length + ')</div></div>';
+      const table = document.createElement('table');
+      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead>';
+      const tbody = document.createElement('tbody');
+      active.forEach(r => {
+        const esBadge = r.language==='es' ? '<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>' : '';
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + esBadge + '</div><div class="td-id">' + r.student_id + '</div></td>' +
+          '<td>' + devLabel(r.device_type) + '</td>' +
+          '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + (r.phone||'') + '</div></td>' +
+          '<td>' + fmtDT(r.requested_at) + '</td>' +
+          '<td style="display:flex;gap:6px;flex-wrap:wrap"></td>';
+        const td = tr.lastElementChild;
+        const btnNotify = document.createElement('button');
+        btnNotify.className = 'btn btn-primary btn-sm';
+        btnNotify.textContent = 'Notify';
+        btnNotify.onclick = function(){ openNotifyModal(r.id, r.first_name+' '+r.last_name, devLabel(r.device_type).toUpperCase(), 'AGHS', r.email||'', r.language||'en'); };
+        td.appendChild(btnNotify);
+        const btnNLN = document.createElement('button');
+        btnNLN.className = 'btn btn-warning btn-sm';
+        btnNLN.textContent = 'No Longer Needs';
+        btnNLN.onclick = function(){ markNoLongerNeeded(r.id, 'aghs'); };
+        td.appendChild(btnNLN);
         const btnRemove = document.createElement('button');
         btnRemove.className = 'btn btn-danger btn-sm';
         btnRemove.textContent = 'Remove';
@@ -1686,24 +1738,25 @@ async function loadAGHS(){
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      el.appendChild(table);
+      activeCard.appendChild(table);
     }
+    el.appendChild(activeCard);
 
     // Past entries
     if(past.length){
       const pastCard = document.createElement('div');
       pastCard.className = 'table-card';
-      pastCard.style.marginTop = '16px';
+      pastCard.style.marginTop = '8px';
       pastCard.innerHTML = '<div class="table-header"><div class="table-title" style="color:var(--text-light)">📁 Past AGHS Entries (' + past.length + ')</div></div>';
       const ptable = document.createElement('table');
-      ptable.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Status</th></tr></thead>';
+      ptable.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Notified</th><th>Status</th></tr></thead>';
       const ptbody = document.createElement('tbody');
       past.forEach(r => {
         const badge = r.status==='picked-up'
-          ? '<span class="status status-picked-up">✓ Fulfilled ' + (r.picked_up_at ? fmtDate(r.picked_up_at) : '') + '</span>'
-          : r.status==='notified'
-          ? '<span class="status status-notified">Notified ' + (r.notified_at ? fmtDate(r.notified_at) : '') + '</span>'
-          : '<span class="status status-cancelled">✗ Cancelled</span>';
+          ? '<span class="status status-picked-up">✓ Picked Up ' + (r.picked_up_at?fmtDate(r.picked_up_at):'') + '</span>'
+          : r.status==='expired'
+          ? '<span class="status status-expired">✗ Expired</span>'
+          : '<span class="status status-cancelled">✗ ' + (r.status==='cancelled'?'No Longer Needed':'Removed') + '</span>';
         const ptr = document.createElement('tr');
         ptr.style.opacity = '0.75';
         ptr.innerHTML =
@@ -1711,6 +1764,7 @@ async function loadAGHS(){
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div></td>' +
           '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
+          '<td style="font-size:12px">' + (r.notified_at?fmtDT(r.notified_at):'—') + '</td>' +
           '<td>' + badge + '</td>';
         ptbody.appendChild(ptr);
       });
@@ -1722,7 +1776,7 @@ async function loadAGHS(){
 }
 
 async function fulfillAGHS(id){
-  if(!confirm('Mark as fulfilled?')) return;
+  if(!confirm('Mark as picked up?')) return;
   try {
     await sbPatch('device_requests','?id=eq.'+id,{status:'picked-up',picked_up_at:new Date().toISOString()});
     loadAGHS();
@@ -1797,50 +1851,228 @@ async function checkAutoExpire(){
 }
 
 // ── SEMESTER REPORT ───────────────────────────────────────────────────────────
+// Alma report data stored in memory
+let almaData = null;
+
+function handleAlmaReportDrop(event){
+  event.preventDefault();
+  event.target.classList.remove('dragging');
+  const file = event.dataTransfer.files[0];
+  if(file) processAlmaReport(file);
+}
+function handleAlmaReportSelect(event){
+  const file = event.target.files[0];
+  if(file) processAlmaReport(file);
+}
+
+async function processAlmaReport(file){
+  const resultEl = document.getElementById('alma-report-result');
+  resultEl.innerHTML = '<div class="alert alert-info">📂 Processing: <strong>' + file.name + '</strong>...</div>';
+
+  if(!window.XLSX){
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:null});
+
+      // Helper: get column value case-insensitively
+      function getCol(row, ...names){
+        for(const key of Object.keys(row)){
+          if(names.some(n => key.toLowerCase().trim() === n.toLowerCase())) return row[key];
+        }
+        return null;
+      }
+
+      const today = new Date();
+      const loans = [];
+      rows.forEach(row => {
+        const title = (getCol(row,'title') || '').toLowerCase();
+        const material = (getCol(row,'material type','materialtype') || '').toLowerCase();
+        const loanDate = getCol(row,'loan date','loandate');
+        const dueDate = getCol(row,'due date','duedate');
+        const returnDate = getCol(row,'return date','returndate');
+        const firstName = getCol(row,'first name','firstname') || '';
+        const lastName = getCol(row,'last name','lastname') || '';
+        const sid = String(getCol(row,'identifier 1','identifier1','student id','studentid') || '').trim();
+        const barcode = getCol(row,'barcode') || '';
+
+        if(!title && !material) return; // skip blank rows
+
+        // Detect device type
+        let deviceType = null;
+        if(title.includes('hotspot') || title.includes('franklin') || title.includes('t10') || title.includes('t9')) deviceType = 'hotspot';
+        else if(title.includes('thinkpad') || title.includes('t14')) deviceType = 'laptop';
+        else if(title.includes('chromebook') || title.includes('dell') || title.includes('100e') || title.includes('14e chromebook')) deviceType = 'chromebook';
+        else if(title.includes('calculator') || title.includes('ti-') || title.includes('casio') || title.includes('victor')) deviceType = 'calculator';
+        else if(material.includes('hotspot')) deviceType = 'hotspot';
+        else if(material.includes('calculator')) deviceType = 'calculator';
+        else if(material.includes('laptop') || material.includes('chromebook') || material.includes('tablet')) deviceType = 'chromebook';
+        else return; // skip unknown rows
+
+        const due = dueDate ? new Date(dueDate) : null;
+        const ret = returnDate ? new Date(returnDate) : null;
+        const isReturned = !!ret;
+        const isOverdue = !ret && due && due < today;
+
+        loans.push({ firstName, lastName, sid, deviceType, loanDate: new Date(loanDate), dueDate: due, returnDate: ret, isReturned, isOverdue });
+      });
+
+      almaData = loans;
+      const overdueCount = loans.filter(l=>l.isOverdue).length;
+      const returnedCount = loans.filter(l=>l.isReturned).length;
+      resultEl.innerHTML = '<div class="alert alert-success">✓ Loaded <strong>' + loans.length + '</strong> device loans — <strong>' + returnedCount + '</strong> returned, <strong>' + overdueCount + '</strong> overdue. Click <strong>Refresh Report</strong> to incorporate.</div>';
+      generateReport();
+    } catch(err){
+      document.getElementById('alma-report-result').innerHTML = '<div class="alert alert-danger">Error reading file: ' + err.message + '</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 async function generateReport(){
-  document.getElementById('report-content').innerHTML='<div class="empty-state"><div class="spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--green)"></div></div>';
+  document.getElementById('report-content').innerHTML = '<div class="empty-state"><div class="spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--green)"></div></div>';
   try {
-    const [reqs,agrs]=await Promise.all([
-      sbGet('device_requests',`?semester=eq.${semesterCode}&select=*`),
-      sbGet('agreements',`?semester=eq.${semesterCode}&select=*`)
+    const [reqs, agrs] = await Promise.all([
+      sbGet('device_requests', '?semester=eq.' + semesterCode + '&select=*'),
+      sbGet('agreements', '?semester=eq.' + semesterCode + '&select=*')
     ]);
-    const nonAghs=reqs.filter(r=>r.status!=='aghs');
-    const byDevice={};
-    DEVICES.forEach(d=>{ byDevice[d.id]={total:0,waitlisted:0,pickedUp:0,expired:0,times:[]}; });
-    nonAghs.forEach(r=>{
+
+    const nonAghs = reqs.filter(r => r.status !== 'aghs' && r.campus !== 'AGHS');
+    const byDevice = {};
+    DEVICES.forEach(d => { byDevice[d.id] = {total:0, waitlisted:0, pickedUpFromWaitlist:0, pickedUpTotal:0, expired:0, times:[]}; });
+
+    nonAghs.forEach(r => {
       if(!byDevice[r.device_type]) return;
       byDevice[r.device_type].total++;
-      if(['waitlisted','notified','picked-up','expired'].includes(r.status)) byDevice[r.device_type].waitlisted++;
-      if(r.status==='picked-up') byDevice[r.device_type].pickedUp++;
-      if(r.status==='expired') byDevice[r.device_type].expired++;
-      if(r.notified_at&&r.requested_at){
-        const days=(new Date(r.notified_at)-new Date(r.requested_at))/(1000*60*60*24);
+      if(['waitlisted','notified','picked-up','expired','cancelled'].includes(r.status)) byDevice[r.device_type].waitlisted++;
+      if(r.status === 'picked-up'){
+        byDevice[r.device_type].pickedUpTotal++;
+        if(r.waitlist_position) byDevice[r.device_type].pickedUpFromWaitlist++;
+      }
+      if(r.status === 'expired') byDevice[r.device_type].expired++;
+      if(r.notified_at && r.requested_at){
+        const days = (new Date(r.notified_at) - new Date(r.requested_at)) / (1000*60*60*24);
         byDevice[r.device_type].times.push(days);
       }
     });
 
-    let html=`<div class="stats-row" style="margin-bottom:16px">
-      <div class="stat-card gold"><div class="stat-val">${agrs.length}</div><div class="stat-label">Agreements Signed</div></div>
-      <div class="stat-card blue"><div class="stat-val">${nonAghs.length}</div><div class="stat-label">Total Device Requests</div></div>
-      <div class="stat-card green"><div class="stat-val">${nonAghs.filter(r=>r.status==='picked-up').length}</div><div class="stat-label">Devices Picked Up</div></div>
-      <div class="stat-card red"><div class="stat-val">${nonAghs.filter(r=>r.status==='expired').length}</div><div class="stat-label">Expired / No Pickup</div></div>
-    </div>`;
+    // Alma enrichment
+    let almaTotal = 0, almaReturned = 0, almaOverdue = 0;
+    const almaByDevice = {};
+    DEVICES.forEach(d => { almaByDevice[d.id] = {total:0, returned:0, overdue:0}; });
+    let overdueRows = [];
 
-    html+=`<div class="table-card"><div class="table-header"><div class="table-title">Breakdown by Device Type</div></div>
-      <table><thead><tr><th>Device</th><th>Requests</th><th>Went to Waitlist</th><th>Picked Up</th><th>Expired</th><th>Avg Wait (days)</th></tr></thead><tbody>`;
-    DEVICES.forEach(d=>{
-      const s=byDevice[d.id];
-      const avg=s.times.length?Math.round(s.times.reduce((a,b)=>a+b,0)/s.times.length*10)/10:0;
-      html+=`<tr><td>${d.icon} ${d.label}</td><td>${s.total}</td><td>${s.waitlisted}</td><td>${s.pickedUp}</td><td>${s.expired}</td><td>${s.times.length?avg+'d':'—'}</td></tr>`;
+    if(almaData){
+      almaTotal = almaData.length;
+      almaData.forEach(l => {
+        if(almaByDevice[l.deviceType]){
+          almaByDevice[l.deviceType].total++;
+          if(l.isReturned){ almaByDevice[l.deviceType].returned++; almaReturned++; }
+          if(l.isOverdue){ almaByDevice[l.deviceType].overdue++; almaOverdue++; }
+        }
+        if(l.isOverdue) overdueRows.push(l);
+      });
+    }
+
+    // Build HTML
+    let html = '';
+
+    // Top stats
+    html += '<div class="stats-row" style="margin-bottom:18px">';
+    html += '<div class="stat-card gold"><div class="stat-val">' + agrs.length + '</div><div class="stat-label">Agreements Signed</div></div>';
+    html += '<div class="stat-card blue"><div class="stat-val">' + nonAghs.length + '</div><div class="stat-label">Device Requests (Portal)</div></div>';
+    html += '<div class="stat-card green"><div class="stat-val">' + (almaData ? almaTotal : nonAghs.filter(r=>r.status==='picked-up').length) + '</div><div class="stat-label">' + (almaData ? 'Total Checkouts (Alma)' : 'Picked Up') + '</div></div>';
+    html += '<div class="stat-card red"><div class="stat-val">' + (almaData ? almaOverdue : nonAghs.filter(r=>r.status==='expired').length) + '</div><div class="stat-label">' + (almaData ? 'Overdue (Alma)' : 'Expired Waitlist') + '</div></div>';
+    html += '</div>';
+
+    // Waitlist breakdown
+    html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">Waitlist Breakdown by Device</div></div>';
+    html += '<table><thead><tr><th>Device</th><th>Requests</th><th>Went to Waitlist</th><th>Picked Up (Waitlist)</th><th>Expired</th><th>Avg Wait</th>';
+    if(almaData) html += '<th>Alma Checkouts</th><th>Returned</th><th>Overdue</th>';
+    html += '</tr></thead><tbody>';
+
+    DEVICES.forEach(d => {
+      const s = byDevice[d.id];
+      const a = almaByDevice[d.id];
+      const avg = s.times.length ? Math.round(s.times.reduce((a,b)=>a+b,0)/s.times.length*10)/10 : 0;
+      html += '<tr><td>' + d.icon + ' ' + d.label + '</td>';
+      html += '<td>' + s.total + '</td><td>' + s.waitlisted + '</td><td>' + s.pickedUpFromWaitlist + '</td><td>' + s.expired + '</td>';
+      html += '<td>' + (s.times.length ? avg + 'd' : '—') + '</td>';
+      if(almaData) html += '<td><strong>' + a.total + '</strong></td><td>' + a.returned + '</td><td style="color:' + (a.overdue>0?'var(--danger)':'inherit') + '">' + a.overdue + '</td>';
+      html += '</tr>';
     });
-    html+='</tbody></table></div>';
+    html += '</tbody></table></div>';
 
-    const aghs=reqs.filter(r=>r.status==='aghs'||r.campus==='AGHS');
-    if(aghs.length) html+=`<div class="table-card" style="margin-top:14px"><div class="table-header"><div class="table-title">AGHS Special Requests: ${aghs.length}</div></div></div>`;
+    // AGHS
+    const aghs = reqs.filter(r => r.campus === 'AGHS');
+    if(aghs.length){
+      html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">AGHS Special Requests: ' + aghs.length + '</div></div></div>';
+    }
 
-    document.getElementById('report-content').innerHTML=html;
-    window._reportData={reqs,agrs,byDevice,semesterLabel,semesterCode};
-  } catch(e){ document.getElementById('report-content').innerHTML=`<div class="alert alert-danger">Error: ${e.message}</div>`; }
+    // Overdue section from Alma
+    if(almaData && overdueRows.length > 0){
+      html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title" style="color:var(--danger)">⚠️ Overdue Devices — Follow-Up Required (' + overdueRows.length + ')</div>';
+      html += '<button class="btn btn-outline btn-sm" onclick="exportOverdue()">⬇ Export Overdue</button></div>';
+      html += '<table><thead><tr><th>Student</th><th>ID</th><th>Device</th><th>Loan Date</th><th>Due Date</th><th>Days Overdue</th><th>Match in Portal</th></tr></thead><tbody>';
+
+      const today = new Date();
+      overdueRows.forEach(l => {
+        const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
+        // Try to match to portal record
+        const match = reqs.find(r => r.student_id === l.sid && r.device_type === l.deviceType);
+        const matchCell = match
+          ? '<span style="color:var(--success);font-size:12px">✓ ' + (match.email||match.phone||'found') + '</span>'
+          : '<span style="color:var(--text-light);font-size:12px">—</span>';
+        html += '<tr style="background:#fff8f8">' +
+          '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + '</td>' +
+          '<td class="td-id">' + (l.sid||'—') + '</td>' +
+          '<td>' + devLabel(l.deviceType) + '</td>' +
+          '<td style="font-size:12px">' + fmtDate(l.loanDate) + '</td>' +
+          '<td style="font-size:12px;color:var(--danger)">' + fmtDate(l.dueDate) + '</td>' +
+          '<td style="font-weight:700;color:var(--danger)">' + daysOver + 'd</td>' +
+          '<td>' + matchCell + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    } else if(!almaData){
+      html += '<div class="alert alert-info" style="margin-bottom:18px">💡 Upload an Alma checkout report above to see overdue devices and enrich this report with actual checkout data.</div>';
+    }
+
+    document.getElementById('report-content').innerHTML = html;
+    window._reportData = { reqs, agrs, byDevice, almaData, overdueRows: overdueRows||[], semesterLabel, semesterCode };
+
+  } catch(e){
+    document.getElementById('report-content').innerHTML = '<div class="alert alert-danger">Error: ' + e.message + '</div>';
+  }
+}
+
+function exportOverdue(){
+  if(!window._reportData || !window._reportData.overdueRows.length){ alert('No overdue data.'); return; }
+  const today = new Date();
+  const rows = [['Student First','Student Last','Student ID','Device','Loan Date','Due Date','Days Overdue','Email (Portal)','Phone (Portal)']];
+  window._reportData.overdueRows.forEach(l => {
+    const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '';
+    const match = window._reportData.reqs.find(r => r.student_id === l.sid && r.device_type === l.deviceType);
+    rows.push([l.firstName||'', l.lastName||'', l.sid||'', devLabel(l.deviceType),
+      l.loanDate ? fmtDate(l.loanDate) : '', l.dueDate ? fmtDate(l.dueDate) : '', daysOver,
+      match ? (match.email||'') : '', match ? (match.phone||'') : '']);
+  });
+  const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'Overdue_' + semesterLabel.replace(' ','_') + '.csv';
+  a.click();
 }
 
 function exportReport(){
