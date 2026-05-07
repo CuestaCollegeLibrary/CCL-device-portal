@@ -1225,7 +1225,7 @@ async function doSubmit(){
     const results=[];
     for(const did of selectedDevices){
       const dt=DEVICES.find(x=>x.id===did);
-      const campus=dt.shared?'SLO':selectedCampus;
+      const campus=selectedCampus==='AGHS'?'AGHS':selectedCampus;
       const key=dt.shared?'laptop_shared':wlKey(did,selectedCampus);
       const onWL=!isAGHS&&(waitlistSettings[key]||false);
       const status=isAGHS?'aghs':(onWL?'waitlisted':'requested');
@@ -1397,10 +1397,10 @@ async function loadWaitlistPanel(panelId){
 
   try {
     const [waitlisted,notified,requested,past]=await Promise.all([
-      sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.waitlisted&order=waitlist_position.asc&select=*`),
-      sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.notified&order=notified_at.asc&select=*`),
-      sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=eq.requested&order=requested_at.asc&select=*`),
-      sbGet('device_requests',`?device_type=eq.${deviceId}&campus=eq.${dbCampus}&status=in.(picked-up,expired,cancelled)&order=waitlist_position.asc,requested_at.asc&select=*`),
+      sbGet('device_requests',`?device_type=eq.${deviceId}${dbCampus==='shared'?'':'&campus=eq.'+dbCampus}&status=eq.waitlisted&order=waitlist_position.asc&select=*`),
+      sbGet('device_requests',`?device_type=eq.${deviceId}${dbCampus==='shared'?'':'&campus=eq.'+dbCampus}&status=eq.notified&order=notified_at.asc&select=*`),
+      sbGet('device_requests',`?device_type=eq.${deviceId}${dbCampus==='shared'?'':'&campus=eq.'+dbCampus}&status=eq.requested&order=requested_at.asc&select=*`),
+      sbGet('device_requests',`?device_type=eq.${deviceId}${dbCampus==='shared'?'':'&campus=eq.'+dbCampus}&status=in.(picked-up,expired,cancelled)&order=waitlist_position.asc,requested_at.asc&select=*`),
     ]);
 
     // Waitlist toggle
@@ -1461,7 +1461,7 @@ async function loadWaitlistPanel(panelId){
           html+=`<tr>
             <td><input type="checkbox" class="wl-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
             <td><span class="pos-num">${r.waitlist_position}</span></td>
-            <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
+            <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div>${dbCampus==='shared'?`<div style="font-size:11px;color:var(--text-light)">${r.campus} Campus</div>`:''}</td>
             <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||'—'}</div></td>
             <td>${fmtDT(r.requested_at)}</td>
             <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'}</td>
