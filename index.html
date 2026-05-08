@@ -2381,6 +2381,86 @@ async function loadArchivePanel(panelId){
   } catch(e){ container.innerHTML+=`<div class="alert alert-danger">Error: ${e.message}</div>`; }
 }
 
+async function restoreArchive(archiveId){
+  // Step 1: password check
+  const pw = prompt('Enter staff password to restore this semester data:');
+  if(pw !== STAFF_PASSWORD){ alert('Incorrect password.'); return; }
+
+  // Step 2: stern warning
+  const confirmed = confirm(
+    '⚠️ RESTORE WARNING\n\n' +
+    'Restoring this archived semester will PERMANENTLY WIPE all current semester data ' +
+    '(agreements, requests, and waitlists) and replace it with the archived data.\n\n' +
+    'If you have current semester data you want to keep, cancel now and go to ' +
+    'Settings → Archive & Wipe to save it first.\n\n' +
+    'Are you absolutely sure you want to proceed?'
+  );
+  if(!confirmed) return;
+
+  try {
+    // Load archive data
+    const data = await sbGet('archived_semesters', '?id=eq.' + archiveId + '&select=*');
+    if(!data.length){ alert('Archive not found.'); return; }
+    const arc = data[0];
+    const reqs = arc.requests_data || [];
+    const agrs = arc.agreements_data || [];
+
+    // Wipe current semester data
+    await sb('device_requests', 'DELETE', null, '?semester=eq.' + semesterCode);
+    await sb('agreements', 'DELETE', null, '?semester=eq.' + semesterCode);
+
+    // Restore agreements in batches
+    if(agrs.length){
+      for(let i=0; i<agrs.length; i+=50){
+        await sbPost('agreements', agrs.slice(i,i+50).map(a => ({
+          student_id: a.student_id, semester: arc.semester_code,
+          signature: a.signature, signed_at: a.signed_at, language: a.language
+        })));
+      }
+    }
+
+    // Restore device requests in batches
+    if(reqs.length){
+      for(let i=0; i<reqs.length; i+=50){
+        await sbPost('device_requests', reqs.slice(i,i+50).map(r => ({
+          student_id: r.student_id, first_name: r.first_name, last_name: r.last_name,
+          email: r.email, phone: r.phone, device_type: r.device_type, campus: r.campus,
+          status: r.status, waitlist_position: r.waitlist_position,
+          notification_pref: r.notification_pref, semester: arc.semester_code,
+          language: r.language, notes: r.notes,
+          requested_at: r.requested_at, notified_at: r.notified_at,
+          expires_at: r.expires_at, picked_up_at: r.picked_up_at,
+          updated_at: r.updated_at
+        })));
+      }
+    }
+
+    // Update semester config to match restored semester
+    const existing = await sbGet('semester_config', '?select=id&limit=1&order=created_at.desc');
+    if(existing.length){
+      await sbPatch('semester_config', '?id=eq.' + existing[0].id, {
+        semester_label: arc.semester_label,
+        semester_code: arc.semester_code,
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    semesterLabel = arc.semester_label;
+    semesterCode = arc.semester_code;
+    document.getElementById('hero-semester').textContent = semesterLabel;
+
+    alert('✓ ' + arc.semester_label + ' has been restored successfully. ' + agrs.length + ' agreements and ' + reqs.length + ' requests restored.');
+
+    // Refresh dashboard
+    loadOverview();
+    loadWaitlistCounts();
+    showPanel('overview', document.querySelector('.sidebar-item'));
+
+  } catch(e){
+    alert('Error during restore: ' + e.message);
+  }
+}
+
 async function exportArchive(archiveId){
   const data=await sbGet('archived_semesters',`?id=eq.${archiveId}&select=*`);
   if(!data.length) return;
