@@ -500,7 +500,7 @@ tr:hover td{background:#f8fbf8}
     <div class="password-card">
       <div class="pw-logo">CCL</div>
       <div class="pw-title">Staff Access</div>
-      <div class="pw-sub">Enter your team password to continue.</div>
+      <div class="pw-sub">Enter your staff or student worker password to continue.</div>
       <div id="a-gate"></div>
       <div class="form-group" style="text-align:left">
         <label class="form-label">Password</label>
@@ -770,6 +770,7 @@ window.onerror = function(msg, src, line, col, err) {
 const SUPABASE_URL = 'https://btxbzfzopeujlnsyxrgc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0eGJ6ZnpvcGV1amxuc3l4cmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0ODMyODksImV4cCI6MjA5MzA1OTI4OX0.OCvJtgaynwro1jwmR9UrCZMVtR6RHNBJ8eY-xG-efYQ';
 const STAFF_PASSWORD = 'Cougar007@';
+const SW_PASSWORDS = ['slocirc1', 'Nccirc01'];
 
 const DEVICES = [
   { id:'hotspot',    label:'WiFi Hotspot',       labelEs:'Hotspot WiFi',           icon:'📶', note:'Academic use only — limited availability', noteEs:'Solo uso académico — disponibilidad limitada', campuses:['SLO','NCC'] },
@@ -780,6 +781,7 @@ const DEVICES = [
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let lang = 'en';
+let userRole = null; // 'staff' or 'student_worker'
 let semesterLabel = 'Summer 2026';
 let semesterCode  = 'Summer2026';
 let studentData   = {};
@@ -957,6 +959,7 @@ function showView(v){
   document.getElementById('nav-staff').classList.toggle('active', v==='staff');
   if(v==='staff'){
     if(sessionStorage.getItem('ccl_auth')==='yes'){
+      userRole = sessionStorage.getItem('ccl_role') || 'staff';
       document.getElementById('staff-gate').style.display='none';
       document.getElementById('staff-dash').style.display='block';
       loadDashboard();
@@ -970,7 +973,16 @@ function showView(v){
 function checkPw(){
   const pw = document.getElementById('staff-pw').value;
   if(pw===STAFF_PASSWORD){
+    userRole = 'staff';
     sessionStorage.setItem('ccl_auth','yes');
+    sessionStorage.setItem('ccl_role','staff');
+    document.getElementById('staff-gate').style.display='none';
+    document.getElementById('staff-dash').style.display='block';
+    loadDashboard();
+  } else if(SW_PASSWORDS.includes(pw)){
+    userRole = 'student_worker';
+    sessionStorage.setItem('ccl_auth','yes');
+    sessionStorage.setItem('ccl_role','student_worker');
     document.getElementById('staff-gate').style.display='none';
     document.getElementById('staff-dash').style.display='block';
     loadDashboard();
@@ -981,6 +993,8 @@ function checkPw(){
 
 function staffLogout(){
   sessionStorage.removeItem('ccl_auth');
+  sessionStorage.removeItem('ccl_role');
+  userRole = null;
   document.getElementById('staff-gate').style.display='flex';
   document.getElementById('staff-dash').style.display='none';
   document.getElementById('staff-pw').value='';
@@ -1278,9 +1292,15 @@ async function loadDashboard(){
   await loadSemesterConfig();
   await loadWaitlistSettings();
   updateEmailPreview();
-  loadOverview();
+  applyRolePermissions();
   loadWaitlistCounts();
   loadArchiveNav();
+  if(userRole !== 'student_worker'){
+    loadOverview();
+  } else {
+    // Student workers land on first waitlist panel
+    showPanel('wl-hotspot-SLO', document.getElementById('nav-hotspot-SLO'));
+  }
   restoreAlmaDisplay();
   // pre-fill email template fields
   document.getElementById('email-reply').value=emailTemplate.reply;
@@ -1454,7 +1474,7 @@ async function loadWaitlistPanel(panelId){
           <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">
             <input type="checkbox" id="sel-all-${panelId}" onchange="toggleSelectAll('${panelId}')" style="width:15px;height:15px;accent-color:var(--green)">
             <label for="sel-all-${panelId}" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>
-            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelected('${panelId}','${devLabel(deviceId).toUpperCase()}','${shortCampus(dbCampus)}')">✉️ Notify Selected</button>
+            ${canNotify() ? `<button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelected('${panelId}','${devLabel(deviceId).toUpperCase()}','${shortCampus(dbCampus)}')">✉️ Notify Selected</button>` : ''}
           </div>
           <table><thead><tr><th style="width:36px"></th><th>#</th><th>Student</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
         waitlisted.forEach(r=>{
@@ -2176,7 +2196,7 @@ async function generateReport(){
       html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">' +
         '<input type="checkbox" id="overdue-sel-all" onchange="toggleOverdueSelectAll()" style="width:15px;height:15px;accent-color:var(--green)">' +
         '<label for="overdue-sel-all" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>' +
-        '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Send Overdue Notice to Selected</button>' +
+        (canNotify() ? '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Send Overdue Notice to Selected</button>' : '') +
         '</div>';
       html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Loan Date</th><th>Due Date</th><th>Days Overdue</th><th>Email / Phone</th></tr></thead><tbody>';
       const today = new Date();
@@ -2517,6 +2537,37 @@ function updateEmailPreviewES(){
 
 // ── OVERDUE NOTIFICATIONS ────────────────────────────────────────────────────
 let overdueNotifyStudents = [];
+
+function applyRolePermissions(){
+  const isSW = userRole === 'student_worker';
+
+  // Sidebar items to hide for student workers
+  const staffOnlyPanels = ['overview','agreements','report','aghs','settings','email-settings'];
+  document.querySelectorAll('.sidebar-item').forEach(btn => {
+    const oc = btn.getAttribute('onclick') || '';
+    const isStaffOnly = staffOnlyPanels.some(p => oc.includes("'"+p+"'"));
+    if(isStaffOnly) btn.style.display = isSW ? 'none' : '';
+  });
+
+  // Show role badge in sidebar bottom
+  const sideBottom = document.querySelector('.sidebar-bottom');
+  if(sideBottom){
+    const existing = document.getElementById('role-badge');
+    if(existing) existing.remove();
+    const badge = document.createElement('div');
+    badge.id = 'role-badge';
+    badge.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em';
+    badge.textContent = isSW ? '👤 Student Worker' : '🔑 Staff';
+    sideBottom.insertBefore(badge, sideBottom.firstChild);
+  }
+
+  // Hide notify buttons for student workers on waitlist panels (they can see but not notify)
+  // This is handled dynamically in loadWaitlistPanel
+}
+
+function canNotify(){
+  return userRole === 'staff';
+}
 
 function restoreAlmaDisplay(){
   if(!window._savedAlmaData || !window._savedAlmaData.length) return;
