@@ -568,7 +568,8 @@ tr:hover td{background:#f8fbf8}
         <div class="sidebar-section">
           <div class="sidebar-label">Other</div>
           <button class="sidebar-item" onclick="showPanel('wl-laptop-shared',this)" id="nav-laptop-shared">🖥️ Spec. Laptops <span class="sidebar-count" id="cnt-laptop-shared">0</span></button>
-          <button class="sidebar-item" onclick="showPanel('aghs',this)">📍 AGHS Requests</button>
+          <button class="sidebar-item" onclick="showPanel('aghs',this)" id="nav-aghs">📍 AGHS Requests</button>
+          <button class="sidebar-item" onclick="showPanel('overdue',this)" id="nav-overdue">⚠️ Overdue Devices</button>
         </div>
         <div class="sidebar-section">
           <div class="sidebar-label">Settings</div>
@@ -660,6 +661,17 @@ tr:hover td{background:#f8fbf8}
         <div id="panel-wl-chromebook-NCC" class="tab-panel"></div>
         <div id="panel-wl-calculator-NCC" class="tab-panel"></div>
         <div id="panel-wl-laptop-shared" class="tab-panel"></div>
+
+        <!-- Overdue Devices (standalone for student workers) -->
+        <div id="panel-overdue" class="tab-panel">
+          <div class="page-header">
+            <div class="page-title">⚠️ Overdue Devices</div>
+            <div class="page-sub">Devices past their due date that have not been returned.</div>
+          </div>
+          <div id="overdue-panel-content">
+            <div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Upload an Alma report in the Semester Report page to see overdue devices.</div><div class="empty-sub">Staff can access this via Semester Report → Upload Alma Report.</div></div>
+          </div>
+        </div>
 
         <!-- AGHS -->
         <div id="panel-aghs" class="tab-panel">
@@ -1373,8 +1385,9 @@ async function loadDashboard(){
   if(userRole !== 'student_worker'){
     loadOverview();
   } else {
-    // Student workers land on first waitlist panel
     showPanel('wl-hotspot-SLO', document.getElementById('nav-hotspot-SLO'));
+    // Also pre-load overdue data
+    loadOverduePanel();
   }
   restoreAlmaDisplay();
   // pre-fill email template fields
@@ -1432,6 +1445,7 @@ function showPanel(panel, btn){
   else if(panel==='agreements') loadAgreements();
   else if(panel==='aghs') loadAGHS();
   else if(panel==='report') generateReport();
+  else if(panel==='overdue') loadOverduePanel();
   else if(panel.startsWith('wl-')) loadWaitlistPanel(panel);
   else if(panel.startsWith('archive-')) loadArchivePanel(panel);
 }
@@ -1561,7 +1575,7 @@ async function loadWaitlistPanel(panelId){
             <td>${fmtDT(r.requested_at)}</td>
             <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'}</td>
             <td style="display:flex;gap:6px">
-              <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify</button>
+              ${canNotify() ? `<button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify</button>` : ''}
               <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
               <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
             </td></tr>`;
@@ -2618,6 +2632,9 @@ function applyRolePermissions(){
 
   // Sidebar items to hide for student workers
   const staffOnlyPanels = ['overview','agreements','report','aghs','settings','email-settings'];
+  // Show overdue panel for both roles
+  const overdueNav = document.getElementById('nav-overdue');
+  if(overdueNav) overdueNav.style.display = '';
   document.querySelectorAll('.sidebar-item').forEach(btn => {
     const oc = btn.getAttribute('onclick') || '';
     const isStaffOnly = staffOnlyPanels.some(p => oc.includes("'"+p+"'"));
@@ -2642,6 +2659,57 @@ function applyRolePermissions(){
 
 function canNotify(){
   return userRole === 'staff';
+}
+
+function loadOverduePanel(){
+  const el = document.getElementById('overdue-panel-content');
+  if(!almaData || !almaData.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">No Alma report loaded.</div><div class="empty-sub">' + (userRole==='staff' ? 'Go to Semester Report and upload an Alma checkout report.' : 'Ask a staff member to upload the Alma report in the Semester Report page.') + '</div></div>';
+    return;
+  }
+  const today = new Date();
+  const overdueRows = almaData.filter(l => l.isOverdue);
+  if(!overdueRows.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">No overdue devices found.</div></div>';
+    return;
+  }
+
+  // Group by due date
+  const byDueDate = {};
+  overdueRows.forEach((l,i) => {
+    const dk = fmtDate(l.dueDate) || 'Unknown';
+    if(!byDueDate[dk]) byDueDate[dk] = [];
+    byDueDate[dk].push({l,i});
+  });
+
+  let html = '<div class="table-card">';
+  html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">' +
+    '<input type="checkbox" id="overdue-sel-all-sw" onchange="document.querySelectorAll(\'.overdue-cb\').forEach(cb=>cb.checked=document.getElementById(\'overdue-sel-all-sw\').checked)" style="width:15px;height:15px;accent-color:var(--green)">' +
+    '<label for="overdue-sel-all-sw" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>' +
+    (canNotify() ? '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Send Overdue Notice</button>' : '') +
+    '</div>';
+  html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Due Date</th><th>Days Overdue</th><th>Phone</th></tr></thead><tbody>';
+
+  Object.entries(byDueDate).forEach(([dueGroup, entries]) => {
+    html += '<tr><td colspan="7" style="background:#f0f5f1;padding:8px 14px;font-size:12px;font-weight:600;color:var(--green)">📅 Due: ' + dueGroup + ' — ' + entries.length + ' student' + (entries.length>1?'s':'') + '</td></tr>';
+    entries.forEach(({l, i}) => {
+      const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
+      const match = window._reportData ? window._reportData.reqs.find(r => String(r.student_id).trim() === l.sid) : null;
+      const phone = l.prefPhone || (match ? match.phone : '') || '—';
+      const lang = match ? (match.language||'en') : 'en';
+      html += '<tr style="background:#fff8f8">' +
+        '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + (l.prefEmail || (match?match.email:'')||'') + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
+        '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + (lang==='es'?' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>':'') + '</td>' +
+        '<td class="td-id">' + (l.sid||'—') + '</td>' +
+        '<td>' + devLabel(l.deviceType) + '</td>' +
+        '<td style="font-size:12px;color:var(--danger)">' + fmtDate(l.dueDate) + '</td>' +
+        '<td style="font-weight:700;color:var(--danger)">' + daysOver + 'd</td>' +
+        '<td style="font-size:12px">' + phone + '</td>' +
+        '</tr>';
+    });
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
 }
 
 function restoreAlmaDisplay(){
