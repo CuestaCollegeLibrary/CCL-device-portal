@@ -500,13 +500,46 @@ tr:hover td{background:#f8fbf8}
     <div class="password-card">
       <div class="pw-logo">CCL</div>
       <div class="pw-title">Staff Access</div>
-      <div class="pw-sub">Enter your staff or student worker password to continue.</div>
+      <div class="pw-sub" id="gate-sub">Choose your profile to continue.</div>
       <div id="a-gate"></div>
-      <div class="form-group" style="text-align:left">
-        <label class="form-label">Password</label>
-        <input class="form-input" id="staff-pw" type="password" placeholder="Team password" onkeydown="if(event.key==='Enter')checkPw()">
+
+      <!-- Profile selector -->
+      <div id="profile-selector" style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px">
+        <button class="btn btn-outline btn-full" id="profile-btn-staff"
+          onclick="selectProfile('staff')"
+          style="display:flex;align-items:center;gap:12px;padding:14px 18px;text-align:left">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔑</div>
+          <div>
+            <div style="font-weight:600;color:var(--green);font-size:14px">Staff</div>
+            <div style="font-size:12px;color:var(--text-light)">Full access to all features</div>
+          </div>
+        </button>
+        <button class="btn btn-outline btn-full" id="profile-btn-sw"
+          onclick="selectProfile('student_worker')"
+          style="display:flex;align-items:center;gap:12px;padding:14px 18px;text-align:left">
+          <div style="width:40px;height:40px;border-radius:10px;background:#6d28d9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👤</div>
+          <div>
+            <div style="font-weight:600;color:#6d28d9;font-size:14px">Student Worker</div>
+            <div style="font-size:12px;color:var(--text-light)">Waitlists and device tracking</div>
+          </div>
+        </button>
       </div>
-      <button class="btn btn-primary btn-full" onclick="checkPw()">Sign In</button>
+
+      <!-- Password form (shown after profile selected) -->
+      <div id="pw-form" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer" onclick="backToProfiles()">
+          <div id="selected-profile-icon" style="width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px"></div>
+          <div>
+            <div id="selected-profile-name" style="font-weight:600;font-size:14px"></div>
+            <div style="font-size:11px;color:var(--text-light)">← Change profile</div>
+          </div>
+        </div>
+        <div class="form-group" style="text-align:left">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="staff-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkPw()">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="checkPw()">Sign In</button>
+      </div>
     </div>
   </div>
 
@@ -970,16 +1003,52 @@ function showView(v){
   }
 }
 
+function selectProfile(role){
+  const isStaff = role === 'staff';
+  document.getElementById('profile-selector').style.display = 'none';
+  document.getElementById('pw-form').style.display = 'block';
+  document.getElementById('gate-sub').textContent = 'Enter your password to continue.';
+  document.getElementById('staff-pw').value = '';
+  document.getElementById('staff-pw').focus();
+
+  const icon = document.getElementById('selected-profile-icon');
+  const name = document.getElementById('selected-profile-name');
+  if(isStaff){
+    icon.style.background = 'var(--green)';
+    icon.textContent = '🔑';
+    name.style.color = 'var(--green)';
+    name.textContent = 'Staff';
+  } else {
+    icon.style.background = '#6d28d9';
+    icon.textContent = '👤';
+    name.style.color = '#6d28d9';
+    name.textContent = 'Student Worker';
+  }
+  // Store selected profile temporarily
+  window._selectedProfile = role;
+}
+
+function backToProfiles(){
+  document.getElementById('profile-selector').style.display = 'flex';
+  document.getElementById('pw-form').style.display = 'none';
+  document.getElementById('gate-sub').textContent = 'Choose your profile to continue.';
+  document.getElementById('staff-pw').value = '';
+  clearAlert('a-gate');
+  window._selectedProfile = null;
+}
+
 function checkPw(){
   const pw = document.getElementById('staff-pw').value;
-  if(pw===STAFF_PASSWORD){
+  const selectedProfile = window._selectedProfile;
+
+  if(selectedProfile === 'staff' && pw === STAFF_PASSWORD){
     userRole = 'staff';
     sessionStorage.setItem('ccl_auth','yes');
     sessionStorage.setItem('ccl_role','staff');
     document.getElementById('staff-gate').style.display='none';
     document.getElementById('staff-dash').style.display='block';
     loadDashboard();
-  } else if(SW_PASSWORDS.includes(pw)){
+  } else if(selectedProfile === 'student_worker' && SW_PASSWORDS.includes(pw)){
     userRole = 'student_worker';
     sessionStorage.setItem('ccl_auth','yes');
     sessionStorage.setItem('ccl_role','student_worker');
@@ -987,7 +1056,7 @@ function checkPw(){
     document.getElementById('staff-dash').style.display='block';
     loadDashboard();
   } else {
-    showAlert('a-gate','Incorrect password.','danger');
+    showAlert('a-gate','Incorrect password for this profile.','danger');
   }
 }
 
@@ -995,9 +1064,15 @@ function staffLogout(){
   sessionStorage.removeItem('ccl_auth');
   sessionStorage.removeItem('ccl_role');
   userRole = null;
+  window._selectedProfile = null;
   document.getElementById('staff-gate').style.display='flex';
   document.getElementById('staff-dash').style.display='none';
   document.getElementById('staff-pw').value='';
+  // Reset to profile selector
+  document.getElementById('profile-selector').style.display='flex';
+  document.getElementById('pw-form').style.display='none';
+  document.getElementById('gate-sub').textContent='Choose your profile to continue.';
+  clearAlert('a-gate');
 }
 
 // ── STEP NAV ──────────────────────────────────────────────────────────────────
