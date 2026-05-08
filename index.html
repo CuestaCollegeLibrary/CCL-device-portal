@@ -1390,6 +1390,7 @@ async function loadDashboard(){
     loadOverduePanel();
   }
   restoreAlmaDisplay();
+  loadOverdueNotifRecords();
   // pre-fill email template fields
   document.getElementById('email-reply').value=emailTemplate.reply;
   document.getElementById('email-subject').value=emailTemplate.subject;
@@ -2315,7 +2316,7 @@ async function generateReport(){
         const bestEmail = l.prefEmail || portalEmail || '';
 
         html += '<tr style="background:#fff8f8">' +
-          '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + bestEmail + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
+          '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + bestEmail + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" data-sid="' + (l.sid||'') + '" data-device-type="' + (l.deviceType||'') + '" data-due-iso="' + (l.dueDate?l.dueDate.toISOString().split('T')[0]:'') + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
           '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + (lang==='es'?' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>':'') + '</td>' +
           '<td class="td-id">' + (l.sid||'—') + '</td>' +
           '<td>' + devLabel(l.deviceType) + '</td>' +
@@ -2661,10 +2662,66 @@ function canNotify(){
   return userRole === 'staff';
 }
 
+// Cache overdue notification records
+let overdueNotifRecords = {};
+
+async function loadOverdueNotifRecords(){
+  try {
+    const recs = await sbGet('overdue_notifications', '?select=*');
+    overdueNotifRecords = {};
+    recs.forEach(r => {
+      const key = r.student_id + '_' + r.device_type + '_' + r.due_date;
+      overdueNotifRecords[key] = r;
+    });
+  } catch(e){ console.warn('Could not load overdue notifications:', e.message); }
+}
+
+async function markOverdueNotified(sid, deviceType, dueDate, method){
+  const key = sid + '_' + deviceType + '_' + dueDate;
+  const existing = overdueNotifRecords[key];
+  const now = new Date().toISOString();
+  const update = {
+    student_id: sid, device_type: deviceType, due_date: dueDate,
+    semester: semesterCode, notified_by: userRole,
+    updated_at: now
+  };
+  if(method === 'email'){
+    update.notified_email = true;
+    update.notified_email_at = now;
+  } else {
+    update.notified_phone = true;
+    update.notified_phone_at = now;
+  }
+  try {
+    if(existing){
+      // Merge with existing
+      if(method === 'email'){
+        await sbPatch('overdue_notifications', '?id=eq.' + existing.id, {
+          notified_email: true, notified_email_at: now,
+          notified_by: userRole, updated_at: now
+        });
+        overdueNotifRecords[key].notified_email = true;
+        overdueNotifRecords[key].notified_email_at = now;
+      } else {
+        await sbPatch('overdue_notifications', '?id=eq.' + existing.id, {
+          notified_phone: true, notified_phone_at: now,
+          notified_by: userRole, updated_at: now
+        });
+        overdueNotifRecords[key].notified_phone = true;
+        overdueNotifRecords[key].notified_phone_at = now;
+      }
+    } else {
+      const res = await sbPost('overdue_notifications', [update]);
+      if(res && res[0]) overdueNotifRecords[key] = res[0];
+    }
+    loadOverduePanel();
+  } catch(e){ alert('Error saving notification: ' + e.message); }
+}
+
 function loadOverduePanel(){
   const el = document.getElementById('overdue-panel-content');
   if(!almaData || !almaData.length){
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">No Alma report loaded.</div><div class="empty-sub">' + (userRole==='staff' ? 'Go to Semester Report and upload an Alma checkout report.' : 'Ask a staff member to upload the Alma report in the Semester Report page.') + '</div></div>';
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">No Alma report loaded.</div><div class="empty-sub">' + (userRole==='staff' ? 'Go to Semester Report and upload an Alma checkout report.' : 'Ask a staff member to upload the Alma report.') + '</div></div>';
     return;
   }
   const today = new Date();
@@ -2674,43 +2731,130 @@ function loadOverduePanel(){
     return;
   }
 
-  // Group by due date
-  const byDueDate = {};
-  overdueRows.forEach((l,i) => {
-    const dk = fmtDate(l.dueDate) || 'Unknown';
-    if(!byDueDate[dk]) byDueDate[dk] = [];
-    byDueDate[dk].push({l,i});
+  // Split into active overdue and fully notified
+  const active = [];
+  const fullyNotified = [];
+  overdueRows.forEach((l, i) => {
+    const key = l.sid + '_' + l.deviceType + '_' + (l.dueDate ? l.dueDate.toISOString().split('T')[0] : '');
+    const rec = overdueNotifRecords[key] || {};
+    if(rec.notified_email && rec.notified_phone){
+      fullyNotified.push({l, i, rec});
+    } else {
+      active.push({l, i, rec});
+    }
   });
 
-  let html = '<div class="table-card">';
-  html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">' +
-    '<input type="checkbox" id="overdue-sel-all-sw" onchange="document.querySelectorAll(\'.overdue-cb\').forEach(cb=>cb.checked=document.getElementById(\'overdue-sel-all-sw\').checked)" style="width:15px;height:15px;accent-color:var(--green)">' +
-    '<label for="overdue-sel-all-sw" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>' +
-    (canNotify() ? '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Send Overdue Notice</button>' : '') +
-    '</div>';
-  html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Due Date</th><th>Days Overdue</th><th>Phone</th></tr></thead><tbody>';
+  // Group active by due date
+  const byDueDate = {};
+  active.forEach(entry => {
+    const dk = fmtDate(entry.l.dueDate) || 'Unknown';
+    if(!byDueDate[dk]) byDueDate[dk] = [];
+    byDueDate[dk].push(entry);
+  });
 
-  Object.entries(byDueDate).forEach(([dueGroup, entries]) => {
-    html += '<tr><td colspan="7" style="background:#f0f5f1;padding:8px 14px;font-size:12px;font-weight:600;color:var(--green)">📅 Due: ' + dueGroup + ' — ' + entries.length + ' student' + (entries.length>1?'s':'') + '</td></tr>';
-    entries.forEach(({l, i}) => {
-      const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
-      const match = window._reportData ? window._reportData.reqs.find(r => String(r.student_id).trim() === l.sid) : null;
-      const phone = l.prefPhone || (match ? match.phone : '') || '—';
-      const lang = match ? (match.language||'en') : 'en';
-      html += '<tr style="background:#fff8f8">' +
-        '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + (l.prefEmail || (match?match.email:'')||'') + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
-        '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + (lang==='es'?' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>':'') + '</td>' +
+  let html = '';
+
+  // Active overdue section
+  html += '<div class="table-card" style="margin-bottom:16px">';
+  html += '<div class="table-header"><div class="table-title" style="color:var(--danger)">⚠️ Active Overdue (' + active.length + ')</div>';
+  if(canNotify()){
+    html += '<div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" onclick="exportOverdue()">⬇ Export</button></div>';
+  }
+  html += '</div>';
+
+  if(!active.length){
+    html += '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">All overdue students have been fully notified</div></div>';
+  } else {
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">' +
+      '<input type="checkbox" id="overdue-sel-all-sw" onchange="document.querySelectorAll(\'.overdue-cb\').forEach(cb=>cb.checked=document.getElementById(\'overdue-sel-all-sw\').checked)" style="width:15px;height:15px;accent-color:var(--green)">' +
+      '<label for="overdue-sel-all-sw" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>' +
+      (canNotify() ? '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Notify Selected by Email</button>' : '') +
+      '</div>';
+    html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Due Date</th><th>Days Overdue</th><th>Contact</th><th>Notifications</th><th>Actions</th></tr></thead><tbody>';
+
+    Object.entries(byDueDate).forEach(([dueGroup, entries]) => {
+      html += '<tr><td colspan="9" style="background:#f0f5f1;padding:8px 14px;font-size:12px;font-weight:600;color:var(--green)">📅 Due: ' + dueGroup + ' — ' + entries.length + ' student' + (entries.length>1?'s':'') + '</td></tr>';
+      entries.forEach(({l, i, rec}) => {
+        const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
+        const match = window._reportData ? window._reportData.reqs.find(r => String(r.student_id).trim() === l.sid) : null;
+        const phone = l.prefPhone || (match ? match.phone : '') || '—';
+        const email = l.prefEmail || (match ? match.email : '') || '—';
+        const lang = match ? (match.language||'en') : 'en';
+        const dueIso = l.dueDate ? l.dueDate.toISOString().split('T')[0] : '';
+
+        // Notification badges
+        const emailBadge = rec.notified_email
+          ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap">✉️ Email ' + fmtDate(rec.notified_email_at) + '</span>'
+          : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 7px;border-radius:10px">✉️ Not emailed</span>';
+        const phoneBadge = rec.notified_phone
+          ? '<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap">📞 Phone ' + fmtDate(rec.notified_phone_at) + '</span>'
+          : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 7px;border-radius:10px">📞 Not called</span>';
+
+        // Action buttons
+        let actions = '';
+        if(!rec.notified_phone){
+          actions += '<button class="btn btn-success btn-sm" onclick="markOverdueNotified(\'' + l.sid + '\',\'' + l.deviceType + '\',\'' + dueIso + '\',\'phone\')">✓ Notified by Phone</button> ';
+        }
+        if(canNotify() && !rec.notified_email){
+          actions += '<button class="btn btn-outline btn-sm" onclick="openOverdueNotifyModalSingle(' + i + ',\'' + l.sid + '\',\'' + l.deviceType + '\',\'' + dueIso + '\')">✉️ Notify by Email</button>';
+        }
+
+        html += '<tr style="background:#fff8f8">' +
+          '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + email + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
+          '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + (lang==='es'?' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>':'') + '</td>' +
+          '<td class="td-id">' + (l.sid||'—') + '</td>' +
+          '<td>' + devLabel(l.deviceType) + '</td>' +
+          '<td style="font-size:12px;color:var(--danger)">' + fmtDate(l.dueDate) + '</td>' +
+          '<td style="font-weight:700;color:var(--danger)">' + daysOver + 'd</td>' +
+          '<td><div style="font-size:12px">' + (canNotify() ? email : '—') + '</div><div style="font-size:12px;color:var(--text-light)">' + phone + '</div></td>' +
+          '<td><div style="display:flex;flex-direction:column;gap:4px">' + emailBadge + phoneBadge + '</div></td>' +
+          '<td style="display:flex;gap:4px;flex-wrap:wrap">' + actions + '</td>' +
+          '</tr>';
+      });
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+
+  // Fully notified section
+  if(fullyNotified.length){
+    html += '<div class="table-card"><div class="table-header" style="cursor:pointer" onclick="toggleFullyNotified()">' +
+      '<div class="table-title" style="color:var(--success)">✓ Fully Notified (' + fullyNotified.length + ') <span id="fully-notified-arrow" style="font-size:12px">▶</span></div>' +
+      '</div><div id="fully-notified-body" style="display:none">' +
+      '<table><thead><tr><th>Student</th><th>ID</th><th>Device</th><th>Due Date</th><th>Email Notified</th><th>Phone Notified</th></tr></thead><tbody>';
+    fullyNotified.forEach(({l, rec}) => {
+      html += '<tr style="opacity:0.8">' +
+        '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + '</td>' +
         '<td class="td-id">' + (l.sid||'—') + '</td>' +
         '<td>' + devLabel(l.deviceType) + '</td>' +
         '<td style="font-size:12px;color:var(--danger)">' + fmtDate(l.dueDate) + '</td>' +
-        '<td style="font-weight:700;color:var(--danger)">' + daysOver + 'd</td>' +
-        '<td style="font-size:12px">' + phone + '</td>' +
+        '<td style="font-size:12px;color:#1d4ed8">' + (rec.notified_email_at ? fmtDT(rec.notified_email_at) : '—') + '</td>' +
+        '<td style="font-size:12px;color:var(--success)">' + (rec.notified_phone_at ? fmtDT(rec.notified_phone_at) : '—') + '</td>' +
         '</tr>';
     });
-  });
-  html += '</tbody></table></div>';
+    html += '</tbody></table></div></div>';
+  }
+
   el.innerHTML = html;
 }
+
+function toggleFullyNotified(){
+  const body = document.getElementById('fully-notified-body');
+  const arrow = document.getElementById('fully-notified-arrow');
+  if(!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? 'block' : 'none';
+  if(arrow) arrow.textContent = collapsed ? '▼' : '▶';
+}
+
+function openOverdueNotifyModalSingle(idx, sid, deviceType, dueIso){
+  // Select just this one student and open modal
+  document.querySelectorAll('.overdue-cb').forEach(cb => cb.checked = false);
+  const cb = document.querySelector('.overdue-cb[data-idx="' + idx + '"]');
+  if(cb) cb.checked = true;
+  openOverdueNotifyModal();
+}
+
 
 function restoreAlmaDisplay(){
   if(!window._savedAlmaData || !window._savedAlmaData.length) return;
@@ -2785,7 +2929,10 @@ function openOverdueNotifyModal(){
     name: cb.dataset.name,
     email: cb.dataset.email,
     due: cb.dataset.due,
-    lang: cb.dataset.lang || 'en'
+    lang: cb.dataset.lang || 'en',
+    sid: cb.dataset.sid || '',
+    deviceType: cb.dataset.deviceType || '',
+    dueIso: cb.dataset.dueIso || ''
   }));
 
   const esStudents = students.filter(s => s.lang === 'es');
@@ -2866,10 +3013,15 @@ function openOverdueEmailDraft(){
   window.location.href = mailto;
 }
 
-function confirmOverdueNotify(){
-  // Just close the modal - overdue notices are tracked via email, no DB status to update
+async function confirmOverdueNotify(){
   closeModal('modal-overdue-notify');
-  alert('Remember to click "Mark All Notified" only after you have sent the email.');
+  // Mark all selected students as notified by email
+  for(const s of overdueNotifyStudents){
+    if(s.sid && s.deviceType && s.dueIso){
+      await markOverdueNotified(s.sid, s.deviceType, s.dueIso, 'email');
+    }
+  }
+  loadOverduePanel();
 }
 
 function updateOverduePreview(){
