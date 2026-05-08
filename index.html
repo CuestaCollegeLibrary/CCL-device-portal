@@ -2270,64 +2270,13 @@ async function generateReport(){
     const aghs = reqs.filter(r => r.campus === 'AGHS');
     if(aghs.length) html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">AGHS Special Requests: ' + aghs.length + '</div></div></div>';
 
-    // Overdue section
+
+    // Overdue count only - full list is in Overdue Devices panel
     if(almaData && overdueRows.length > 0){
-      html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header">';
-      html += '<div class="table-title" style="color:var(--danger)">⚠️ Overdue Devices — Follow-Up Required (' + overdueRows.length + ')</div>';
-      html += '<button class="btn btn-outline btn-sm" onclick="exportOverdue()">⬇ Export Overdue</button></div>';
-      // Group by due date
-      const byDueDate = {};
-      overdueRows.forEach((l,i) => {
-        const dk = fmtDate(l.dueDate) || 'Unknown';
-        if(!byDueDate[dk]) byDueDate[dk] = [];
-        byDueDate[dk].push({l, i});
-      });
-
-      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">' +
-        '<input type="checkbox" id="overdue-sel-all" onchange="toggleOverdueSelectAll()" style="width:15px;height:15px;accent-color:var(--green)">' +
-        '<label for="overdue-sel-all" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>' +
-        (canNotify() ? '<button class="btn btn-warning btn-sm" style="margin-left:auto" onclick="openOverdueNotifyModal()">✉️ Send Overdue Notice to Selected</button>' : '') +
+      html += '<div class="alert alert-danger" style="margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">' +
+        '<span>⚠️ <strong>' + overdueRows.length + ' overdue device' + (overdueRows.length>1?'s':'') + '</strong> found in Alma report.</span>' +
+        '<button class="btn btn-danger btn-sm" onclick="showPanel(\'overdue\',document.getElementById(\'nav-overdue\'))">View Overdue Devices →</button>' +
         '</div>';
-      html += '<table><thead><tr><th style="width:36px"></th><th>Student</th><th>ID</th><th>Device</th><th>Loan Date</th><th>Due Date</th><th>Days Overdue</th><th>Email / Phone</th></tr></thead><tbody>';
-      const today = new Date();
-      Object.entries(byDueDate).forEach(([dueGroup, entries]) => {
-        html += '<tr><td colspan="8" style="background:#f0f5f1;padding:8px 14px;font-size:12px;font-weight:600;color:var(--green)">📅 Due: ' + dueGroup + ' — ' + entries.length + ' student' + (entries.length>1?'s':'') + '</td></tr>';
-        entries.forEach(({l, i}) => {
-        const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
-        const match = reqs.find(r => String(r.student_id).trim() === l.sid);
-        const lang = match ? (match.language||'en') : 'en';
-        const portalEmail = match ? (match.email||'') : '';
-        const portalPhone = match ? (match.phone||'') : '';
-
-        // Build contact cell - compare Alma preferred email to portal email
-        let emailDisplay = '';
-        if(l.prefEmail && portalEmail && l.prefEmail.toLowerCase() !== portalEmail.toLowerCase()){
-          // Different emails - show both
-          emailDisplay = '<div style="font-size:12px">' + l.prefEmail + ' <span style="color:var(--warning);font-size:10px">(Alma)</span></div>' +
-                         '<div style="font-size:12px">' + portalEmail + ' <span style="color:var(--text-light);font-size:10px">(Portal)</span></div>';
-        } else {
-          emailDisplay = '<div style="font-size:12px">' + (l.prefEmail || portalEmail || '—') + '</div>';
-        }
-        if(l.prefPhone || portalPhone){
-          emailDisplay += '<div style="font-size:11px;color:var(--text-light)">' + (l.prefPhone || portalPhone) + '</div>';
-        }
-
-        // Best email for mailto - prefer Alma preferred email
-        const bestEmail = l.prefEmail || portalEmail || '';
-
-        html += '<tr style="background:#fff8f8">' +
-          '<td><input type="checkbox" class="overdue-cb" data-idx="' + i + '" data-email="' + bestEmail + '" data-name="' + (l.firstName||'') + ' ' + (l.lastName||'') + '" data-due="' + fmtDate(l.dueDate) + '" data-lang="' + lang + '" data-sid="' + (l.sid||'') + '" data-device-type="' + (l.deviceType||'') + '" data-due-iso="' + (l.dueDate?l.dueDate.toISOString().split('T')[0]:'') + '" style="width:15px;height:15px;accent-color:var(--green)"></td>' +
-          '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + (lang==='es'?' <span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700">ES</span>':'') + '</td>' +
-          '<td class="td-id">' + (l.sid||'—') + '</td>' +
-          '<td>' + devLabel(l.deviceType) + '</td>' +
-          '<td style="font-size:12px">' + fmtDate(l.loanDate) + '</td>' +
-          '<td style="font-size:12px;color:var(--danger)">' + fmtDate(l.dueDate) + '</td>' +
-          '<td style="font-weight:700;color:var(--danger)">' + daysOver + 'd</td>' +
-          '<td>' + emailDisplay + '</td>' +
-          '</tr>';
-        });
-      });
-      html += '</tbody></table></div>';
     } else if(!almaData){
       html += '<div class="alert alert-info">💡 Upload an Alma checkout report above to see overdue devices, unique student counts, and agreement compliance.</div>';
     }
