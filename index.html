@@ -1383,15 +1383,14 @@ async function loadDashboard(){
   applyRolePermissions();
   loadWaitlistCounts();
   loadArchiveNav();
+  restoreAlmaDisplay();       // Must run before loadOverduePanel so almaData is populated
+  await loadOverdueNotifRecords(); // Must run before loadOverduePanel so notif records are ready
   if(userRole !== 'student_worker'){
     loadOverview();
   } else {
     showPanel('wl-hotspot-SLO', document.getElementById('nav-hotspot-SLO'));
-    // Also pre-load overdue data
     loadOverduePanel();
   }
-  restoreAlmaDisplay();
-  loadOverdueNotifRecords();
   // pre-fill email template fields
   document.getElementById('email-reply').value=emailTemplate.reply;
   document.getElementById('email-subject').value=emailTemplate.subject;
@@ -2373,10 +2372,14 @@ async function doWipe(){
     // Archive
     // Include Alma data in archive if available
     const almaArchive = almaData ? almaData.map(l => ({
-      ...l,
+      firstName: l.firstName, lastName: l.lastName, sid: l.sid,
+      deviceType: l.deviceType,
+      prefEmail: l.prefEmail || null,
+      prefPhone: l.prefPhone || null,
       loanDate: l.loanDate ? l.loanDate.toISOString() : null,
       dueDate: l.dueDate ? l.dueDate.toISOString() : null,
       returnDate: l.returnDate ? l.returnDate.toISOString() : null,
+      isReturned: l.isReturned, isOverdue: l.isOverdue
     })) : null;
     await sbPost('archived_semesters',[{
       semester_label:semesterLabel, semester_code:semesterCode,
@@ -2840,6 +2843,8 @@ async function saveAlmaDataToSupabase(loans){
     const payload = loans.map(l => ({
       firstName: l.firstName, lastName: l.lastName, sid: l.sid,
       deviceType: l.deviceType,
+      prefEmail: l.prefEmail || null,
+      prefPhone: l.prefPhone || null,
       loanDate: l.loanDate ? l.loanDate.toISOString() : null,
       dueDate: l.dueDate ? l.dueDate.toISOString() : null,
       returnDate: l.returnDate ? l.returnDate.toISOString() : null,
