@@ -2677,12 +2677,18 @@ async function loadOverduePanel(){
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">No Alma report loaded.</div><div class="empty-sub">' + (userRole==='staff' ? 'Go to Semester Report and upload an Alma checkout report.' : 'Ask a staff member to upload the Alma report.') + '</div></div>';
     return;
   }
-  // Load portal requests for contact info matching (works for both staff and student workers)
-  if(!window._overdueReqs){
-    try {
-      window._overdueReqs = await sbGet('device_requests', '?semester=eq.' + semesterCode + '&select=student_id,email,phone,language,device_type');
-    } catch(e){ window._overdueReqs = []; }
-  }
+  // Load contact info from both device_requests and students table
+  try {
+    const [reqs, students] = await Promise.all([
+      sbGet('device_requests', '?select=student_id,email,phone,language,device_type'),
+      sbGet('students', '?select=student_id,email,phone')
+    ]);
+    // Merge: device_requests first, students as fallback
+    const studentMap = {};
+    students.forEach(s => { studentMap[String(s.student_id).trim()] = s; });
+    window._overdueReqs = reqs;
+    window._overdueStudents = studentMap;
+  } catch(e){ window._overdueReqs = []; window._overdueStudents = {}; }
 
   const today = new Date();
   const overdueRows = almaData.filter(l => l.isOverdue);
@@ -2737,8 +2743,9 @@ async function loadOverduePanel(){
       entries.forEach(({l, i, rec}) => {
         const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
         const match = (window._overdueReqs || []).find(r => String(r.student_id).trim() === l.sid);
-        const phone = l.prefPhone || (match ? match.phone : '') || '—';
-        const email = l.prefEmail || (match ? match.email : '') || '—';
+        const studentRec = (window._overdueStudents || {})[l.sid] || {};
+        const phone = l.prefPhone || (match ? match.phone : '') || studentRec.phone || '—';
+        const email = l.prefEmail || (match ? match.email : '') || studentRec.email || '—';
         const lang = match ? (match.language||'en') : 'en';
         const dueIso = l.dueDate ? l.dueDate.toISOString().split('T')[0] : '';
 
