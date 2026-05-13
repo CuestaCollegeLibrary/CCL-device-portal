@@ -1077,6 +1077,7 @@ function staffLogout(){
   sessionStorage.removeItem('ccl_role');
   userRole = null;
   window._selectedProfile = null;
+  window._overdueReqs = null;
   document.getElementById('staff-gate').style.display='flex';
   document.getElementById('staff-dash').style.display='none';
   document.getElementById('staff-pw').value='';
@@ -2667,12 +2668,19 @@ async function markOverdueNotified(sid, deviceType, dueDate, method){
   } catch(e){ alert('Error saving notification: ' + e.message); }
 }
 
-function loadOverduePanel(){
+async function loadOverduePanel(){
   const el = document.getElementById('overdue-panel-content');
   if(!almaData || !almaData.length){
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">No Alma report loaded.</div><div class="empty-sub">' + (userRole==='staff' ? 'Go to Semester Report and upload an Alma checkout report.' : 'Ask a staff member to upload the Alma report.') + '</div></div>';
     return;
   }
+  // Load portal requests for contact info matching (works for both staff and student workers)
+  if(!window._overdueReqs){
+    try {
+      window._overdueReqs = await sbGet('device_requests', '?semester=eq.' + semesterCode + '&select=student_id,email,phone,language,device_type');
+    } catch(e){ window._overdueReqs = []; }
+  }
+
   const today = new Date();
   const overdueRows = almaData.filter(l => l.isOverdue);
   if(!overdueRows.length){
@@ -2725,7 +2733,7 @@ function loadOverduePanel(){
       html += '<tr><td colspan="9" style="background:#f0f5f1;padding:8px 14px;font-size:12px;font-weight:600;color:var(--green)">📅 Due: ' + dueGroup + ' — ' + entries.length + ' student' + (entries.length>1?'s':'') + '</td></tr>';
       entries.forEach(({l, i, rec}) => {
         const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
-        const match = window._reportData ? window._reportData.reqs.find(r => String(r.student_id).trim() === l.sid) : null;
+        const match = (window._overdueReqs || []).find(r => String(r.student_id).trim() === l.sid);
         const phone = l.prefPhone || (match ? match.phone : '') || '—';
         const email = l.prefEmail || (match ? match.email : '') || '—';
         const lang = match ? (match.language||'en') : 'en';
