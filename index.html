@@ -806,6 +806,9 @@ Cuesta College Library</textarea>
 <script>
 // Global error handler for debugging
 window.onerror = function(msg, src, line, col, err) {
+  // Only show errors from our own script, not from CDN resources or cross-origin issues
+  if(!src || src === '' || line === 0) return true; // suppress cross-origin/generic errors
+  if(src.includes('cdnjs') || src.includes('fonts.googleapis') || src.includes('fonts.gstatic')) return true;
   var dbg = document.getElementById('js-error-banner');
   if(!dbg){ dbg=document.createElement('div'); dbg.id='js-error-banner'; dbg.style.cssText='position:fixed;top:64px;left:0;right:0;background:#c0392b;color:white;padding:10px 16px;font-family:monospace;font-size:12px;z-index:9999;'; document.body.appendChild(dbg); }
   dbg.textContent = 'JS Error: ' + msg + ' (line ' + line + ')';
@@ -1317,6 +1320,18 @@ async function doSubmit(){
   const notif=[notifEmail?'email':null, notifPhone?'phone':null].filter(Boolean).join(',') || 'email';
   const btn=document.getElementById('btn-submit'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
+    // Refresh waitlist settings to get latest state before submitting
+    try {
+      const ws = await sbGet('waitlist_settings','?select=*');
+      waitlistSettings = {};
+      ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
+    } catch(e){}
+    // Refresh waitlist settings right before submitting to get latest state
+    try {
+      const ws = await sbGet('waitlist_settings','?select=*');
+      waitlistSettings = {};
+      ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
+    } catch(e){}
     // Upsert student
     await fetch(`${SUPABASE_URL}/rest/v1/students`,{
       method:'POST',
@@ -1612,7 +1627,7 @@ async function loadWaitlistPanel(panelId){
     }
 
     if(!isOn && !requested.length && !notified.length){
-      html+=`<div class="table-card"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No requests yet</div></div></div>`;
+      html+=`<div class="table-card"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No active requests</div><div class="empty-sub">Turn on the waitlist when devices run out</div></div></div>`;
     }
 
     // Past waitlist section
@@ -1652,15 +1667,36 @@ async function loadWaitlistPanel(panelId){
 
 async function toggleWaitlist(deviceId, campus, on){
   try {
+    // Once ON, cannot be turned OFF until semester wipe
+    if(!on && waitlistSettings[wlKey(deviceId,campus)]){
+      alert('The waitlist cannot be turned off once activated. It will reset automatically when the semester is wiped.');
+      // Reset the toggle visually
+      const panelId = 'wl-'+deviceId+'-'+campus.toLowerCase();
+      loadWaitlistPanel(panelId);
+      return;
+    }
+
     await fetch(`${SUPABASE_URL}/rest/v1/waitlist_settings`,{
       method:'POST',
       headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
       body:JSON.stringify({device_type:deviceId,campus,waitlist_on:on,turned_on_at:on?new Date().toISOString():null})
     });
     waitlistSettings[wlKey(deviceId,campus)]=on;
-    // Reload the panel
+
+    // When turning ON: expire all outstanding 'requested' entries (FCFS list)
+    if(on){
+      const outstanding = await sbGet('device_requests',
+        `?device_type=eq.${deviceId}&campus=eq.${campus}&status=eq.requested&select=id`);
+      for(const r of outstanding){
+        await sbPatch('device_requests',`?id=eq.${r.id}`,{
+          status:'expired', updated_at:new Date().toISOString()
+        });
+      }
+    }
+
     const panelId=`wl-${deviceId}-${campus.toLowerCase()}`;
     loadWaitlistPanel(panelId);
+    loadWaitlistCounts();
   } catch(e){ alert('Error saving waitlist setting: '+e.message); }
 }
 
@@ -2036,9 +2072,29 @@ async function markNoLongerNeeded(id, panelId){
 // ── AUTO-EXPIRE ────────────────────────────────────────────────────────────────
 async function checkAutoExpire(){
   try {
-    const expired=await sbGet('device_requests',`?status=eq.notified&expires_at=lt.${new Date().toISOString()}&select=id`);
-    for(const r of expired){ await sbPatch('device_requests',`?id=eq.${r.id}`,{status:'expired'}); }
-    if(expired.length) { loadWaitlistCounts(); loadOverview(); }
+    const now = new Date();
+    const sevenDaysAgo = new Date(now - 7*24*60*60*1000).toISOString();
+
+    // Expire notified entries past their expires_at date
+    const expiredNotified = await sbGet('device_requests',
+      `?status=eq.notified&expires_at=lt.${now.toISOString()}&select=id`);
+    for(const r of expiredNotified){
+      await sbPatch('device_requests',`?id=eq.${r.id}`,{status:'expired'});
+    }
+
+    // Expire FCFS 'requested' entries older than 7 days (waitlist off mode)
+    // Only expire if the waitlist for that device+campus is currently OFF
+    const oldRequested = await sbGet('device_requests',
+      `?status=eq.requested&requested_at=lt.${sevenDaysAgo}&select=id,device_type,campus`);
+    for(const r of oldRequested){
+      const key = wlKey(r.device_type, r.campus);
+      if(!waitlistSettings[key]){ // only if waitlist is OFF
+        await sbPatch('device_requests',`?id=eq.${r.id}`,{status:'expired'});
+      }
+    }
+
+    const totalExpired = expiredNotified.length + oldRequested.filter(r => !waitlistSettings[wlKey(r.device_type,r.campus)]).length;
+    if(totalExpired > 0){ loadWaitlistCounts(); loadOverview(); }
   } catch(e){}
 }
 
@@ -2361,7 +2417,7 @@ async function doWipe(){
       sbGet('agreements',`?semester=eq.${semesterCode}&select=*`)
     ]);
     const byDevice={};
-    DEVICES.forEach(d=>{ byDevice[d.id]={total:0,waitlisted:0,pickedUp:0}; });
+    DEVICES.forEach(d=>{ byDevice[d.id]={total:0,waitlisted:0,pickedUp:0,almaCheckouts:0,almaReturned:0,almaOverdue:0}; });
     reqs.forEach(r=>{
       if(byDevice[r.device_type]){
         byDevice[r.device_type].total++;
@@ -2369,8 +2425,17 @@ async function doWipe(){
         if(r.status==='picked-up') byDevice[r.device_type].pickedUp++;
       }
     });
-    // Archive
-    // Include Alma data in archive if available
+    // Include Alma checkout counts in summary
+    if(almaData){
+      almaData.forEach(l => {
+        if(byDevice[l.deviceType]){
+          byDevice[l.deviceType].almaCheckouts++;
+          if(l.isReturned) byDevice[l.deviceType].almaReturned++;
+          if(l.isOverdue) byDevice[l.deviceType].almaOverdue++;
+        }
+      });
+    }
+    // Build alma archive payload
     const almaArchive = almaData ? almaData.map(l => ({
       firstName: l.firstName, lastName: l.lastName, sid: l.sid,
       deviceType: l.deviceType,
@@ -2390,6 +2455,20 @@ async function doWipe(){
     // Wipe device_requests and agreements for this semester
     await sb('device_requests','DELETE',null,`?semester=eq.${semesterCode}`);
     await sb('agreements','DELETE',null,`?semester=eq.${semesterCode}`);
+    // Clear Alma upload data from semester_config
+    try {
+      const cfg = await sbGet('semester_config','?select=id&limit=1&order=created_at.desc');
+      if(cfg.length) await sbPatch('semester_config',`?id=eq.${cfg[0].id}`,{alma_report_data:null});
+    } catch(e){}
+    almaData = null;
+    window._savedAlmaData = null;
+    // Reset all waitlists to OFF
+    try {
+      await sbPatch('waitlist_settings','?waitlist_on=eq.true',{
+        waitlist_on:false, turned_on_at:null
+      });
+      waitlistSettings = {};
+    } catch(e){}
     showAlert('wipe-result',`${semesterLabel} data archived and wiped successfully.`,'success');
     document.getElementById('wipe-pw').value='';
     loadArchiveNav();
@@ -3043,6 +3122,15 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
     }
   } catch(e){}
+  // Restore alma data immediately so overdue panel works on first load
+  if(window._savedAlmaData && window._savedAlmaData.length){
+    almaData = window._savedAlmaData.map(l => ({
+      ...l,
+      loanDate: l.loanDate ? new Date(l.loanDate) : null,
+      dueDate: l.dueDate ? new Date(l.dueDate) : null,
+      returnDate: l.returnDate ? new Date(l.returnDate) : null,
+    }));
+  }
   // Load waitlist settings for student portal
   try {
     const ws=await sbGet('waitlist_settings','?select=*');
