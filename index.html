@@ -1533,7 +1533,7 @@ async function loadWaitlistPanel(panelId){
       <div class="wl-toggle-row">
         <div>
           <div style="font-size:14px;font-weight:600;color:var(--green)">Waitlist Status</div>
-          <div style="font-size:12px;color:var(--text-light);margin-top:2px">${isOn?'Waitlist is ON — new requests go to queue':'Waitlist is OFF — first come first served'}</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:2px">${isOn?'Waitlist is ON — new requests join the queue (turn off only when queue is empty)':'Waitlist is OFF — first come first served'}</div>
         </div>
         <div class="toggle-wrap">
           <label class="toggle">
@@ -1667,13 +1667,24 @@ async function loadWaitlistPanel(panelId){
 
 async function toggleWaitlist(deviceId, campus, on){
   try {
-    // Once ON, cannot be turned OFF until semester wipe
-    if(!on && waitlistSettings[wlKey(deviceId,campus)]){
-      alert('The waitlist cannot be turned off once activated. It will reset automatically when the semester is wiped.');
-      // Reset the toggle visually
+    // Turning OFF: not allowed for student workers
+    if(!on && userRole === 'student_worker'){
+      alert('Student workers can turn the waitlist on but cannot turn it off. Please ask a staff member to turn off the waitlist.');
       const panelId = 'wl-'+deviceId+'-'+campus.toLowerCase();
       loadWaitlistPanel(panelId);
       return;
+    }
+    // Turning OFF: only allowed if waitlist queue is empty
+    if(!on && waitlistSettings[wlKey(deviceId,campus)]){
+      const queued = await sbGet('device_requests',
+        `?device_type=eq.${deviceId}&campus=eq.${campus}&status=in.(waitlisted,notified)&select=id`);
+      if(queued.length > 0){
+        alert('The waitlist cannot be turned off while there are still ' + queued.length + ' student' + (queued.length>1?'s':'') + ' in the queue. Please resolve all waitlisted and notified entries first.');
+        // Reset toggle visually
+        const panelId = 'wl-'+deviceId+'-'+campus.toLowerCase();
+        loadWaitlistPanel(panelId);
+        return;
+      }
     }
 
     await fetch(`${SUPABASE_URL}/rest/v1/waitlist_settings`,{
@@ -1683,7 +1694,7 @@ async function toggleWaitlist(deviceId, campus, on){
     });
     waitlistSettings[wlKey(deviceId,campus)]=on;
 
-    // When turning ON: expire all outstanding 'requested' entries (FCFS list)
+    // When turning ON: expire all outstanding FCFS 'requested' entries
     if(on){
       const outstanding = await sbGet('device_requests',
         `?device_type=eq.${deviceId}&campus=eq.${campus}&status=eq.requested&select=id`);
@@ -2054,6 +2065,17 @@ function notifySelectedReq(panelId, device, campus){
   if(!checked.length){ alert('Please select at least one student to notify.'); return; }
   const students = checked.map(cb => ({id:cb.dataset.id, name:cb.dataset.name, email:cb.dataset.email, language:cb.dataset.language||'en'}));
   openNotifyModalMulti(students, device, campus);
+}
+
+async function directPickup(id, panelId){
+  try {
+    await sbPatch('device_requests', `?id=eq.${id}`, {
+      status:'picked-up', picked_up_at:new Date().toISOString()
+    });
+    loadWaitlistPanel(panelId);
+    loadWaitlistCounts();
+    loadOverview();
+  } catch(e){ alert('Error: '+e.message); }
 }
 
 async function markNoLongerNeeded(id, panelId){
