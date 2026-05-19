@@ -1490,7 +1490,11 @@ async function loadOverview(){
 
 async function loadWaitlistCounts(){
   try {
-    const rows=await sbGet('device_requests','?status=in.(waitlisted,notified)&select=device_type,campus,status');
+    // Refresh waitlist settings so sidebar counts reflect current state
+    const ws = await sbGet('waitlist_settings','?select=*');
+    waitlistSettings = {};
+    ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
+    const rows=await sbGet('device_requests','?status=in.(waitlisted,notified,requested)&select=device_type,campus,status');
     const map={};
     rows.forEach(r=>{
       const k=r.device_type==='laptop'?'laptop_shared':`${r.device_type}_${r.campus}`;
@@ -1511,6 +1515,12 @@ async function loadWaitlistPanel(panelId){
   const dbCampus=campus==='shared'?'shared':campus.toUpperCase();
   const dt=DEVICES.find(x=>x.id===deviceId);
   const key=wlKey(deviceId,dbCampus);
+  // Always fetch fresh from Supabase so toggle state is current across all sessions
+  try {
+    const ws = await sbGet('waitlist_settings','?select=*');
+    waitlistSettings = {};
+    ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
+  } catch(e){}
   const isOn=waitlistSettings[key]||false;
   const container=document.getElementById('panel-'+panelId);
 
@@ -1606,7 +1616,7 @@ async function loadWaitlistPanel(panelId){
       html+=`<div class="table-card" style="margin-bottom:16px">
         <div class="table-header">
           <div class="table-title">📋 First Come First Served (${requested.length})</div>
-          <div style="font-size:12px;color:var(--text-light)">Auto-expires 7 days after request</div>
+          <div style="font-size:12px;color:var(--text-light)">Entries expire when waitlist is turned on</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">
           <input type="checkbox" id="sel-all-req-${panelId}" onchange="toggleSelectAllReq('${panelId}')" style="width:15px;height:15px;accent-color:var(--green)">
@@ -2104,8 +2114,6 @@ async function markNoLongerNeeded(id, panelId){
 async function checkAutoExpire(){
   try {
     const now = new Date();
-    const sevenDaysAgo = new Date(now - 7*24*60*60*1000).toISOString();
-
     // Expire notified entries past their expires_at date
     const expiredNotified = await sbGet('device_requests',
       `?status=eq.notified&expires_at=lt.${now.toISOString()}&select=id`);
@@ -2113,19 +2121,8 @@ async function checkAutoExpire(){
       await sbPatch('device_requests',`?id=eq.${r.id}`,{status:'expired'});
     }
 
-    // Expire FCFS 'requested' entries older than 7 days (waitlist off mode)
-    // Only expire if the waitlist for that device+campus is currently OFF
-    const oldRequested = await sbGet('device_requests',
-      `?status=eq.requested&requested_at=lt.${sevenDaysAgo}&select=id,device_type,campus`);
-    for(const r of oldRequested){
-      const key = wlKey(r.device_type, r.campus);
-      if(!waitlistSettings[key]){ // only if waitlist is OFF
-        await sbPatch('device_requests',`?id=eq.${r.id}`,{status:'expired'});
-      }
-    }
-
-    const totalExpired = expiredNotified.length + oldRequested.filter(r => !waitlistSettings[wlKey(r.device_type,r.campus)]).length;
-    if(totalExpired > 0){ loadWaitlistCounts(); loadOverview(); }
+    // FCFS 'requested' entries do NOT auto-expire - they expire when waitlist is toggled ON
+    if(expiredNotified.length > 0){ loadWaitlistCounts(); loadOverview(); }
   } catch(e){}
 }
 
