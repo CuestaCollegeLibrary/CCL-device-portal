@@ -1706,11 +1706,18 @@ async function toggleWaitlist(deviceId, campus, on){
       }
     }
 
-    await fetch(`${SUPABASE_URL}/rest/v1/waitlist_settings`,{
-      method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-      body:JSON.stringify({device_type:deviceId,campus,waitlist_on:on,turned_on_at:on?new Date().toISOString():null})
-    });
+    // Check if row exists, then update or insert
+    const existing = await sbGet('waitlist_settings', `?device_type=eq.${deviceId}&campus=eq.${campus}&select=id`);
+    if(existing.length){
+      await sbPatch('waitlist_settings', `?device_type=eq.${deviceId}&campus=eq.${campus}`, {
+        waitlist_on: on, turned_on_at: on ? new Date().toISOString() : null
+      });
+    } else {
+      await sbPost('waitlist_settings', [{
+        device_type: deviceId, campus: campus, waitlist_on: on,
+        turned_on_at: on ? new Date().toISOString() : null
+      }]);
+    }
     waitlistSettings[wlKey(deviceId,campus)]=on;
 
     // When turning ON: expire all outstanding FCFS 'requested' entries
@@ -2493,7 +2500,7 @@ async function doWipe(){
     // Reset all waitlists to OFF
     try {
       await sbPatch('waitlist_settings','?waitlist_on=eq.true',{
-        waitlist_on:false, turned_on_at:null
+        waitlist_on: false, turned_on_at: null
       });
       waitlistSettings = {};
     } catch(e){}
