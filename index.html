@@ -758,25 +758,23 @@ Cuesta College Library</textarea>
 
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-notify">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-title">Notify Students</div>
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">Send Notification</div>
     <div class="modal-sub" id="notify-sub"></div>
-    <div id="notify-body"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('modal-notify')">Cancel</button>
-      <button class="btn btn-outline" id="btn-open-email" onclick="openEmailDraft()">✉️ Open in Email</button>
-      <button class="btn btn-primary" id="btn-do-notify" onclick="confirmNotify()">✓ Mark All as Notified</button>
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px">
+      <button id="notify-tab-email" onclick="switchNotifyTab('email')" style="flex:1;padding:10px;border:none;background:none;font-weight:600;font-size:13px;color:var(--green);border-bottom:2px solid var(--green);margin-bottom:-2px;cursor:pointer">✉️ Email</button>
+      <button id="notify-tab-phone" onclick="switchNotifyTab('phone')" style="flex:1;padding:10px;border:none;background:none;font-weight:600;font-size:13px;color:var(--text-light);cursor:pointer">📞 Phone Script</button>
     </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-pickup">
-  <div class="modal">
-    <div class="modal-title">Confirm Pickup</div>
-    <div class="modal-sub" id="pickup-sub"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('modal-pickup')">Cancel</button>
-      <button class="btn btn-gold" onclick="confirmPickup()">✓ Mark as Picked Up</button>
+    <div id="notify-body-email"></div>
+    <div id="notify-body-phone" style="display:none"></div>
+    <div class="modal-actions" id="notify-actions-email">
+      <button class="btn btn-outline" onclick="closeModal('modal-notify')">Cancel</button>
+      <button class="btn btn-outline" onclick="openEmailDraft()">✉️ Open in Email</button>
+      <button class="btn btn-primary" id="btn-do-notify" onclick="confirmNotify()">✓ Mark Notified by Email</button>
+    </div>
+    <div class="modal-actions" id="notify-actions-phone" style="display:none">
+      <button class="btn btn-outline" onclick="closeModal('modal-notify')">Cancel</button>
+      <button class="btn btn-success" onclick="confirmNotifyPhone()">✓ Mark Notified by Phone</button>
     </div>
   </div>
 </div>
@@ -819,6 +817,12 @@ const SUPABASE_URL = 'https://btxbzfzopeujlnsyxrgc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0eGJ6ZnpvcGV1amxuc3l4cmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0ODMyODksImV4cCI6MjA5MzA1OTI4OX0.OCvJtgaynwro1jwmR9UrCZMVtR6RHNBJ8eY-xG-efYQ';
 const STAFF_PASSWORD = 'Cougar007@';
 const SW_PASSWORDS = ['slocirc1', 'Nccirc01'];
+
+const PHONE_SCRIPT = {
+  en: "Hi {first_name}, this is Cuesta College Library calling to let you know that a {device} is ready for you to pick up at the Cuesta College {campus} Library. The library is open 8am-8pm Monday-Thursday and 8am-5pm on Fridays. The {device} will be held under your name at the circulation desk for one week. If you do not pick up the {device} by {deadline}, it will be released for check out by another student in need. If you would like to pick it up from the {othercampus} Library, or if you no longer need the device please let us know. You can email us at circulation@cuesta.edu or give us a call at {phone}. Have a great semester and don't hesitate to contact us if you need anything! Thanks.",
+  slo_phone: "(805)546-3155",
+  ncc_phone: "(805)591-6211"
+};
 
 const DEVICES = [
   { id:'hotspot',    label:'WiFi Hotspot',       labelEs:'Hotspot WiFi',           icon:'📶', note:'Academic use only — limited availability', noteEs:'Solo uso académico — disponibilidad limitada', campuses:['SLO','NCC'] },
@@ -1119,6 +1123,14 @@ function showAlert(cid, msg, type='info'){
   const el=document.getElementById(cid); if(el) el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
 }
 function clearAlert(cid){ const el=document.getElementById(cid); if(el) el.innerHTML=''; }
+function fmtPhone(p){
+  if(!p) return '—';
+  const digits = String(p).replace(/[^0-9]/g,'');
+  if(digits.length === 10) return '(' + digits.slice(0,3) + ')' + digits.slice(3,6) + '-' + digits.slice(6);
+  if(digits.length === 11 && digits[0]==='1') return '(' + digits.slice(1,4) + ')' + digits.slice(4,7) + '-' + digits.slice(7);
+  return p;
+}
+
 function fmtDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function fmtDT(d){ if(!d) return '—'; return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function devLabel(id){ const d=DEVICES.find(x=>x.id===id); return d?(lang==='es'?d.labelEs:d.label):id; }
@@ -1564,7 +1576,7 @@ async function loadWaitlistPanel(panelId){
         const exp=r.expires_at&&new Date(r.expires_at)<new Date();
         html+=`<tr>
           <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
-          <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||'—'}</div></td>
+          <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
           <td>${fmtDT(r.notified_at)}</td>
           <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDT(r.expires_at)}${exp?' ⚠️':''}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1597,11 +1609,11 @@ async function loadWaitlistPanel(panelId){
             <td><input type="checkbox" class="wl-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
             <td><span class="pos-num">${r.waitlist_position}</span></td>
             <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div>${dbCampus==='shared'?`<div style="font-size:11px;color:var(--text-light)">${r.campus} Campus</div>`:''}</td>
-            <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||'—'}</div></td>
+            <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
             <td>${fmtDT(r.requested_at)}</td>
             <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'}</td>
             <td style="display:flex;gap:6px">
-              ${canNotify() ? `<button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify</button>` : ''}
+              <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email||''}','${r.language||"en"}','${r.phone||''}')">Notify</button>
               <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
               <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
             </td></tr>`;
@@ -1632,11 +1644,11 @@ async function loadWaitlistPanel(panelId){
             <div class="td-id">${r.student_id}</div>
             ${dbCampus==='shared'?`<div style="font-size:11px;color:var(--text-light)">${r.campus} Campus</div>`:''}
           </td>
-          <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${r.phone||'—'}</div></td>
+          <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
           <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'}</td>
           <td>${fmtDT(r.requested_at)}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
-            ${canNotify() ? `<button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email}','${r.language||"en"}')">Notify</button>` : ''}
+            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email||''}','${r.language||"en"}','${r.phone||''}')">Notify</button>
             <button class="btn btn-gold btn-sm" onclick="directPickup('${r.id}','${panelId}')">Picked Up</button>
             <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
           </td></tr>`;
@@ -1744,9 +1756,9 @@ let notifyBccEmails = [];
 let notifyDevice = '';
 let notifyCampus = '';
 
-function openNotifyModal(id, name, device, campus, email, language){
+function openNotifyModal(id, name, device, campus, email, language, phone){
   // Single student — wrap in array with language
-  openNotifyModalMulti([{id:id, name:name, email:email, language:language||'en'}], device, campus);
+  openNotifyModalMulti([{id:id, name:name, email:email, language:language||'en', phone:phone||''}], device, campus);
 }
 
 function openNotifyModalMulti(students, device, campus){
@@ -1794,7 +1806,38 @@ function openNotifyModalMulti(students, device, campus){
 
   document.getElementById('notify-sub').textContent = device + ' — ' + campus + ' — ' + students.length + ' student' + (students.length>1?'s':'') + (isSpanish?' (Spanish)':'');
 
-  document.getElementById('notify-body').innerHTML =
+  // Build phone script body
+  const campusPhone = campus.includes('NC') ? PHONE_SCRIPT.ncc_phone : PHONE_SCRIPT.slo_phone;
+  const phoneDeadline = fmtDate(new Date(Date.now() + 7*24*60*60*1000));
+  const otherCampusLabel = campus.includes('SLO') ? 'NC' : campus.includes('NC') ? 'SLO' : 'other';
+  const phoneScriptHtml = students.map(s => {
+    const firstName = s.name ? s.name.split(' ')[0] : 'Student';
+    const script = PHONE_SCRIPT.en
+      .replace(/{first_name}/g, firstName)
+      .replace(/{device}/g, device.charAt(0).toUpperCase() + device.slice(1).toLowerCase())
+      .replace(/{campus}/g, campus)
+      .replace(/{othercampus}/g, otherCampusLabel)
+      .replace(/{deadline}/g, phoneDeadline)
+      .replace(/{phone}/g, campusPhone);
+    return '<div style="margin-bottom:16px;padding:14px;background:var(--cream);border-radius:var(--radius-sm);border:1.5px solid var(--border)">' +
+      '<div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:6px">' + s.name + (s.phone ? ' — <span style=\"color:var(--text-mid)\">' + fmtPhone(s.phone) + '</span>' : '') + '</div>' +
+      '<div style="font-size:13px;line-height:1.7;color:var(--text)">' + script + '</div>' +
+      '</div>';
+  }).join('');
+  document.getElementById('notify-body-phone').innerHTML =
+    '<div class="alert alert-info" style="margin-bottom:14px">Read the script below to each student, then click <strong>Mark Notified by Phone</strong>.</div>' +
+    phoneScriptHtml;
+
+  // SW can only see phone tab
+  if(!canNotify()){
+    switchNotifyTab('phone');
+    document.getElementById('notify-tab-email').style.display = 'none';
+  } else {
+    switchNotifyTab('email');
+    document.getElementById('notify-tab-email').style.display = '';
+  }
+
+  document.getElementById('notify-body-email').innerHTML =
     '<div class="alert alert-info" style="margin-bottom:14px">Click <strong>Open in Email</strong> to open a pre-filled draft. After sending, click <strong>Mark All as Notified</strong>.</div>' +
     (isSpanish ? '<div class="alert alert-warning" style="margin-bottom:14px">These students submitted in <strong>Spanish</strong> — the Spanish email template will be used.</div>' : '') +
     '<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Notifying ' + students.length + ' Student' + (students.length>1?'s':'') + '</div>' + studentList + '</div>' +
@@ -1805,6 +1848,36 @@ function openNotifyModalMulti(students, device, campus){
     '<div class="notif-preview">' + previewBody + '</div></div>';
 
   openModal('modal-notify');
+}
+
+function switchNotifyTab(tab){
+  const isEmail = tab === 'email';
+  document.getElementById('notify-body-email').style.display = isEmail ? 'block' : 'none';
+  document.getElementById('notify-body-phone').style.display = isEmail ? 'none' : 'block';
+  document.getElementById('notify-actions-email').style.display = isEmail ? 'flex' : 'none';
+  document.getElementById('notify-actions-phone').style.display = isEmail ? 'none' : 'flex';
+  document.getElementById('notify-tab-email').style.color = isEmail ? 'var(--green)' : 'var(--text-light)';
+  document.getElementById('notify-tab-email').style.borderBottom = isEmail ? '2px solid var(--green)' : '2px solid transparent';
+  document.getElementById('notify-tab-phone').style.color = isEmail ? 'var(--text-light)' : 'var(--green)';
+  document.getElementById('notify-tab-phone').style.borderBottom = isEmail ? '2px solid transparent' : '2px solid var(--green)';
+}
+
+async function confirmNotifyPhone(){
+  const btn = document.querySelector('#notify-actions-phone .btn-success');
+  if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...'; }
+  try {
+    for(const id of notifyIds){
+      await sbPatch('device_requests', `?id=eq.${id}`, {
+        notified_at: new Date().toISOString()
+      });
+    }
+    closeModal('modal-notify');
+    const active = document.querySelector('.tab-panel.active');
+    if(active && active.id.startsWith('panel-wl-')) loadWaitlistPanel(active.id.replace('panel-',''));
+    loadWaitlistCounts();
+    loadOverview();
+  } catch(e){ alert('Error: ' + e.message); }
+  finally{ if(btn){ btn.disabled = false; btn.innerHTML = '✓ Mark Notified by Phone'; } }
 }
 
 function openEmailDraft(){
@@ -1981,7 +2054,7 @@ async function loadAGHS(){
         tr.innerHTML =
           '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + esBadge + '</div><div class="td-id">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
-          '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + (r.phone||'') + '</div></td>' +
+          '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + fmtPhone(r.phone) + '</div></td>' +
           '<td>' + fmtDT(r.requested_at) + '</td>' +
           '<td style="display:flex;gap:6px;flex-wrap:wrap"></td>';
         const td = tr.lastElementChild;
@@ -2387,7 +2460,7 @@ function exportOverdue(){
     const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '';
     const match = window._reportData.reqs.find(r => String(r.student_id).trim() === l.sid);
     const portalEmail = match ? (match.email||'') : '';
-    const portalPhone = match ? (match.phone||'') : '';
+    const portalPhone = match ? (fmtPhone(match?.phone||'')) : '';
     const almaEmail = l.prefEmail || '';
     const almaPhone = l.prefPhone || '';
     const emailsMatch = almaEmail && portalEmail && almaEmail.toLowerCase() === portalEmail.toLowerCase();
@@ -2418,12 +2491,122 @@ function exportNoAgreement(){
 
 function exportReport(){
   if(!window._reportData){ alert('Generate the report first.'); return; }
-  const {reqs,semesterLabel}=window._reportData;
-  const rows=[['Semester','Student ID','Device','Campus','Status','Requested','Notified','Picked Up','Expired']];
-  reqs.forEach(r=>rows.push([semesterLabel,r.student_id,r.device_type,r.campus,r.status,r.requested_at||'',r.notified_at||'',r.picked_up_at||'',r.expires_at||'']));
-  const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download=`CCL_Report_${semesterLabel.replace(' ','_')}.csv`; a.click();
+  const {reqs, agrs, byDevice, semesterLabel, semesterCode, overdueRows, noAgreementStudents} = window._reportData;
+  const alma = almaData || [];
+  const today = new Date();
+
+  // Build multi-section CSV separated by blank lines
+  const sections = [];
+
+  // ── SECTION 1: Summary Stats ──
+  const nonAghs = reqs.filter(r => r.status !== 'aghs' && r.campus !== 'AGHS');
+  const totalPickedUp = nonAghs.filter(r => r.status === 'picked-up').length;
+  const totalWaitlisted = nonAghs.filter(r => ['waitlisted','notified','picked-up','expired','cancelled'].includes(r.status) && r.waitlist_position).length;
+  const totalExpired = nonAghs.filter(r => r.status === 'expired').length;
+  const allWaitTimes = nonAghs.filter(r => r.notified_at && r.requested_at).map(r => (new Date(r.notified_at) - new Date(r.requested_at)) / (1000*60*60*24));
+  const avgWait = allWaitTimes.length ? Math.round(allWaitTimes.reduce((a,b)=>a+b,0)/allWaitTimes.length*10)/10 : 0;
+  const uniquePortalStudents = new Set(nonAghs.map(r=>r.student_id)).size;
+  const uniqueAlmaStudents = new Set(alma.map(l=>l.sid).filter(Boolean)).size;
+
+  sections.push([
+    ['CCL DEVICE PORTAL — SEMESTER REPORT'],
+    ['Semester', semesterLabel],
+    ['Generated', today.toLocaleDateString()],
+    [],
+    ['SUMMARY'],
+    ['Agreements Signed', agrs.length],
+    ['Unique Students (Portal)', uniquePortalStudents],
+    ['Unique Students (Alma)', uniqueAlmaStudents],
+    ['Total Device Requests', nonAghs.length],
+    ['Total Picked Up (Portal)', totalPickedUp],
+    ['Total Waitlisted', totalWaitlisted],
+    ['Total Expired', totalExpired],
+    ['Average Wait Time (days)', avgWait || '—'],
+    ['Total Alma Checkouts', alma.length],
+    ['Already Returned (Alma)', alma.filter(l=>l.isReturned).length],
+    ['Overdue (Alma)', alma.filter(l=>l.isOverdue).length],
+    ['Checked Out Without Agreement', noAgreementStudents ? noAgreementStudents.length : '—'],
+    [],
+    ['BY DEVICE TYPE', 'Requests', 'Waitlisted', 'Picked Up (Waitlist)', 'Expired', 'Avg Wait (days)', 'Alma Checkouts', 'Alma Returned', 'Alma Overdue'],
+  ]);
+  DEVICES.forEach(d => {
+    const s = byDevice[d.id] || {total:0,waitlisted:0,pickedUpFromWaitlist:0,expired:0,times:[]};
+    const avg = s.times && s.times.length ? Math.round(s.times.reduce((a,b)=>a+b,0)/s.times.length*10)/10 : '—';
+    const almaByType = alma.filter(l => l.deviceType === d.id);
+    sections[0].push([d.label, s.total, s.waitlisted, s.pickedUpFromWaitlist||0, s.expired, avg,
+      almaByType.length, almaByType.filter(l=>l.isReturned).length, almaByType.filter(l=>l.isOverdue).length]);
+  });
+
+  // ── SECTION 2: Signed Agreements ──
+  sections.push([
+    [],
+    ['SIGNED AGREEMENTS (' + agrs.length + ')'],
+    ['Student ID', 'Signature', 'Language', 'Signed At'],
+  ]);
+  agrs.forEach(a => {
+    sections[1].push([a.student_id||'', a.signature||'', a.language||'en', a.signed_at ? new Date(a.signed_at).toLocaleString() : '']);
+  });
+
+  // ── SECTION 3: All Device Requests ──
+  sections.push([
+    [],
+    ['ALL DEVICE REQUESTS (' + nonAghs.length + ')'],
+    ['Student ID', 'First Name', 'Last Name', 'Device', 'Campus', 'Status', 'Waitlist Position', 'Notes', 'Requested At', 'Notified At', 'Picked Up At', 'Expires At'],
+  ]);
+  nonAghs.forEach(r => {
+    sections[2].push([
+      r.student_id||'', r.first_name||'', r.last_name||'', devLabel(r.device_type), r.campus||'',
+      r.status||'', r.waitlist_position||'', r.notes||'',
+      r.requested_at ? new Date(r.requested_at).toLocaleString() : '',
+      r.notified_at ? new Date(r.notified_at).toLocaleString() : '',
+      r.picked_up_at ? new Date(r.picked_up_at).toLocaleString() : '',
+      r.expires_at ? new Date(r.expires_at).toLocaleString() : ''
+    ]);
+  });
+
+  // ── SECTION 4: No-Agreement Students (if Alma loaded) ──
+  if(noAgreementStudents && noAgreementStudents.length){
+    sections.push([
+      [],
+      ['CHECKED OUT WITHOUT SIGNED AGREEMENT (' + noAgreementStudents.length + ')'],
+      ['Student ID', 'First Name', 'Last Name', 'Devices Checked Out', 'First Checkout'],
+    ]);
+    noAgreementStudents.forEach(s => {
+      sections[3].push([s.sid||'', s.firstName||'', s.lastName||'', s.devices||'',
+        s.loanDate ? new Date(s.loanDate).toLocaleString() : '']);
+    });
+  }
+
+  // ── SECTION 5: Overdue Devices (if Alma loaded) ──
+  if(overdueRows && overdueRows.length){
+    const nextSection = sections.length;
+    sections.push([
+      [],
+      ['OVERDUE DEVICES (' + overdueRows.length + ')'],
+      ['Student ID', 'First Name', 'Last Name', 'Device', 'Loan Date', 'Due Date', 'Days Overdue', 'Email (Alma)', 'Phone (Alma)'],
+    ]);
+    overdueRows.forEach(l => {
+      const daysOver = l.dueDate ? Math.floor((today - new Date(l.dueDate)) / (1000*60*60*24)) : '';
+      sections[nextSection].push([
+        l.sid||'', l.firstName||'', l.lastName||'', devLabel(l.deviceType),
+        l.loanDate ? new Date(l.loanDate).toLocaleDateString() : '',
+        l.dueDate ? new Date(l.dueDate).toLocaleDateString() : '',
+        daysOver, l.prefEmail||'', l.prefPhone||''
+      ]);
+    });
+  }
+
+  // Flatten all sections into CSV
+  const allRows = sections.flat();
+  const csv = allRows.map(row => {
+    if(!Array.isArray(row)) return '';
+    return row.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',');
+  }).join('\n');
+
+  const dlA = document.createElement('a');
+  dlA.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  dlA.download = 'CCL_Report_' + semesterLabel.replace(/\s+/g,'_') + '.csv';
+  dlA.click();
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
@@ -2540,12 +2723,22 @@ async function loadArchivePanel(panelId){
         <div class="page-sub">Archived ${fmtDate(arc.archived_at)} · ${agrs.length} agreements · ${reqs.length} requests</div>
       </div>`;
 
+    const hasAlma = arc.alma_data && arc.alma_data.length > 0;
     let html=`<div class="table-card" style="margin-bottom:14px">
-      <div class="table-header"><div class="table-title">Summary</div><button class="btn btn-outline btn-sm" onclick="exportArchive('${archiveId}')">⬇ Export CSV</button></div>
-      <table><thead><tr><th>Device</th><th>Requests</th><th>Waitlisted</th><th>Picked Up</th></tr></thead><tbody>`;
+      <div class="table-header"><div class="table-title">Summary</div><div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="exportArchiveFull('${archiveId}')">⬇ Export Full Report</button>
+        <button class="btn btn-danger btn-sm" onclick="restoreArchive('${archiveId}')">↩ Restore This Semester</button>
+      </div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px">
+        <div class="stat-card gold"><div class="stat-val">${agrs.length}</div><div class="stat-label">Agreements Signed</div></div>
+        <div class="stat-card blue"><div class="stat-val">${reqs.length}</div><div class="stat-label">Total Requests</div></div>
+        <div class="stat-card green"><div class="stat-val">${reqs.filter(r=>r.status==='picked-up').length}</div><div class="stat-label">Picked Up</div></div>
+      </div>
+      <table><thead><tr><th>Device</th><th>Requests</th><th>Waitlisted</th><th>Picked Up</th>${hasAlma?'<th>Alma Checkouts</th><th>Returned</th><th>Overdue</th>':''}</tr></thead><tbody>`;
     DEVICES.forEach(d=>{
-      const s=(arc.summary||{})[d.id]||{total:0,waitlisted:0,pickedUp:0};
-      html+=`<tr><td>${d.icon} ${d.label}</td><td>${s.total}</td><td>${s.waitlisted}</td><td>${s.pickedUp}</td></tr>`;
+      const s=(arc.summary||{})[d.id]||{total:0,waitlisted:0,pickedUp:0,almaCheckouts:0,almaReturned:0,almaOverdue:0};
+      html+=`<tr><td>${d.icon} ${d.label}</td><td>${s.total}</td><td>${s.waitlisted}</td><td>${s.pickedUp}</td>${hasAlma?`<td><strong>${s.almaCheckouts||0}</strong></td><td>${s.almaReturned||0}</td><td style="color:${(s.almaOverdue||0)>0?'var(--danger)':'inherit'}">${s.almaOverdue||0}</td>`:''}`;
+      html+=`</tr>`;
     });
     html+='</tbody></table></div>';
 
@@ -2638,15 +2831,97 @@ async function restoreArchive(archiveId){
   }
 }
 
-async function exportArchive(archiveId){
-  const data=await sbGet('archived_semesters',`?id=eq.${archiveId}&select=*`);
+async function exportArchive(archiveId){ exportArchiveFull(archiveId); }
+
+async function exportArchiveFull(archiveId){
+  const data = await sbGet('archived_semesters', `?id=eq.${archiveId}&select=*`);
   if(!data.length) return;
-  const arc=data[0]; const reqs=arc.requests_data||[];
-  const rows=[['Semester','Student ID','Device','Campus','Status','Requested','Notified','Picked Up']];
-  reqs.forEach(r=>rows.push([arc.semester_label,r.student_id,r.device_type,r.campus,r.status,r.requested_at||'',r.notified_at||'',r.picked_up_at||'']));
-  const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download=`CCL_Archive_${arc.semester_label.replace(' ','_')}.csv`; a.click();
+  const arc = data[0];
+  const reqs = arc.requests_data || [];
+  const agrs = arc.agreements_data || [];
+  const alma = arc.alma_data || [];
+  const summary = arc.summary || {};
+  const today = new Date();
+
+  const sections = [];
+
+  // Summary
+  const totalPickedUp = reqs.filter(r=>r.status==='picked-up').length;
+  const totalWaitlisted = reqs.filter(r=>r.waitlist_position).length;
+  const waitTimes = reqs.filter(r=>r.notified_at&&r.requested_at).map(r=>(new Date(r.notified_at)-new Date(r.requested_at))/(1000*60*60*24));
+  const avgWait = waitTimes.length ? Math.round(waitTimes.reduce((a,b)=>a+b,0)/waitTimes.length*10)/10 : '—';
+
+  sections.push([
+    ['CCL DEVICE PORTAL — ARCHIVED SEMESTER REPORT'],
+    ['Semester', arc.semester_label],
+    ['Archived', arc.archived_at ? new Date(arc.archived_at).toLocaleDateString() : ''],
+    ['Export Generated', today.toLocaleDateString()],
+    [],
+    ['SUMMARY'],
+    ['Agreements Signed', agrs.length],
+    ['Total Device Requests', reqs.length],
+    ['Total Picked Up', totalPickedUp],
+    ['Total Waitlisted', totalWaitlisted],
+    ['Average Wait Time (days)', avgWait],
+    ['Total Alma Checkouts', alma.length],
+    ['Already Returned (Alma)', alma.filter(l=>l.isReturned).length],
+    ['Overdue (Alma)', alma.filter(l=>l.isOverdue).length],
+    [],
+    ['BY DEVICE TYPE','Requests','Waitlisted','Picked Up','Alma Checkouts','Alma Returned','Alma Overdue'],
+  ]);
+  DEVICES.forEach(d => {
+    const s = summary[d.id] || {total:0,waitlisted:0,pickedUp:0,almaCheckouts:0,almaReturned:0,almaOverdue:0};
+    sections[0].push([d.label, s.total, s.waitlisted, s.pickedUp, s.almaCheckouts||0, s.almaReturned||0, s.almaOverdue||0]);
+  });
+
+  // Agreements
+  sections.push([
+    [],
+    ['SIGNED AGREEMENTS (' + agrs.length + ')'],
+    ['Student ID','Signature','Language','Signed At'],
+  ]);
+  agrs.forEach(a => sections[1].push([a.student_id||'', a.signature||'', a.language||'en', a.signed_at ? new Date(a.signed_at).toLocaleString() : '']));
+
+  // Requests
+  sections.push([
+    [],
+    ['ALL DEVICE REQUESTS (' + reqs.length + ')'],
+    ['Student ID','First Name','Last Name','Device','Campus','Status','Waitlist Position','Notes','Requested At','Notified At','Picked Up At'],
+  ]);
+  reqs.forEach(r => sections[2].push([
+    r.student_id||'', r.first_name||'', r.last_name||'', devLabel(r.device_type), r.campus||'',
+    r.status||'', r.waitlist_position||'', r.notes||'',
+    r.requested_at ? new Date(r.requested_at).toLocaleString() : '',
+    r.notified_at ? new Date(r.notified_at).toLocaleString() : '',
+    r.picked_up_at ? new Date(r.picked_up_at).toLocaleString() : ''
+  ]));
+
+  // Overdue from Alma
+  const overdueAlma = alma.filter(l=>l.isOverdue);
+  if(overdueAlma.length){
+    sections.push([
+      [],
+      ['OVERDUE DEVICES (' + overdueAlma.length + ')'],
+      ['Student ID','First Name','Last Name','Device','Loan Date','Due Date','Email (Alma)','Phone (Alma)'],
+    ]);
+    overdueAlma.forEach(l => sections[3].push([
+      l.sid||'', l.firstName||'', l.lastName||'', devLabel(l.deviceType),
+      l.loanDate ? new Date(l.loanDate).toLocaleDateString() : '',
+      l.dueDate ? new Date(l.dueDate).toLocaleDateString() : '',
+      l.prefEmail||'', l.prefPhone||''
+    ]));
+  }
+
+  const allRows = sections.flat();
+  const csv = allRows.map(row => {
+    if(!Array.isArray(row)) return '';
+    return row.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',');
+  }).join('\n');
+
+  const dlB = document.createElement('a');
+  dlB.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  dlB.download = 'CCL_Report_' + arc.semester_label.replace(/\s+/g,'_') + '.csv';
+  dlB.click();
 }
 
 // ── EMAIL TEMPLATE ────────────────────────────────────────────────────────────
@@ -2858,7 +3133,7 @@ async function loadOverduePanel(){
         const daysOver = l.dueDate ? Math.floor((today - l.dueDate)/(1000*60*60*24)) : '?';
         const match = (window._overdueReqs || []).find(r => String(r.student_id).trim() === l.sid);
         const studentRec = (window._overdueStudents || {})[l.sid] || {};
-        const phone = l.prefPhone || (match ? match.phone : '') || studentRec.phone || '—';
+        const phone = fmtPhone(l.prefPhone || (match ? match.phone : '') || studentRec.phone);
         const email = l.prefEmail || (match ? match.email : '') || studentRec.email || '—';
         const lang = match ? (match.language||'en') : 'en';
         const dueIso = l.dueDate ? l.dueDate.toISOString().split('T')[0] : '';
