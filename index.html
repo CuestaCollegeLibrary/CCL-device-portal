@@ -1891,10 +1891,11 @@ async function confirmNotifyPhone(){
       // Check if already has an expiry (from prior email notification) - don't reset it
       const curr = await sbGet('device_requests', `?id=eq.${id}&select=status,expires_at,notified_at`);
       const hasExpiry = curr[0] && curr[0].expires_at;
+      const currStatus = curr[0] && curr[0].status;
       const patch = { notified_phone: true };
       if(!hasExpiry){ patch.notified_at = now; patch.expires_at = phoneExpires; }
-      // If waitlisted, move to notified status
-      if(curr[0] && curr[0].status === 'waitlisted'){
+      // If waitlisted or AGHS, move to notified status
+      if(currStatus === 'waitlisted' || currStatus === 'aghs'){
         patch.status = 'notified';
         if(!hasExpiry) patch.notified_at = now;
       }
@@ -1945,20 +1946,17 @@ async function confirmNotify(){
     const now = new Date().toISOString();
     for(const id of notifyIds){
       // Check current status to decide how to update
-      const curr = await sbGet('device_requests', `?id=eq.${id}&select=status`);
-      const isWaitlisted = curr[0] && curr[0].status === 'waitlisted';
-      if(isWaitlisted){
-        // Waitlist mode: move to notified status
-        // Only set expires_at if not already set (preserve original expiry from first notification)
-        const alreadyNotified = curr[0] && curr[0].status === 'notified';
+      const curr = await sbGet('device_requests', `?id=eq.${id}&select=status,expires_at`);
+      const status = curr[0] && curr[0].status;
+      const hasExpiry = curr[0] && curr[0].expires_at;
+      if(status === 'waitlisted' || status === 'aghs'){
+        // Move to notified, set expiry only if first notification
         const patch = { status:'notified', notified_email: true };
-        if(!alreadyNotified){ patch.notified_at = now; patch.expires_at = expires; }
+        if(!hasExpiry){ patch.notified_at = now; patch.expires_at = expires; }
         await sbPatch('device_requests', `?id=eq.${id}`, patch);
       } else {
-        // FCFS mode: stay as requested, just mark email notified
-        await sbPatch('device_requests', `?id=eq.${id}`, {
-          notified_at: now, notified_email: true
-        });
+        // FCFS or already notified: stay in place, just mark email notified
+        await sbPatch('device_requests', `?id=eq.${id}`, { notified_email: true, notified_at: hasExpiry ? curr[0].notified_at : now });
       }
     }
     closeModal('modal-notify');
@@ -2002,6 +2000,7 @@ async function removeRequest(id, panelId){
   if(!confirm('Remove this request from the list?')) return;
   try {
     await sbPatch('device_requests',`?id=eq.${id}`,{status:'cancelled'});
+    if(panelId === 'aghs'){ loadAGHS(); return; }
     loadWaitlistPanel(panelId);
     loadWaitlistCounts();
     loadOverview();
@@ -2041,26 +2040,40 @@ async function loadAGHS(){
     const el = document.getElementById('aghs-table');
     el.innerHTML = '';
 
-    // Notified - awaiting pickup
+    // ── Notified — Awaiting Pickup ──
     if(notified.length){
       const card = document.createElement('div');
       card.className = 'table-card';
       card.style.marginBottom = '16px';
       card.innerHTML = '<div class="table-header"><div class="table-title">⏰ Notified — Awaiting Pickup (' + notified.length + ')</div></div>';
       const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Notified</th><th>Expires</th><th>Actions</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Notified</th><th>Expires</th><th>Method</th><th>Actions</th></tr></thead>';
       const tbody = document.createElement('tbody');
       notified.forEach(r => {
         const exp = r.expires_at && new Date(r.expires_at) < new Date();
+        const methodBadge = r.notified_email && r.notified_phone
+          ? '<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">✓ Email + Phone</span>'
+          : r.notified_email
+          ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">✉️ Email</span>'
+          : r.notified_phone
+          ? '<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">📞 Phone</span>'
+          : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 8px;border-radius:10px">Not notified</span>';
         const tr = document.createElement('tr');
         tr.innerHTML =
           '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
-          '<td><div style="font-size:12px">' + (r.email||'—') + '</div></td>' +
-          '<td>' + fmtDT(r.notified_at) + '</td>' +
-          '<td style="color:' + (exp?'var(--danger)':'inherit') + '">' + fmtDate(r.expires_at) + (exp?' ⚠️':'') + '</td>' +
+          '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + fmtPhone(r.phone) + '</div></td>' +
+          '<td style="font-size:12px">' + fmtDT(r.notified_at) + '</td>' +
+          '<td style="font-size:12px;color:' + (exp?'var(--danger)':'inherit') + '">' + fmtDate(r.expires_at) + (exp?' ⚠️':'') + '</td>' +
+          '<td>' + methodBadge + '</td>' +
           '<td style="display:flex;gap:6px;flex-wrap:wrap"></td>';
         const td = tr.lastElementChild;
+        // Notify button (to add second method)
+        const btnNotify = document.createElement('button');
+        btnNotify.className = 'btn btn-primary btn-sm';
+        btnNotify.textContent = 'Notify';
+        btnNotify.onclick = function(){ openNotifyModal(r.id, r.first_name+' '+r.last_name, devLabel(r.device_type).toUpperCase(), 'AGHS', r.email||'', r.language||'en', r.phone||''); };
+        td.appendChild(btnNotify);
         const btnPick = document.createElement('button');
         btnPick.className = 'btn btn-gold btn-sm';
         btnPick.textContent = 'Picked Up';
@@ -2078,7 +2091,7 @@ async function loadAGHS(){
       el.appendChild(card);
     }
 
-    // Active requests
+    // ── Active Requests ──
     const activeCard = document.createElement('div');
     activeCard.className = 'table-card';
     activeCard.style.marginBottom = '16px';
@@ -2087,23 +2100,37 @@ async function loadAGHS(){
     } else {
       activeCard.innerHTML = '<div class="table-header"><div class="table-title">📋 Active Requests (' + active.length + ')</div></div>';
       const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Actions</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Notes</th><th>Requested</th><th>Method</th><th>Actions</th></tr></thead>';
       const tbody = document.createElement('tbody');
       active.forEach(r => {
         const esBadge = r.language==='es' ? '<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>' : '';
+        const methodBadge = r.notified_email && r.notified_phone
+          ? '<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">✓ Email + Phone</span>'
+          : r.notified_email
+          ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">✉️ Email</span>'
+          : r.notified_phone
+          ? '<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">📞 Phone</span>'
+          : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 8px;border-radius:10px">Not notified</span>';
         const tr = document.createElement('tr');
         tr.innerHTML =
           '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + esBadge + '</div><div class="td-id">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + fmtPhone(r.phone) + '</div></td>' +
-          '<td>' + fmtDT(r.requested_at) + '</td>' +
+          '<td style="font-size:12px;color:var(--text-mid);max-width:140px">' + (r.notes||'—') + '</td>' +
+          '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
+          '<td>' + methodBadge + '</td>' +
           '<td style="display:flex;gap:6px;flex-wrap:wrap"></td>';
         const td = tr.lastElementChild;
         const btnNotify = document.createElement('button');
         btnNotify.className = 'btn btn-primary btn-sm';
         btnNotify.textContent = 'Notify';
-        btnNotify.onclick = function(){ openNotifyModal(r.id, r.first_name+' '+r.last_name, devLabel(r.device_type).toUpperCase(), 'AGHS', r.email||'', r.language||'en'); };
+        btnNotify.onclick = function(){ openNotifyModal(r.id, r.first_name+' '+r.last_name, devLabel(r.device_type).toUpperCase(), 'AGHS', r.email||'', r.language||'en', r.phone||''); };
         td.appendChild(btnNotify);
+        const btnPick = document.createElement('button');
+        btnPick.className = 'btn btn-gold btn-sm';
+        btnPick.textContent = 'Picked Up';
+        btnPick.onclick = function(){ directPickupAGHS(r.id); };
+        td.appendChild(btnPick);
         const btnNLN = document.createElement('button');
         btnNLN.className = 'btn btn-warning btn-sm';
         btnNLN.textContent = 'No Longer Needs';
@@ -2121,21 +2148,29 @@ async function loadAGHS(){
     }
     el.appendChild(activeCard);
 
-    // Past entries
+    // ── Past Entries ──
     if(past.length){
       const pastCard = document.createElement('div');
       pastCard.className = 'table-card';
       pastCard.style.marginTop = '8px';
-      pastCard.innerHTML = '<div class="table-header"><div class="table-title" style="color:var(--text-light)">📁 Past AGHS Entries (' + past.length + ')</div></div>';
+      pastCard.innerHTML = '<div class="table-header" style="cursor:pointer" onclick="toggleAGHSPast()"><div class="table-title" style="color:var(--text-light)">📁 Past AGHS Entries (' + past.length + ') <span id="aghs-past-arrow" style="font-size:12px">▶</span></div></div>';
+      const pastBody = document.createElement('div');
+      pastBody.id = 'aghs-past-body';
+      pastBody.style.display = 'none';
       const ptable = document.createElement('table');
-      ptable.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Notified</th><th>Status</th></tr></thead>';
+      ptable.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Notified</th><th>Method</th><th>Status</th></tr></thead>';
       const ptbody = document.createElement('tbody');
       past.forEach(r => {
         const badge = r.status==='picked-up'
           ? '<span class="status status-picked-up">✓ Picked Up ' + (r.picked_up_at?fmtDate(r.picked_up_at):'') + '</span>'
           : r.status==='expired'
           ? '<span class="status status-expired">✗ Expired</span>'
-          : '<span class="status status-cancelled">✗ ' + (r.status==='cancelled'?'No Longer Needed':'Removed') + '</span>';
+          : '<span class="status status-cancelled">✗ No Longer Needed</span>';
+        const methodBadge = r.notified_email && r.notified_phone
+          ? '<span style="font-size:10px;color:#15803d">✓ Email + Phone</span>'
+          : r.notified_email ? '<span style="font-size:10px;color:#1d4ed8">✉️ Email</span>'
+          : r.notified_phone ? '<span style="font-size:10px;color:#15803d">📞 Phone</span>'
+          : '—';
         const ptr = document.createElement('tr');
         ptr.style.opacity = '0.75';
         ptr.innerHTML =
@@ -2144,22 +2179,34 @@ async function loadAGHS(){
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div></td>' +
           '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
           '<td style="font-size:12px">' + (r.notified_at?fmtDT(r.notified_at):'—') + '</td>' +
+          '<td>' + methodBadge + '</td>' +
           '<td>' + badge + '</td>';
         ptbody.appendChild(ptr);
       });
       ptable.appendChild(ptbody);
-      pastCard.appendChild(ptable);
+      pastBody.appendChild(ptable);
+      pastCard.appendChild(pastBody);
       el.appendChild(pastCard);
     }
   } catch(e){ document.getElementById('aghs-table').innerHTML = '<div class="alert alert-danger">Error: ' + e.message + '</div>'; }
 }
 
-async function fulfillAGHS(id){
-  if(!confirm('Mark as picked up?')) return;
+async function directPickupAGHS(id){
   try {
     await sbPatch('device_requests','?id=eq.'+id,{status:'picked-up',picked_up_at:new Date().toISOString()});
     loadAGHS();
   } catch(e){ alert('Error: '+e.message); }
+}
+
+async function fulfillAGHS(id){ directPickupAGHS(id); }
+
+function toggleAGHSPast(){
+  const body = document.getElementById('aghs-past-body');
+  const arrow = document.getElementById('aghs-past-arrow');
+  if(!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? 'block' : 'none';
+  if(arrow) arrow.textContent = collapsed ? '▼' : '▶';
 }
 
 // ── STUDENT MODAL ─────────────────────────────────────────────────────────────
@@ -2222,9 +2269,9 @@ async function markNoLongerNeeded(id, panelId){
   if(!confirm('Mark this student as no longer needing the device? They will be moved to the past entries list.')) return;
   try {
     await sbPatch('device_requests', `?id=eq.${id}`, {
-      status: 'cancelled',
-      updated_at: new Date().toISOString()
+      status: 'cancelled', updated_at: new Date().toISOString()
     });
+    if(panelId === 'aghs'){ loadAGHS(); return; }
     loadWaitlistPanel(panelId);
     loadWaitlistCounts();
     loadOverview();
