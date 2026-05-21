@@ -575,6 +575,7 @@ tr:hover td{background:#f8fbf8}
           <div class="sidebar-label">Settings</div>
           <button class="sidebar-item" onclick="showPanel('settings',this)">⚙️ Settings</button>
           <button class="sidebar-item" onclick="showPanel('email-settings',this)">✉️ Email Template</button>
+          <button class="sidebar-item" onclick="showPanel('activity',this)" id="nav-activity">📋 Activity Log</button>
         </div>
         <div class="sidebar-section">
           <div class="sidebar-label">Past Semesters</div>
@@ -708,6 +709,15 @@ tr:hover td{background:#f8fbf8}
           </div>
         </div>
 
+        <!-- Activity Log -->
+        <div id="panel-activity" class="tab-panel">
+          <div class="page-header">
+            <div class="page-title">📋 Activity Log</div>
+            <div class="page-sub">Recent actions taken by staff and student workers.</div>
+          </div>
+          <div id="activity-content"><div class="empty-state"><div class="spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--green)"></div></div></div>
+        </div>
+
         <!-- Email Template -->
         <div id="panel-email-settings" class="tab-panel">
           <div class="page-header"><div class="page-title">Email Notification Template</div><div class="page-sub">Customize the email sent when a student's device is ready for pickup.</div></div>
@@ -779,6 +789,51 @@ Cuesta College Library</textarea>
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-pickup">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">Mark as Picked Up</div>
+    <div class="modal-sub" id="pickup-sub"></div>
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label">Notes (optional — barcode, condition, etc.)</label>
+      <input class="form-input" id="pickup-notes" placeholder="e.g. Barcode 36857001234567">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-pickup')">Cancel</button>
+      <button class="btn btn-gold" onclick="confirmPickup()">✓ Mark Picked Up</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-student-history">
+  <div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title">Student Request History</div>
+    <div class="modal-sub" id="history-sub"></div>
+    <div id="history-body" style="margin-top:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-student-history')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-wl-reorder">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">Edit Waitlist Position</div>
+    <div class="modal-sub" id="reorder-sub"></div>
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label">New Position *</label>
+      <input class="form-input" id="reorder-pos" type="number" min="1" placeholder="Enter new position number">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reason for Change * (required)</label>
+      <textarea class="form-input" id="reorder-reason" rows="3" placeholder="e.g. Student has documented medical emergency"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-wl-reorder')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReorder()">✓ Update Position</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-overdue-notify">
   <div class="modal" style="max-width:540px">
     <div class="modal-title">Send Overdue Notice</div>
@@ -842,7 +897,6 @@ let selectedDevices = [];
 let isAGHS = false;
 let waitlistSettings = {};
 let activeNotifyId = null;
-let activePickupId = null;
 let allAgreements = [];
 let emailTemplate = {
   reply: 'circulation@cuesta.edu',
@@ -1085,6 +1139,7 @@ function staffLogout(){
   userRole = null;
   window._selectedProfile = null;
   window._overdueReqs = null;
+  stopAutoRefresh();
   document.getElementById('staff-gate').style.display='flex';
   document.getElementById('staff-dash').style.display='none';
   document.getElementById('staff-pw').value='';
@@ -1418,6 +1473,7 @@ async function loadDashboard(){
     showPanel('wl-hotspot-SLO', document.getElementById('nav-hotspot-SLO'));
     loadOverduePanel();
   }
+  startAutoRefresh();
   // pre-fill email template fields
   document.getElementById('email-reply').value=emailTemplate.reply;
   document.getElementById('email-subject').value=emailTemplate.subject;
@@ -1474,6 +1530,7 @@ function showPanel(panel, btn){
   else if(panel==='aghs') loadAGHS();
   else if(panel==='report') generateReport();
   else if(panel==='overdue') loadOverduePanel();
+  else if(panel==='activity') loadActivityLog();
   else if(panel.startsWith('wl-')) loadWaitlistPanel(panel);
   else if(panel.startsWith('archive-')) loadArchivePanel(panel);
 }
@@ -1651,7 +1708,7 @@ async function loadWaitlistPanel(panelId){
           <td><input type="checkbox" class="req-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
           <td>
             <div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div>
-            <div class="td-id">${r.student_id}</div>
+            <div class="td-id" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${r.student_id}</div>
             ${dbCampus==='shared'?`<div style="font-size:11px;color:var(--text-light)">${r.campus} Campus</div>`:''}
           </td>
           <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
@@ -1693,7 +1750,7 @@ async function loadWaitlistPanel(panelId){
           <td>${r.waitlist_position ? `<span class="pos-num">${r.waitlist_position}</span>` : '—'}</td>
           <td>
             <div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div>
-            <div class="td-id">${r.student_id}</div>
+            <div class="td-id" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${r.student_id}</div>
           </td>
           <td><div style="font-size:12px">${r.email||'—'}</div></td>
           <td style="font-size:12px">${fmtDT(r.requested_at)}</td>
@@ -1750,6 +1807,7 @@ async function toggleWaitlist(deviceId, campus, on){
       }]);
     }
     waitlistSettings[wlKey(deviceId,campus)]=on;
+    await logActivity(on ? 'waitlist_on' : 'waitlist_off', null, devLabel(deviceId) + ' — ' + campus);
 
     // When turning ON: expire all outstanding FCFS 'requested' entries
     if(on){
@@ -1901,6 +1959,7 @@ async function confirmNotifyPhone(){
       }
       await sbPatch('device_requests', `?id=eq.${id}`, patch);
     }
+    await logActivity('notified_phone', notifyIds[0], notifyIds.length > 1 ? notifyIds.length + ' students' : null);
     closeModal('modal-notify');
     const active = document.querySelector('.tab-panel.active');
     if(active && active.id.startsWith('panel-wl-')) loadWaitlistPanel(active.id.replace('panel-',''));
@@ -1959,6 +2018,7 @@ async function confirmNotify(){
         await sbPatch('device_requests', `?id=eq.${id}`, { notified_email: true, notified_at: hasExpiry ? curr[0].notified_at : now });
       }
     }
+    await logActivity('notified_email', notifyIds[0], notifyIds.length > 1 ? notifyIds.length + ' students' : null);
     closeModal('modal-notify');
     const active = document.querySelector('.tab-panel.active');
     if(active && active.id.startsWith('panel-wl-')) loadWaitlistPanel(active.id.replace('panel-',''));
@@ -1969,22 +2029,6 @@ async function confirmNotify(){
 }
 
 // ── PICKUP MODAL ──────────────────────────────────────────────────────────────
-function openPickupModal(id, name, device){
-  activePickupId=id;
-  document.getElementById('pickup-sub').textContent=`Mark ${device} as picked up by ${name}?`;
-  openModal('modal-pickup');
-}
-
-async function confirmPickup(){
-  try {
-    await sbPatch('device_requests',`?id=eq.${activePickupId}`,{status:'picked-up',picked_up_at:new Date().toISOString()});
-    closeModal('modal-pickup');
-    const active=document.querySelector('.tab-panel.active');
-    if(active && active.id.startsWith('panel-wl-')) loadWaitlistPanel(active.id.replace('panel-',''));
-    loadWaitlistCounts();
-    loadOverview();
-  } catch(e){ alert('Error: '+e.message); }
-}
 
 async function expireRequest(id, panelId){
   if(!confirm('Mark this request as expired and release the slot?')) return;
@@ -2271,6 +2315,7 @@ async function markNoLongerNeeded(id, panelId){
     await sbPatch('device_requests', `?id=eq.${id}`, {
       status: 'cancelled', updated_at: new Date().toISOString()
     });
+    await logActivity('no_longer_needs', id, null);
     if(panelId === 'aghs'){ loadAGHS(); return; }
     loadWaitlistPanel(panelId);
     loadWaitlistCounts();
@@ -3500,6 +3545,224 @@ function saveOverdueTemplateES(){
   overdueTemplateES.body = document.getElementById('overdue-body-es').value;
   localStorage.setItem('ccl_overdue_template_es', JSON.stringify(overdueTemplateES));
   alert('Overdue template (ES) saved.');
+}
+
+// ── SEARCH/FILTER ──────────────────────────────────────────────────────────
+function filterPanel(panelId){
+  const input = document.getElementById('search-'+panelId);
+  if(!input) return;
+  const query = input.value.toLowerCase().trim();
+  const panel = document.getElementById('panel-'+panelId);
+  if(!panel) return;
+  panel.querySelectorAll('tbody tr').forEach(row => {
+    if(!query){ row.style.display = ''; return; }
+    // Skip group header rows (colspan)
+    if(row.querySelector('[colspan]')){ row.style.display = ''; return; }
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+// ── PICKUP WITH NOTES ────────────────────────────────────────────────────────
+let activePickupId = null;
+let activePickupPanel = null;
+
+function openPickupModal(id, name, device, panelId){
+  activePickupId = id;
+  activePickupPanel = panelId || null;
+  document.getElementById('pickup-sub').textContent = 'Mark ' + device + ' as picked up by ' + name + '?';
+  document.getElementById('pickup-notes').value = '';
+  openModal('modal-pickup');
+}
+
+async function confirmPickup(){
+  if(!activePickupId) return;
+  try {
+    const notes = document.getElementById('pickup-notes').value.trim();
+    const patch = { status:'picked-up', picked_up_at: new Date().toISOString() };
+    if(notes) patch.notes = notes;
+    await sbPatch('device_requests', `?id=eq.${activePickupId}`, patch);
+    await logActivity('picked_up', activePickupId, notes ? 'Note: '+notes : null);
+    closeModal('modal-pickup');
+    if(activePickupPanel === 'aghs'){ loadAGHS(); return; }
+    const active = document.querySelector('.tab-panel.active');
+    if(active && active.id.startsWith('panel-wl-')) loadWaitlistPanel(active.id.replace('panel-',''));
+    loadWaitlistCounts();
+    loadOverview();
+  } catch(e){ alert('Error: ' + e.message); }
+}
+
+// ── STUDENT HISTORY ──────────────────────────────────────────────────────────
+async function openStudentHistory(studentId, studentName){
+  document.getElementById('history-sub').textContent = studentName + ' — ' + studentId;
+  document.getElementById('history-body').innerHTML = '<div class="empty-state"><div class="spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--green)"></div></div>';
+  openModal('modal-student-history');
+  try {
+    // Current semester requests
+    const reqs = await sbGet('device_requests', `?student_id=eq.${studentId}&semester=eq.${semesterCode}&order=requested_at.desc&select=*`);
+    // Check all archived semesters for overdue history from Alma
+    const archives = await sbGet('archived_semesters', '?select=semester_label,alma_data');
+    const overdueHistory = [];
+    archives.forEach(arc => {
+      if(!arc.alma_data) return;
+      arc.alma_data.forEach(l => {
+        if(String(l.sid).trim() === String(studentId).trim() && l.isOverdue){
+          overdueHistory.push({ semester: arc.semester_label, device: devLabel(l.deviceType),
+            dueDate: l.dueDate, loanDate: l.loanDate });
+        }
+      });
+    });
+    // Also check current alma data
+    if(almaData){
+      almaData.filter(l => String(l.sid).trim() === String(studentId).trim() && l.isOverdue).forEach(l => {
+        overdueHistory.push({ semester: semesterLabel, device: devLabel(l.deviceType),
+          dueDate: l.dueDate, loanDate: l.loanDate });
+      });
+    }
+    let html = '';
+    // Overdue warning
+    if(overdueHistory.length){
+      html += '<div class="alert alert-danger" style="margin-bottom:16px">⚠️ <strong>Overdue History:</strong> This student has ' + overdueHistory.length + ' overdue device' + (overdueHistory.length>1?'s':'') + ' on record across ' + [...new Set(overdueHistory.map(o=>o.semester))].length + ' semester(s).</div>';
+      html += '<div class="table-card" style="margin-bottom:16px"><div class="table-header"><div class="table-title" style="color:var(--danger)">📛 Overdue Device History</div></div>';
+      html += '<table><thead><tr><th>Semester</th><th>Device</th><th>Loan Date</th><th>Due Date</th></tr></thead><tbody>';
+      overdueHistory.forEach(o => {
+        html += '<tr style="background:#fff8f8"><td>' + o.semester + '</td><td>' + o.device + '</td>' +
+          '<td style="font-size:12px">' + (o.loanDate ? fmtDate(new Date(o.loanDate)) : '—') + '</td>' +
+          '<td style="font-size:12px;color:var(--danger)">' + (o.dueDate ? fmtDate(new Date(o.dueDate)) : '—') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    // Current semester requests
+    html += '<div class="table-card"><div class="table-header"><div class="table-title">Current Semester Requests (' + reqs.length + ')</div></div>';
+    if(!reqs.length){
+      html += '<div class="empty-state"><div class="empty-text">No requests this semester</div></div>';
+    } else {
+      html += '<table><thead><tr><th>Device</th><th>Campus</th><th>Status</th><th>Requested</th><th>Notified</th><th>Picked Up</th></tr></thead><tbody>';
+      reqs.forEach(r => {
+        const statusColor = r.status==='picked-up'?'var(--success)':r.status==='expired'?'var(--danger)':r.status==='waitlisted'||r.status==='notified'?'var(--gold)':'inherit';
+        html += '<tr><td>' + devLabel(r.device_type) + '</td><td>' + (r.campus||'—') + '</td>' +
+          '<td style="color:'+statusColor+';font-weight:600">' + r.status + '</td>' +
+          '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
+          '<td style="font-size:12px">' + (r.notified_at?fmtDT(r.notified_at):'—') + '</td>' +
+          '<td style="font-size:12px">' + (r.picked_up_at?fmtDT(r.picked_up_at):'—') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    document.getElementById('history-body').innerHTML = html;
+  } catch(e){
+    document.getElementById('history-body').innerHTML = '<div class="alert alert-danger">Error: ' + e.message + '</div>';
+  }
+}
+
+// ── WAITLIST POSITION EDITING ────────────────────────────────────────────────
+let reorderTarget = null; // {id, panelId, currentPos, name}
+
+function openReorderModal(id, name, currentPos, panelId){
+  reorderTarget = {id, panelId, currentPos, name};
+  document.getElementById('reorder-sub').textContent = name + ' — currently #' + currentPos;
+  document.getElementById('reorder-pos').value = currentPos;
+  document.getElementById('reorder-reason').value = '';
+  openModal('modal-wl-reorder');
+}
+
+async function confirmReorder(){
+  const newPos = parseInt(document.getElementById('reorder-pos').value);
+  const reason = document.getElementById('reorder-reason').value.trim();
+  if(!newPos || newPos < 1){ alert('Please enter a valid position number.'); return; }
+  if(!reason){ alert('A reason is required when editing the waitlist position.'); return; }
+  try {
+    // Get all waitlisted entries for this panel to shift positions
+    const parts = reorderTarget.panelId.replace('wl-','').split('-');
+    const deviceId = parts[0];
+    const dbCampus = parts.slice(1).join('-').toUpperCase();
+    const campusFilter = dbCampus === 'SHARED' ? '' : '&campus=eq.'+dbCampus;
+    const entries = await sbGet('device_requests',
+      `?device_type=eq.${deviceId}${campusFilter}&status=eq.waitlisted&order=waitlist_position.asc&select=id,waitlist_position`);
+    // Reorder: remove from current position, insert at new
+    const filtered = entries.filter(e => e.id !== reorderTarget.id);
+    const insertAt = Math.min(newPos - 1, filtered.length);
+    filtered.splice(insertAt, 0, {id: reorderTarget.id});
+    // Update all positions
+    for(let i = 0; i < filtered.length; i++){
+      await sbPatch('device_requests', `?id=eq.${filtered[i].id}`, { waitlist_position: i+1 });
+    }
+    // Add note to the moved entry
+    const existingEntry = await sbGet('device_requests', `?id=eq.${reorderTarget.id}&select=notes`);
+    const existingNotes = existingEntry[0]?.notes || '';
+    const newNote = (existingNotes ? existingNotes + ' | ' : '') + 'Position changed to #' + newPos + ': ' + reason;
+    await sbPatch('device_requests', `?id=eq.${reorderTarget.id}`, { notes: newNote });
+    await logActivity('reorder', reorderTarget.id, 'Moved ' + reorderTarget.name + ' from #' + reorderTarget.currentPos + ' to #' + newPos + ': ' + reason);
+    closeModal('modal-wl-reorder');
+    loadWaitlistPanel(reorderTarget.panelId);
+  } catch(e){ alert('Error: ' + e.message); }
+}
+
+// ── ACTIVITY LOG ─────────────────────────────────────────────────────────────
+async function logActivity(action, requestId, detail){
+  try {
+    await sbPost('activity_log', [{
+      action, request_id: requestId, detail: detail||null,
+      performed_by: userRole || 'staff',
+      semester: semesterCode,
+      created_at: new Date().toISOString()
+    }]);
+  } catch(e){ console.warn('Activity log error:', e.message); }
+}
+
+async function loadActivityLog(){
+  const el = document.getElementById('activity-content');
+  el.innerHTML = '<div class="empty-state"><div class="spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--green)"></div></div>';
+  try {
+    const logs = await sbGet('activity_log', `?semester=eq.${semesterCode}&order=created_at.desc&limit=200&select=*`);
+    if(!logs.length){
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No activity yet this semester</div></div>';
+      return;
+    }
+    const actionLabels = {
+      picked_up: '✓ Picked Up', notified_email: '✉️ Notified by Email',
+      notified_phone: '📞 Notified by Phone', no_longer_needs: '✗ No Longer Needs',
+      waitlist_on: '🔔 Waitlist Turned ON', waitlist_off: '🔕 Waitlist Turned OFF',
+      reorder: '↕️ Position Changed', expired: '⏰ Expired', removed: '🗑 Removed'
+    };
+    let html = '<div class="table-card"><table><thead><tr><th>Time</th><th>Action</th><th>Detail</th><th>By</th></tr></thead><tbody>';
+    logs.forEach(l => {
+      const label = actionLabels[l.action] || l.action;
+      const roleLabel = l.performed_by === 'student_worker' ? '<span style="background:#f5f3ff;color:#6d28d9;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600">SW</span>' : '<span style="background:#f0fdf4;color:#15803d;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600">Staff</span>';
+      html += '<tr><td style="font-size:12px;white-space:nowrap">' + fmtDT(l.created_at) + '</td>' +
+        '<td style="font-size:12px;font-weight:500">' + label + '</td>' +
+        '<td style="font-size:12px;color:var(--text-mid)">' + (l.detail||'—') + '</td>' +
+        '<td>' + roleLabel + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  } catch(e){
+    el.innerHTML = '<div class="alert alert-danger">Error loading activity log: ' + e.message + '</div>';
+  }
+}
+
+// ── AUTO REFRESH ─────────────────────────────────────────────────────────────
+let autoRefreshInterval = null;
+
+function startAutoRefresh(){
+  if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+  autoRefreshInterval = setInterval(async () => {
+    if(document.hidden) return; // don't refresh if tab is not visible
+    await loadWaitlistCounts();
+    // Also refresh the currently visible panel silently
+    const active = document.querySelector('.tab-panel.active');
+    if(!active) return;
+    const id = active.id.replace('panel-','');
+    if(id.startsWith('wl-')) loadWaitlistPanel(id);
+    else if(id === 'overview') loadOverview();
+    else if(id === 'aghs') loadAGHS();
+    else if(id === 'overdue') loadOverduePanel();
+    else if(id === 'activity') loadActivityLog();
+  }, 2 * 60 * 1000); // every 2 minutes
+}
+
+function stopAutoRefresh(){
+  if(autoRefreshInterval){ clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
