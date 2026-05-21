@@ -2104,7 +2104,7 @@ async function loadAGHS(){
           : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 8px;border-radius:10px">Not notified</span>';
         const tr = document.createElement('tr');
         tr.innerHTML =
-          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id">' + r.student_id + '</div></td>' +
+          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id" onclick="openStudentHistory(\'' + r.student_id + '\',\'' + r.first_name + ' ' + r.last_name + '\')" style="cursor:pointer;color:var(--green);text-decoration:underline">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + fmtPhone(r.phone) + '</div></td>' +
           '<td style="font-size:12px">' + fmtDT(r.notified_at) + '</td>' +
@@ -2157,7 +2157,7 @@ async function loadAGHS(){
           : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 8px;border-radius:10px">Not notified</span>';
         const tr = document.createElement('tr');
         tr.innerHTML =
-          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + esBadge + '</div><div class="td-id">' + r.student_id + '</div></td>' +
+          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + esBadge + '</div><div class="td-id" onclick="openStudentHistory(\'' + r.student_id + '\',\'' + r.first_name + ' ' + r.last_name + '\')" style="cursor:pointer;color:var(--green);text-decoration:underline">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + fmtPhone(r.phone) + '</div></td>' +
           '<td style="font-size:12px;color:var(--text-mid);max-width:140px">' + (r.notes||'—') + '</td>' +
@@ -2218,7 +2218,7 @@ async function loadAGHS(){
         const ptr = document.createElement('tr');
         ptr.style.opacity = '0.75';
         ptr.innerHTML =
-          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id">' + r.student_id + '</div></td>' +
+          '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id" onclick="openStudentHistory(\'' + r.student_id + '\',\'' + r.first_name + ' ' + r.last_name + '\')" style="cursor:pointer;color:var(--green);text-decoration:underline">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div></td>' +
           '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
