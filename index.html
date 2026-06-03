@@ -569,7 +569,7 @@ tr:hover td{background:#f8fbf8}
         <div class="sidebar-section">
           <div class="sidebar-label">Other</div>
           <button class="sidebar-item" onclick="showPanel('wl-laptop-shared',this)" id="nav-laptop-shared">🖥️ Spec. Laptops <span class="sidebar-count" id="cnt-laptop-shared">0</span></button>
-          <button class="sidebar-item" onclick="showPanel('aghs',this)" id="nav-aghs">📍 AGHS Requests</button>
+
         </div>
         <div class="sidebar-section">
           <div class="sidebar-label">Settings</div>
@@ -1040,7 +1040,7 @@ function applyTranslations(){
     't-siglabel':'siglabel','t-signbtn':'signbtn','t-back1':'back','t-back2':'back','t-back3':'back',
     't-campustitle':'campustitle','t-campussub':'campussub',
     't-sloname':'sloname','t-slosub':'slosub','t-nccname':'nccname','t-nccsub':'nccsub',
-    't-aghslabel':'aghslabel','t-devicetitle':'devicetitle','t-devicesub':'devicesub',
+'t-devicetitle':'devicetitle','t-devicesub':'devicesub',
     't-reviewbtn':'reviewbtn','t-s4title':'s4title','t-s4sub':'s4sub',
     't-notiflabel':'notiflabel','t-notif1':'notif1','t-notif2':'notif2','t-emailhint':'emailhint',
     't-laptopjust':'laptopjust','t-laptopjustsub':'laptopjustsub','t-crn':'crn','t-prof':'prof',
@@ -1190,7 +1190,7 @@ function fmtDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString(
 function fmtDT(d){ if(!d) return '—'; return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function devLabel(id){ const d=DEVICES.find(x=>x.id===id); return d?(lang==='es'?d.labelEs:d.label):id; }
 function shortCampus(c){ if(!c) return ''; var u=c.toUpperCase(); if(u==='SHARED') return 'SLO'; if(u.includes('NCC')||u==='NC') return 'NC'; if(u.includes('SLO')) return 'SLO'; return c; }
-function otherShortCampus(c){ var s=shortCampus(c); if(s==='AGHS') return 'SLO'; return s==='SLO'?'NC':'SLO'; }
+function otherShortCampus(c){ var s=shortCampus(c); return s==='SLO'?'NC':'SLO'; }
 function wlKey(deviceId, campus){ return deviceId==='laptop'?'laptop_shared':`${deviceId}_${campus}`; }
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1264,9 +1264,7 @@ async function doStep2(){
 
 // ── STEP 3 ────────────────────────────────────────────────────────────────────
 function selectCampus(campus){
-  selectedCampus=campus; isAGHS=false;
-  var aghs = document.getElementById('aghs-cb');
-  if(aghs) aghs.checked=false;
+  selectedCampus=campus;
   document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
   var cc = document.getElementById('cc-'+campus);
   if(cc) cc.classList.add('selected');
@@ -1275,18 +1273,6 @@ function selectCampus(campus){
   renderDeviceGrid();
 }
 
-function toggleAGHS(){
-  isAGHS=document.getElementById('aghs-cb').checked;
-  if(isAGHS){
-    selectedCampus='AGHS';
-    document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
-    document.getElementById('device-card').style.display='block';
-    renderDeviceGrid();
-  } else {
-    selectedCampus=null;
-    document.getElementById('device-card').style.display='none';
-  }
-}
 
 async function renderDeviceGrid(){
   const grid=document.getElementById('device-grid');
@@ -1300,9 +1286,9 @@ async function renderDeviceGrid(){
 
   let html='';
   DEVICES.forEach(dt=>{
-    if(isAGHS && dt.shared){ return; } // laptops not available at AGHS
+
     const key = dt.shared?'laptop_shared':wlKey(dt.id, selectedCampus||'SLO');
-    const onWaitlist = isAGHS ? false : (waitlistSettings[key]||false);
+    const onWaitlist = waitlistSettings[key]||false;
     const badge = isAGHS
       ? `<span class="device-badge" style="background:#f5f3ff;color:#6d28d9">${t('special')}</span>`
       : onWaitlist
@@ -1366,195 +1352,20 @@ function renderConfirmation(){
   selectedDevices.forEach(did=>{
     const dt=DEVICES.find(x=>x.id===did);
     const key=dt.shared?'laptop_shared':wlKey(did,selectedCampus);
-    const onWL=!isAGHS&&(waitlistSettings[key]||false);
-    const badge=isAGHS
-      ?`<span class="wl-badge" style="background:#f5f3ff;color:#6d28d9">📍 Special Request</span>`
-      :onWL?`<span class="wl-badge">⏳ Will be added to waitlist</span>`
-      :`<span class="avail-badge">✓ First come first served</span>`;
-    devHtml+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--cream-dark)">
-      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">${dt.icon}</span><span style="font-weight:500;font-size:14px">${lang==='es'?dt.labelEs:dt.label}</span></div>
-      ${badge}
+    const onWL=waitlistSettings[key]||false;
+    const laptopNote = (did==='laptop' && studentData.laptopCRN)
+      ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px">📋 ${studentData.laptopCRN} — ${studentData.laptopProf}</div>`
+      : '';
+    devHtml+=`<div style="padding:9px 0;border-bottom:1px solid var(--cream-dark)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">${dt.icon}</span><span style="font-weight:500;font-size:14px">${lang==='es'?dt.labelEs:dt.label}</span></div>
+        ${badge}
+      </div>
+      ${laptopNote}
     </div>`;
   });
-  devHtml+='</div>';
-  document.getElementById('confirm-devices').innerHTML=devHtml;
-}
-
-async function doSubmit(){
-  clearAlert('a-step4');
-  const notifEmail=document.getElementById('notif-email').checked;
-  const notifPhone=document.getElementById('notif-phone').checked;
-  const notif=[notifEmail?'email':null, notifPhone?'phone':null].filter(Boolean).join(',') || 'email';
-  const btn=document.getElementById('btn-submit'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
-  try {
-    // Refresh waitlist settings to get latest state before submitting
-    try {
-      const ws = await sbGet('waitlist_settings','?select=*');
-      waitlistSettings = {};
-      ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
-    } catch(e){}
-    // Refresh waitlist settings right before submitting to get latest state
-    try {
-      const ws = await sbGet('waitlist_settings','?select=*');
-      waitlistSettings = {};
-      ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
-    } catch(e){}
-    // Upsert student
-    await fetch(`${SUPABASE_URL}/rest/v1/students`,{
-      method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-      body:JSON.stringify({student_id:studentData.student_id,first_name:studentData.first_name,last_name:studentData.last_name,email:studentData.email,phone:studentData.phone})
-    });
-
-    const results=[];
-    for(const did of selectedDevices){
-      const dt=DEVICES.find(x=>x.id===did);
-      const campus=selectedCampus==='AGHS'?'AGHS':selectedCampus;
-      const key=dt.shared?'laptop_shared':wlKey(did,selectedCampus);
-      const onWL=!isAGHS&&(waitlistSettings[key]||false);
-      const status=isAGHS?'aghs':(onWL?'waitlisted':'requested');
-
-      let pos=null;
-      if(status==='waitlisted'){
-        const wl=await sbGet('device_requests',`?device_type=eq.${did}&campus=eq.${campus}&status=eq.waitlisted&select=waitlist_position&order=waitlist_position.desc&limit=1`);
-        pos=wl.length>0?(wl[0].waitlist_position||0)+1:1;
-      }
-
-      await sbPost('device_requests',[{
-        student_id:studentData.student_id, first_name:studentData.first_name,
-        last_name:studentData.last_name, email:studentData.email, phone:studentData.phone,
-        device_type:did, campus, status, waitlist_position:pos,
-        notification_pref:notif, semester:semesterCode, language:lang,
-        notes: did==='laptop' ? ('CRN/Class: ' + (studentData.laptopCRN||'') + ' | Professor: ' + (studentData.laptopProf||'')) : null,
-        requested_at:new Date().toISOString()
-      }]);
-      results.push({dt,status,pos});
-    }
-
-    let msg=`<p>Thank you, <strong>${studentData.first_name}</strong>! Here is a summary:</p><br>`;
-    results.forEach(r=>{
-      const name=lang==='es'?r.dt.labelEs:r.dt.label;
-      if(r.status==='requested') msg+=`<p>✅ <strong>${name}</strong> — First come first served. Come to the ${selectedCampus} Library when ready.</p>`;
-      else if(r.status==='waitlisted') msg+=`<p>⏳ <strong>${name}</strong> — You are #${r.pos} on the waitlist. You will be notified at ${studentData.email} when a device is available.</p>`;
-      else msg+=`<p>📍 <strong>${name}</strong> — Your AGHS special request has been logged. Staff will contact you at ${studentData.email}.</p>`;
-      msg+='<br>';
-    });
-    document.getElementById('success-msg').innerHTML=msg;
-    goStep(5);
-  } catch(e){ showAlert('a-step4','Error submitting request: '+e.message,'danger'); }
-  finally{ btn.disabled=false; btn.innerHTML=`<span id="t-submitbtn">${t('submitbtn')}</span>`; }
-}
-
-function resetPortal(){
-  studentData={}; selectedCampus=null; selectedDevices=[]; isAGHS=false;
-  ['s-fn','s-ln','s-sid','s-email','s-phone','s-sig'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('agree-cb').checked=false;
-  document.getElementById('notif-email').checked=true;
-  document.getElementById('notif-phone').checked=false;
-  document.getElementById('device-card').style.display='none';
-  document.querySelectorAll('.campus-card').forEach(function(el){el.classList.remove('selected');});
-  document.getElementById('aghs-cb').checked=false;
-  goStep(1);
-}
-
-// ── STAFF DASHBOARD ───────────────────────────────────────────────────────────
-async function loadDashboard(){
-  await loadSemesterConfig();
-  await loadWaitlistSettings();
-  updateEmailPreview();
-  applyRolePermissions();
-  loadWaitlistCounts();
-  loadArchiveNav();
-  restoreAlmaDisplay();       // Must run before loadOverduePanel so almaData is populated
-  await loadOverdueNotifRecords(); // Must run before loadOverduePanel so notif records are ready
-  if(userRole !== 'student_worker'){
-    loadOverview();
-  } else {
-    showPanel('wl-hotspot-SLO', document.getElementById('nav-hotspot-SLO'));
-    loadOverduePanel();
-  }
-  startAutoRefresh();
-  // pre-fill email template fields
-  document.getElementById('email-reply').value=emailTemplate.reply;
-  document.getElementById('email-subject').value=emailTemplate.subject;
-  document.getElementById('email-body').value=emailTemplate.body;
-  updateEmailPreview();
-  const esSubjEl=document.getElementById('email-subject-es');
-  const esBodyEl=document.getElementById('email-body-es');
-  if(esSubjEl) esSubjEl.value=emailTemplateES.subject;
-  if(esBodyEl) esBodyEl.value=emailTemplateES.body;
-  updateEmailPreviewES();
-  // Load overdue templates
-  const savedOverdue=localStorage.getItem('ccl_overdue_template');
-  if(savedOverdue){ try{ Object.assign(overdueTemplate,JSON.parse(savedOverdue)); }catch(e){} }
-  const savedOverdueES=localStorage.getItem('ccl_overdue_template_es');
-  if(savedOverdueES){ try{ Object.assign(overdueTemplateES,JSON.parse(savedOverdueES)); }catch(e){} }
-
-  // pre-fill semester fields
-  document.getElementById('sem-label').value=semesterLabel;
-  document.getElementById('sem-code').value=semesterCode;
-}
-
-async function loadSemesterConfig(){
-  try {
-    const cfg=await sbGet('semester_config','?select=*&limit=1&order=created_at.desc');
-    if(cfg.length){
-      semesterLabel=cfg[0].semester_label;
-      semesterCode=cfg[0].semester_code;
-      window._savedAlmaData = cfg[0].alma_report_data || null;
-      document.getElementById('hero-semester').textContent=semesterLabel;
-
-      document.getElementById('agree-sub').textContent=`${semesterLabel} agreements`;
-      document.getElementById('agree-table-title').textContent=`${semesterLabel} Agreements`;
-      document.getElementById('overview-sub').textContent=`${semesterLabel}`;
-    }
-  } catch(e){}
-}
-
-async function loadWaitlistSettings(){
-  try {
-    const ws=await sbGet('waitlist_settings','?select=*');
-    waitlistSettings={};
-    ws.forEach(r=>{ waitlistSettings[wlKey(r.device_type,r.campus)]=r.waitlist_on; });
-  } catch(e){}
-}
-
-function showPanel(panel, btn){
-  document.querySelectorAll('.tab-panel').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
-  const p=document.getElementById('panel-'+panel);
-  if(p) p.classList.add('active');
-  if(btn) btn.classList.add('active');
-  if(panel==='overview') loadOverview();
-  else if(panel==='agreements') loadAgreements();
-  else if(panel==='aghs') loadAGHS();
-  else if(panel==='report') generateReport();
-  else if(panel==='overdue') loadOverduePanel();
-  else if(panel==='activity') loadActivityLog();
-  else if(panel.startsWith('wl-')) loadWaitlistPanel(panel);
-  else if(panel.startsWith('archive-')) loadArchivePanel(panel);
-}
-
-// ── OVERVIEW ──────────────────────────────────────────────────────────────────
-async function loadOverview(){
-  try {
-    const all=await sbGet('device_requests','?select=*&order=requested_at.desc');
-    document.getElementById('stat-requests').textContent=all.filter(r=>r.status!=='aghs').length;
-    document.getElementById('stat-waitlisted').textContent=all.filter(r=>r.status==='waitlisted').length;
-    document.getElementById('stat-notified').textContent=all.filter(r=>r.status==='notified').length;
-    document.getElementById('stat-expired').textContent=all.filter(r=>r.status==='expired').length;
-    const recent=all.slice(0,25);
-    if(!recent.length){ document.getElementById('overview-table').innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No requests yet</div></div>`; return; }
-    let html=`<table><thead><tr><th>Student</th><th>Device</th><th>Campus</th><th>Status</th><th>Requested</th><th></th></tr></thead><tbody>`;
-    recent.forEach(r=>{
-      html+=`<tr><td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id">${r.student_id}</div></td>
-        <td>${devLabel(r.device_type)}</td><td>${r.campus==='shared'?'Any':r.campus}</td>
-        <td>${statusBadge(r.status)}</td><td>${fmtDT(r.requested_at)}</td>
-        <td><button class="btn btn-outline btn-sm" onclick="openStudentModal('${r.student_id}')">View</button></td></tr>`;
-    });
-    html+='</tbody></table>';
-    document.getElementById('overview-table').innerHTML=html;
-  } catch(e){ document.getElementById('overview-table').innerHTML=`<div class="alert alert-danger">Error: ${e.message}</div>`; }
+  devHtml += '</div>';
+  document.getElementById('confirm-devices').innerHTML = devHtml;
 }
 
 async function loadWaitlistCounts(){
@@ -1856,7 +1667,7 @@ function openNotifyModalMulti(students, device, campus){
   notifyDevice = device;
   notifyCampus = campus;
 
-  const otherCampus = campus==='AGHS' ? 'SLO or NC' : campus.includes('SLO') ? 'NC' : campus.includes('NC') ? 'SLO' : 'otro';
+  const otherCampus = campus.includes('SLO') ? 'NC' : campus.includes('NC') ? 'SLO' : 'otro';
   const deadline = new Date(Date.now() + 7*24*60*60*1000);
   const subject = (tmpl.subject || '')
     .replace(/{device}/g, device).replace(/{campus}/g, campus);
@@ -1953,7 +1764,7 @@ async function confirmNotifyPhone(){
       const patch = { notified_phone: true };
       if(!hasExpiry){ patch.notified_at = now; patch.expires_at = phoneExpires; }
       // If waitlisted or AGHS, move to notified status
-      if(currStatus === 'waitlisted' || currStatus === 'aghs'){
+      if(currStatus === 'waitlisted'){
         patch.status = 'notified';
         if(!hasExpiry) patch.notified_at = now;
       }
@@ -1972,7 +1783,7 @@ async function confirmNotifyPhone(){
 function openEmailDraft(){
   const isSpanish = window._notifyIsSpanish || false;
   const tmpl = isSpanish ? emailTemplateES : emailTemplate;
-  const otherCampus = notifyCampus==='AGHS' ? 'SLO or NC' : notifyCampus.includes('SLO') ? 'NC' : notifyCampus.includes('NC') ? 'SLO' : 'otro';
+  const otherCampus = notifyCampus.includes('SLO') ? 'NC' : notifyCampus.includes('NC') ? 'SLO' : 'otro';
   const subject = encodeURIComponent(
     (tmpl.subject || '').replace(/{device}/g, notifyDevice).replace(/{campus}/g, notifyCampus)
   );
@@ -2008,7 +1819,7 @@ async function confirmNotify(){
       const curr = await sbGet('device_requests', `?id=eq.${id}&select=status,expires_at`);
       const status = curr[0] && curr[0].status;
       const hasExpiry = curr[0] && curr[0].expires_at;
-      if(status === 'waitlisted' || status === 'aghs'){
+      if(status === 'waitlisted'){
         // Move to notified, set expiry only if first notification
         const patch = { status:'notified', notified_email: true };
         if(!hasExpiry){ patch.notified_at = now; patch.expires_at = expires; }
@@ -2563,9 +2374,7 @@ async function generateReport(){
       html += '<div class="alert alert-success" style="margin-bottom:18px">✓ All students in the Alma report have a signed agreement on file for ' + semesterLabel + '.</div>';
     }
 
-    // AGHS
-    const aghs = reqs.filter(r => r.campus === 'AGHS');
-    if(aghs.length) html += '<div class="table-card" style="margin-bottom:18px"><div class="table-header"><div class="table-title">AGHS Special Requests: ' + aghs.length + '</div></div></div>';
+
 
 
     // Overdue count only - full list is in Overdue Devices panel
@@ -3107,7 +2916,7 @@ function applyRolePermissions(){
   const isSW = userRole === 'student_worker';
 
   // Sidebar items to hide for student workers
-  const staffOnlyPanels = ['overview','agreements','report','aghs','settings','email-settings'];
+  const staffOnlyPanels = ['overview','agreements','report','settings','email-settings'];
   // Show overdue panel for both roles
   const overdueNav = document.getElementById('nav-overdue');
   if(overdueNav) overdueNav.style.display = '';
@@ -3766,6 +3575,50 @@ function stopAutoRefresh(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+async function loadOverview(){
+  try {
+    const [reqs, agrs] = await Promise.all([
+      sbGet('device_requests', `?semester=eq.${semesterCode}&status=not.in.(aghs)&order=requested_at.desc&limit=50&select=*`),
+      sbGet('agreements', `?semester=eq.${semesterCode}&select=id`)
+    ]);
+    const stats = {
+      total: reqs.length,
+      agreements: agrs.length,
+      pickedUp: reqs.filter(r=>r.status==='picked-up').length,
+      waitlisted: reqs.filter(r=>['waitlisted','notified'].includes(r.status)).length,
+      requested: reqs.filter(r=>r.status==='requested').length,
+      expired: reqs.filter(r=>r.status==='expired').length,
+    };
+    document.getElementById('stat-agreements').textContent = stats.agreements;
+    document.getElementById('stat-total').textContent = stats.total;
+    document.getElementById('stat-pickedup').textContent = stats.pickedUp;
+    document.getElementById('stat-waitlisted').textContent = stats.waitlisted;
+    document.getElementById('stat-requested').textContent = stats.requested;
+    document.getElementById('stat-expired').textContent = stats.expired;
+
+    // Recent activity table
+    const el = document.getElementById('overview-table');
+    if(!el) return;
+    if(!reqs.length){
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No requests yet this semester</div></div>`;
+      return;
+    }
+    let html=`<table><thead><tr><th>Student</th><th>Device</th><th>Campus</th><th>Status</th><th>Requested</th><th></th></tr></thead><tbody>`;
+    reqs.slice(0,20).forEach(r=>{
+      html+=`<tr><td><div class="td-name">${r.first_name} ${r.last_name}</div><div class="td-id" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${r.student_id}</div></td>
+        <td>${devLabel(r.device_type)}</td><td>${r.campus==='shared'?'SLO/NCC':r.campus}</td>
+        <td>${statusBadge(r.status)}</td><td>${fmtDT(r.requested_at)}</td>
+        <td></td></tr>`;
+    });
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  } catch(e){ 
+    const el = document.getElementById('overview-table');
+    if(el) el.innerHTML=`<div class="alert alert-danger">Error: ${e.message}</div>`;
+  }
+}
+
+
 document.addEventListener('DOMContentLoaded', async ()=>{
   // Load saved email template
   const saved=localStorage.getItem('ccl_email_template');
