@@ -1384,6 +1384,95 @@ async function loadWaitlistCounts(){
   } catch(e){}
 }
 
+// ── NAVIGATION ──────────────────────────────────────────────────────────────
+function showPanel(panel, btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('active'));
+  const el = document.getElementById('panel-'+panel);
+  if(el) el.classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(panel==='overview') loadOverview();
+  else if(panel==='agreements') loadAgreements();
+  else if(panel==='report') generateReport();
+  else if(panel==='overdue') loadOverduePanel();
+  else if(panel==='activity') loadActivityLog();
+  else if(panel==='settings'){
+    const semLbl=document.getElementById('sem-label');
+    const semCod=document.getElementById('sem-code');
+    if(semLbl) semLbl.value=semesterLabel;
+    if(semCod) semCod.value=semesterCode;
+  }
+  else if(panel.startsWith('wl-')) loadWaitlistPanel(panel);
+  else if(panel.startsWith('archive-')) loadArchivePanel(panel);
+}
+
+// ── STEP 4 / SUBMIT ──────────────────────────────────────────────────────────
+async function doSubmit(){
+  clearAlert('a-step4');
+  const notifEmail=document.getElementById('notif-email').checked;
+  const notifPhone=document.getElementById('notif-phone').checked;
+  const notif=[notifEmail?'email':null, notifPhone?'phone':null].filter(Boolean).join(',') || 'email';
+  const btn=document.getElementById('btn-submit'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  try {
+    // Refresh waitlist settings right before submitting
+    try {
+      const ws = await sbGet('waitlist_settings','?select=*');
+      waitlistSettings = {};
+      ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
+    } catch(e){}
+    const now = new Date().toISOString();
+    for(const did of selectedDevices){
+      const dt = DEVICES.find(x=>x.id===did);
+      const campus = selectedCampus;
+      const key = dt.shared?'laptop_shared':wlKey(did, campus);
+      const onWL = waitlistSettings[key]||false;
+      let status = onWL?'waitlisted':'requested';
+      let pos = null;
+      if(onWL){
+        const existing = await sbGet('device_requests',
+          `?device_type=eq.${did}&campus=eq.${campus}&status=eq.waitlisted&select=waitlist_position&order=waitlist_position.desc&limit=1`);
+        pos = existing.length ? (existing[0].waitlist_position||0)+1 : 1;
+      }
+      const notes = (did==='laptop' && studentData.laptopCRN)
+        ? ('CRN/Class: ' + studentData.laptopCRN + ' | Professor: ' + studentData.laptopProf)
+        : null;
+      await sbPost('device_requests',[{
+        student_id:studentData.student_id, first_name:studentData.first_name,
+        last_name:studentData.last_name, email:studentData.email, phone:studentData.phone,
+        device_type:did, campus, status, waitlist_position:pos,
+        notification_pref:notif, semester:semesterCode, language:lang,
+        notes: notes,
+        requested_at:now
+      }]);
+    }
+    goStep(5);
+  } catch(e){
+    showAlert('a-step4','Submission error: '+e.message,'danger');
+    btn.disabled=false; btn.innerHTML='<span id="t-submitbtn">'+t('submitbtn')+'</span>';
+  }
+}
+
+function resetPortal(){
+  selectedCampus=null; selectedDevices=[];
+  ['s-fn','s-ln','s-sid','s-email','s-phone'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ['notif-email','notif-phone'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.checked = id==='notif-email';
+  });
+  const crnEl=document.getElementById('laptop-crn');
+  const profEl=document.getElementById('laptop-prof');
+  const justDiv=document.getElementById('laptop-justification');
+  if(crnEl) crnEl.value='';
+  if(profEl) profEl.value='';
+  if(justDiv) justDiv.style.display='none';
+  studentData={};
+  clearAlert('a-step1'); clearAlert('a-step2'); clearAlert('a-step3'); clearAlert('a-step4');
+  document.querySelectorAll('.campus-card').forEach(el=>el.classList.remove('selected'));
+  const dc=document.getElementById('device-card'); if(dc) dc.style.display='none';
+  goStep(1);
+}
+
 // ── WAITLIST PANEL ────────────────────────────────────────────────────────────
 async function loadWaitlistPanel(panelId){
   const parts=panelId.replace('wl-','').split('-');
