@@ -2909,6 +2909,65 @@ function updateEmailPreviewES(){
 // ── OVERDUE NOTIFICATIONS ────────────────────────────────────────────────────
 let overdueNotifyStudents = [];
 
+async function loadSemesterConfig(){
+  try {
+    const cfg=await sbGet('semester_config','?select=*&limit=1&order=created_at.desc');
+    if(cfg.length){
+      semesterLabel=cfg[0].semester_label;
+      semesterCode=cfg[0].semester_code;
+      window._savedAlmaData = cfg[0].alma_report_data || null;
+      document.getElementById('hero-semester').textContent=semesterLabel;
+      document.getElementById('agree-sub') && (document.getElementById('agree-sub').textContent=`${semesterLabel} agreements`);
+      document.getElementById('agree-table-title') && (document.getElementById('agree-table-title').textContent=`${semesterLabel} Agreements`);
+      document.getElementById('overview-sub') && (document.getElementById('overview-sub').textContent=semesterLabel);
+    }
+  } catch(e){ console.warn('loadSemesterConfig error:', e); }
+}
+
+async function loadWaitlistSettings(){
+  try {
+    const ws=await sbGet('waitlist_settings','?select=*');
+    waitlistSettings={};
+    ws.forEach(r=>{ waitlistSettings[wlKey(r.device_type,r.campus)]=r.waitlist_on; });
+  } catch(e){}
+}
+
+async function loadDashboard(){
+  await loadSemesterConfig();
+  await loadWaitlistSettings();
+  updateEmailPreview();
+  applyRolePermissions();
+  loadWaitlistCounts();
+  loadArchiveNav();
+  restoreAlmaDisplay();
+  await loadOverdueNotifRecords();
+  if(userRole !== 'student_worker'){
+    loadOverview();
+  } else {
+    showPanel('wl-hotspot-SLO', document.getElementById('nav-hotspot-SLO'));
+    loadOverduePanel();
+  }
+  startAutoRefresh();
+  // pre-fill settings fields
+  const semLbl = document.getElementById('sem-label');
+  const semCod = document.getElementById('sem-code');
+  if(semLbl) semLbl.value=semesterLabel;
+  if(semCod) semCod.value=semesterCode;
+  // pre-fill email template fields
+  const er = document.getElementById('email-reply');
+  const es = document.getElementById('email-subject');
+  const eb = document.getElementById('email-body');
+  if(er) er.value=emailTemplate.reply;
+  if(es) es.value=emailTemplate.subject;
+  if(eb) eb.value=emailTemplate.body;
+  updateEmailPreview();
+  const esSubjEl=document.getElementById('email-subject-es');
+  const esBodyEl=document.getElementById('email-body-es');
+  if(esSubjEl) esSubjEl.value=emailTemplateES.subject;
+  if(esBodyEl) esBodyEl.value=emailTemplateES.body;
+  updateEmailPreviewES();
+}
+
 function applyRolePermissions(){
   const isSW = userRole === 'student_worker';
 
