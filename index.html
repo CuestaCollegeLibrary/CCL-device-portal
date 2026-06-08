@@ -1350,6 +1350,7 @@ function renderConfirmation(){
     const dt=DEVICES.find(x=>x.id===did);
     const key=dt.shared?'laptop_shared':wlKey(did,selectedCampus);
     const onWL=waitlistSettings[key]||false;
+    const badge = onWL ? `<span class="device-badge badge-waitlist">Waitlist</span>` : `<span class="device-badge badge-open">Available</span>`;
     const laptopNote = (did==='laptop' && studentData.laptopCRN)
       ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px">📋 ${studentData.laptopCRN} — ${studentData.laptopProf}</div>`
       : '';
