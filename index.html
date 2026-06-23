@@ -1585,7 +1585,7 @@ async function loadWaitlistPanel(panelId){
             <td style="display:flex;gap:6px">
               <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email||''}','${r.language||"en"}','${r.phone||''}')">Notify</button>
               <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
-              <button class="btn btn-danger btn-sm" onclick="removeRequest('${r.id}','${panelId}')">Remove</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteRequest('${r.id}','${panelId}')">🗑 Delete</button>
             </td></tr>`;
         });
         html+='</tbody></table>';
@@ -1630,6 +1630,7 @@ async function loadWaitlistPanel(panelId){
             <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email||''}','${r.language||"en"}','${r.phone||''}')">Notify</button>
             <button class="btn btn-gold btn-sm" onclick="directPickup('${r.id}','${panelId}')">Picked Up</button>
             <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteRequest('${r.id}','${panelId}')">🗑 Delete</button>
           </td></tr>`;
       });
       html+='</tbody></table></div>';
