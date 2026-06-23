@@ -549,7 +549,7 @@ tr:hover td{background:#f8fbf8}
         <div class="sidebar-section" style="margin-bottom:4px">
           <div class="sidebar-label">Overview</div>
           <button class="sidebar-item active" onclick="showPanel('overview',this)">📊 Overview</button>
-          <button class="sidebar-item" onclick="showPanel('agreements',this)">📋 Agreements</button>
+          <button class="sidebar-item" onclick="showPanel('agreements',this)" id="nav-agreements">📋 Agreements</button>
           <button class="sidebar-item" onclick="showPanel('report',this)">📈 Semester Report</button>
           <button class="sidebar-item" onclick="showPanel('overdue',this)" id="nav-overdue">⚠️ Overdue Devices</button>
         </div>
@@ -612,6 +612,9 @@ tr:hover td{background:#f8fbf8}
           <div class="page-header">
             <div class="page-title">Signed Agreements</div>
             <div class="page-sub" id="agree-sub">Students who have signed the loan agreement this semester.</div>
+          </div>
+          <div style="margin-bottom:12px">
+            <input type="text" id="search-agreements" class="form-input" placeholder="🔍 Search by name, student ID, or language..." oninput="filterAgreements()" style="max-width:340px">
           </div>
           <div class="table-card">
             <div class="table-header">
@@ -1343,13 +1346,15 @@ function renderConfirmation(){
     <li><span>👤</span><div><div class="confirm-label">${t('nameL')}</div><div class="confirm-val">${studentData.first_name} ${studentData.last_name}</div></div></li>
     <li><span>🪪</span><div><div class="confirm-label">${t('idL')}</div><div class="confirm-val">${studentData.student_id}</div></div></li>
     <li><span>📧</span><div><div class="confirm-label">${t('emailL')}</div><div class="confirm-val">${studentData.email}</div></div></li>
-    <li><span>📍</span><div><div class="confirm-label">${t('campusL')}</div><div class="confirm-val">${selectedCampus==='AGHS'?'South County (AGHS)':selectedCampus+' Library'}</div></div></li>`;
+    <li><span>📍</span><div><div class="confirm-label">${t('campusL')}</div><div class="confirm-val">${selectedCampus+' Library'}</div></div></li>`;
 
   let devHtml='<div style="margin:14px 0"><div class="form-label" style="margin-bottom:8px">Devices Requested</div>';
   selectedDevices.forEach(did=>{
     const dt=DEVICES.find(x=>x.id===did);
     const key=dt.shared?'laptop_shared':wlKey(did,selectedCampus);
     const onWL=waitlistSettings[key]||false;
+    const badge=onWL?`<span class="wl-badge">⏳ Will be added to waitlist</span>`
+      :`<span class="avail-badge">✓ First come first served</span>`;
     const laptopNote = (did==='laptop' && studentData.laptopCRN)
       ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px">📋 ${studentData.laptopCRN} — ${studentData.laptopProf}</div>`
       : '';
@@ -1546,6 +1551,7 @@ async function loadWaitlistPanel(panelId){
             <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email||''}','${r.language||"en"}','${r.phone||''}')">Notify</button>
             <button class="btn btn-gold btn-sm" onclick="openPickupModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type)}')">Picked Up</button>
             <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteRequest('${r.id}','${panelId}')">🗑 Delete</button>
 
           </td></tr>`;
       });
@@ -1949,6 +1955,13 @@ async function removeRequest(id, panelId){
 }
 
 // ── AGREEMENTS ────────────────────────────────────────────────────────────────
+function filterAgreements(){
+  const q = (document.getElementById('search-agreements')?.value || '').toLowerCase();
+  document.querySelectorAll('#agree-table-wrap tbody tr').forEach(row => {
+    row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
 async function loadAgreements(){
   try {
     const data=await sbGet('agreements',`?semester=eq.${semesterCode}&order=signed_at.desc&select=*`);
@@ -2025,6 +2038,11 @@ async function loadAGHS(){
         btnNLN.textContent = 'No Longer Needs';
         btnNLN.onclick = function(){ markNoLongerNeeded(r.id, 'aghs'); };
         td.appendChild(btnNLN);
+        const btnDelN = document.createElement('button');
+        btnDelN.className = 'btn btn-danger btn-sm';
+        btnDelN.textContent = '🗑 Delete';
+        btnDelN.onclick = function(){ deleteRequest(r.id, 'aghs'); };
+        td.appendChild(btnDelN);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -2077,11 +2095,11 @@ async function loadAGHS(){
         btnNLN.textContent = 'No Longer Needs';
         btnNLN.onclick = function(){ markNoLongerNeeded(r.id, 'aghs'); };
         td.appendChild(btnNLN);
-        const btnRemove = document.createElement('button');
-        btnRemove.className = 'btn btn-danger btn-sm';
-        btnRemove.textContent = 'Remove';
-        btnRemove.onclick = function(){ removeRequest(r.id, 'aghs'); };
-        td.appendChild(btnRemove);
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn btn-danger btn-sm';
+        btnDel.textContent = '🗑 Delete';
+        btnDel.onclick = function(){ deleteRequest(r.id, 'aghs'); };
+        td.appendChild(btnDel);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -2204,6 +2222,19 @@ async function directPickup(id, panelId){
     loadWaitlistCounts();
     loadOverview();
   } catch(e){ alert('Error: '+e.message); }
+}
+
+async function deleteRequest(id, panelId){
+  if(!confirm('Permanently delete this entry? This cannot be undone.')) return;
+  try {
+    await sb('device_requests', 'DELETE', null, '?id=eq.'+id);
+    await logActivity('removed', id, null);
+    if(panelId === 'aghs'){ loadAGHS(); return; }
+    if(panelId === 'agreements'){ loadAgreements(); return; }
+    loadWaitlistPanel(panelId);
+    loadWaitlistCounts();
+    loadOverview();
+  } catch(e){ alert('Error: ' + e.message); }
 }
 
 async function markNoLongerNeeded(id, panelId){
@@ -3061,7 +3092,7 @@ function applyRolePermissions(){
   const isSW = userRole === 'student_worker';
 
   // Sidebar items to hide for student workers
-  const staffOnlyPanels = ['overview','agreements','report','settings','email-settings'];
+  const staffOnlyPanels = ['overview','report','settings','email-settings'];
   // Show overdue panel for both roles
   const overdueNav = document.getElementById('nav-overdue');
   if(overdueNav) overdueNav.style.display = '';
