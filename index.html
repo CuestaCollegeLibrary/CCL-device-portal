@@ -704,12 +704,12 @@ tr:hover td{background:#f8fbf8}
             <button class="btn btn-primary" onclick="saveSemester()">Save Semester Settings</button>
           </div>
           <div class="card">
-            <div class="card-title" style="color:var(--danger)">⚠️ Archive &amp; Wipe Semester</div>
-            <div class="card-sub">Archives all current data for the semester record, then clears all requests and agreements. This cannot be undone. Export your semester report first.</div>
-            <div class="alert alert-warning">Make sure you have exported the semester report before wiping. Archived data will be viewable in the Past Semesters section.</div>
+            <div class="card-title" style="color:var(--danger)">⚠️ Export &amp; Wipe Semester</div>
+            <div class="card-sub">Downloads a full CSV report of all current requests and agreements (same format as the Semester Report export), then permanently clears the live data. Save the downloaded file to your stats folder — it will be the only remaining copy.</div>
+            <div class="alert alert-warning">This will trigger a file download and require you to type WIPE to confirm before anything is deleted. Nothing is stored inside the app going forward.</div>
             <div class="form-group"><label class="form-label">Enter staff password to confirm wipe</label><input class="form-input" id="wipe-pw" type="password" placeholder="Staff password"></div>
             <div id="wipe-result"></div>
-            <button class="btn btn-danger" onclick="doWipe()">Archive &amp; Wipe All Data</button>
+            <button class="btn btn-danger" onclick="doWipe()">Export &amp; Wipe All Data</button>
           </div>
         </div>
 
@@ -838,6 +838,18 @@ Cuesta College Library</textarea>
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-overdue-phone-script">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">📞 Overdue Call Script</div>
+    <div class="modal-sub" id="overdue-phone-sub"></div>
+    <div id="overdue-phone-body" style="margin:12px 0;padding:14px;background:var(--cream);border-radius:var(--radius-sm);border:1.5px solid var(--border);font-size:13px;line-height:1.7"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-overdue-phone-script')">Close</button>
+      <button class="btn btn-success" onclick="confirmOverduePhoneCall()">✓ Mark Notified by Phone</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-overdue-notify">
   <div class="modal" style="max-width:540px">
     <div class="modal-title">Send Overdue Notice</div>
@@ -872,10 +884,16 @@ window.onerror = function(msg, src, line, col, err) {
   return false;
 };
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const SUPABASE_URL = 'https://btxbzfzopeujlnsyxrgc.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0eGJ6ZnpvcGV1amxuc3l4cmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0ODMyODksImV4cCI6MjA5MzA1OTI4OX0.OCvJtgaynwro1jwmR9UrCZMVtR6RHNBJ8eY-xG-efYQ';
+// ── TURSO CONNECTION ─────────────────────────────────────────────────────────
+const TURSO_URL = 'https://eda-form-cuestacollegelibrary.aws-us-west-2.turso.io';
+const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODU3OTM1ODksImlkIjoiMDE5ZmM5OTQtZjcwMS03YWVjLTkzZTktODJhODRhYmRjOTFmIiwia2lkIjoiMktaRFFnQUt0ZEo5MXZvRURuZER6N2laTktYUDNUUnRfYXhKY0EzcEdZMCIsInJpZCI6ImViNGM5ZjliLTY5ZmMtNGJhMS05MmUyLWJkMzE0NTA3YTdhYyJ9.HocUfYW74pda1dMijFhaiId7hOHT7KGMyVAWmQG2azQ0F-QgfUs5wM62kz2jA1Fr1oodWSDjyg50wbGb9xj8Cg';
 const STAFF_PASSWORD = 'Cougar007@';
 const SW_PASSWORDS = ['slocirc1', 'Nccirc01'];
+
+const OVERDUE_PHONE_SCRIPT = {
+  en: "Hi {first_name}, this is Cuesta College Library calling about a {device} checked out on your account. It was due back on {due_date} and is now overdue. Please return it as soon as possible — there's no grace period for late fees, and devices need to come back in clean, working condition. If it isn't returned by {two_weeks}, it will be disabled and a hold may be placed on your library account, which could prevent you from checking out other items. Please bring it back in person during library hours — not in the book drop. If you have any questions, feel free to call us back at {phone}. Thank you!",
+  es: "Hola {first_name}, le llamamos de la Biblioteca del Colegio Cuesta sobre un {device} que tiene registrado a su cuenta. Debía devolverse el {due_date} y ahora tiene atraso. Por favor devuélvalo lo antes posible — no hay período de gracia para los cargos por retraso, y los dispositivos deben devolverse limpios y en buen estado. Si no se devuelve antes del {two_weeks}, será desactivado y es posible que se le aplique un bloqueo en su cuenta de biblioteca, lo cual podría impedirle pedir prestado otros artículos. Por favor devuélvalo en persona durante las horas de atención — no en el buzón de libros. Si tiene alguna pregunta, no dude en llamarnos al {phone}. ¡Gracias!"
+};
 
 const PHONE_SCRIPT = {
   en: "Hi {first_name}, this is Cuesta College Library calling to let you know that a {device} is ready for you to pick up at the Cuesta College {campus} Library. The library is open 8am-8pm Monday-Thursday and 8am-5pm on Fridays. The {device} will be held under your name at the circulation desk for one week. If you do not pick up the {device} by {deadline}, it will be released for check out by another student in need. If you would like to pick it up from the {othercampus} Library, or if you no longer need the device please let us know. You can email us at circulation@cuesta.edu or give us a call at {phone}. Have a great semester and don't hesitate to contact us if you need anything! Thanks.",
@@ -1001,18 +1019,197 @@ const TR = {
 function t(k){ return (TR[lang][k] || TR.en[k] || k); }
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
-async function sb(table, method='GET', body=null, params=''){
-  const url = `${SUPABASE_URL}/rest/v1/${table}${params}`;
-  const opts = { method, headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}`, 'Content-Type':'application/json', 'Prefer':'return=representation' } };
-  if(body) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
-  if(!res.ok){ const e = await res.text(); throw new Error(e); }
-  const txt = await res.text();
-  return txt ? JSON.parse(txt) : [];
+// ── TURSO CLIENT ─────────────────────────────────────────────────────────────
+// Drop-in replacement for the old Supabase/PostgREST layer. Every call in this
+// app goes through sb()/sbGet()/sbPost()/sbPatch(), so this is the ONLY place
+// that talks to the database. Query strings use the same PostgREST-style
+// syntax as before (?col=eq.val&order=col.asc&limit=N) and are translated to
+// parameterized SQL here — no other code in the app had to change.
+
+const JSON_COLUMNS = {
+  semester_config: ['alma_report_data'],
+  archived_semesters: ['agreements_data','requests_data','summary','alma_data'],
+};
+
+function tVal(v){
+  if(v === null || v === undefined) return {type:'null'};
+  if(typeof v === 'boolean') return {type:'integer', value: v ? '1':'0'};
+  if(typeof v === 'number') return Number.isInteger(v) ? {type:'integer', value:String(v)} : {type:'float', value:v};
+  return {type:'text', value:String(v)};
 }
+
+async function tExec(sql, args=[]){
+  const res = await fetch(`${TURSO_URL}/v2/pipeline`, {
+    method:'POST',
+    headers:{'Authorization':`Bearer ${TURSO_TOKEN}`,'Content-Type':'application/json'},
+    body: JSON.stringify({ requests: [
+      { type:'execute', stmt: { sql, args: args.map(tVal) } },
+      { type:'close' }
+    ]})
+  });
+  if(!res.ok){ const e = await res.text(); throw new Error('Turso request failed: '+e); }
+  const data = await res.json();
+  const execResult = data.results[0];
+  if(execResult.type === 'error'){ throw new Error('Turso SQL error: ' + execResult.error.message); }
+  const r = execResult.response.result;
+  const cols = r.cols.map(c=>c.name);
+  const rows = r.rows.map(row => {
+    const obj = {};
+    row.forEach((cell,i) => {
+      obj[cols[i]] = cell.type === 'null' ? null : (cell.type==='integer' ? parseInt(cell.value) : cell.value);
+    });
+    return obj;
+  });
+  return { rows, affected: r.affected_row_count };
+}
+
+function parseOperator(raw){
+  if(raw.startsWith('not.in.')) return { sql:'NOT IN', list: raw.slice(7).replace(/^\(|\)$/g,'').split(',') };
+  if(raw.startsWith('in.'))     return { sql:'IN',     list: raw.slice(3).replace(/^\(|\)$/g,'').split(',') };
+  if(raw.startsWith('eq.'))  return { sql:'=',  val: raw.slice(3) };
+  if(raw.startsWith('neq.')) return { sql:'!=', val: raw.slice(4) };
+  if(raw.startsWith('lte.')) return { sql:'<=', val: raw.slice(4) };
+  if(raw.startsWith('gte.')) return { sql:'>=', val: raw.slice(4) };
+  if(raw.startsWith('lt.'))  return { sql:'<',  val: raw.slice(3) };
+  if(raw.startsWith('gt.'))  return { sql:'>',  val: raw.slice(3) };
+  if(raw.startsWith('is.')){
+    const v = raw.slice(3);
+    return { sql: v==='null' ? 'IS NULL':'IS NOT NULL', noArg:true };
+  }
+  return { sql:'=', val: raw };
+}
+
+function coerceFilterValue(v){
+  if(v === 'true') return true;
+  if(v === 'false') return false;
+  return v;
+}
+
+function parseQueryString(qs){
+  const result = { where: [], args: [], order: null, limit: null };
+  if(!qs) return result;
+  const q = qs.startsWith('?') ? qs.slice(1) : qs;
+  if(!q) return result;
+  for(const part of q.split('&')){
+    if(!part) continue;
+    const eqIdx = part.indexOf('=');
+    if(eqIdx === -1) continue;
+    const rawKey = part.slice(0, eqIdx);
+    const rawVal = part.slice(eqIdx+1);
+    if(rawKey === 'select') continue;
+    if(rawKey === 'order'){ result.order = rawVal; continue; }
+    if(rawKey === 'limit'){ result.limit = parseInt(rawVal); continue; }
+    const opInfo = parseOperator(rawVal);
+    if(opInfo.list){
+      const placeholders = opInfo.list.map(()=>'?').join(',');
+      result.where.push(`"${rawKey}" ${opInfo.sql} (${placeholders})`);
+      opInfo.list.forEach(v => result.args.push(coerceFilterValue(v)));
+    } else if(opInfo.noArg){
+      result.where.push(`"${rawKey}" ${opInfo.sql}`);
+    } else {
+      result.where.push(`"${rawKey}" ${opInfo.sql} ?`);
+      result.args.push(coerceFilterValue(opInfo.val));
+    }
+  }
+  return result;
+}
+
+function buildOrderClause(orderStr){
+  if(!orderStr) return '';
+  const cols = orderStr.split(',').map(part => {
+    const [col, dir] = part.split('.');
+    const d = (dir||'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+    return `"${col}" ${d}`;
+  });
+  return ' ORDER BY ' + cols.join(', ');
+}
+
+function dehydrateRow(table, row){
+  const jsonCols = JSON_COLUMNS[table] || [];
+  const out = {};
+  for(const [k,v] of Object.entries(row)){
+    out[k] = (jsonCols.includes(k) && v !== null && typeof v === 'object') ? JSON.stringify(v) : v;
+  }
+  return out;
+}
+
+function hydrateRow(table, row){
+  const jsonCols = JSON_COLUMNS[table] || [];
+  const out = { ...row };
+  for(const k of jsonCols){
+    if(out[k] && typeof out[k] === 'string'){
+      try { out[k] = JSON.parse(out[k]); } catch(e){}
+    }
+  }
+  return out;
+}
+
+async function sb(table, method='GET', body=null, params=''){
+  const { where, args, order, limit } = parseQueryString(params);
+  const whereClause = where.length ? ' WHERE ' + where.join(' AND ') : '';
+  const orderClause = buildOrderClause(order);
+  const limitClause = limit ? ` LIMIT ${limit}` : '';
+
+  if(method === 'GET'){
+    const sql = `SELECT * FROM "${table}"${whereClause}${orderClause}${limitClause}`;
+    const { rows } = await tExec(sql, args);
+    return rows.map(row => hydrateRow(table, row));
+  }
+
+  if(method === 'POST'){
+    const rowsIn = Array.isArray(body) ? body : [body];
+    const inserted = [];
+    for(const row of rowsIn){
+      const r = { ...row };
+      if(!r.id) r.id = crypto.randomUUID();
+      const prepared = dehydrateRow(table, r);
+      const cols = Object.keys(prepared);
+      const placeholders = cols.map(()=>'?').join(',');
+      const sql = `INSERT INTO "${table}" (${cols.map(c=>`"${c}"`).join(',')}) VALUES (${placeholders})`;
+      await tExec(sql, cols.map(c=>prepared[c]));
+      inserted.push(r);
+    }
+    return inserted;
+  }
+
+  if(method === 'PATCH'){
+    const prepared = dehydrateRow(table, body);
+    const setCols = Object.keys(prepared);
+    if(!setCols.length) return [];
+    const setClause = setCols.map(c=>`"${c}" = ?`).join(', ');
+    const sql = `UPDATE "${table}" SET ${setClause}${whereClause}`;
+    await tExec(sql, [...setCols.map(c=>prepared[c]), ...args]);
+    return [body];
+  }
+
+  if(method === 'DELETE'){
+    const sql = `DELETE FROM "${table}"${whereClause}`;
+    const result = await tExec(sql, args);
+    return { affected: result.affected };
+  }
+}
+
 const sbGet = (t,p='') => sb(t,'GET',null,p);
 const sbPost = (t,b) => sb(t,'POST',b);
 const sbPatch = (t,p,b) => sb(t,'PATCH',b,p);
+
+// Upsert: INSERT ... ON CONFLICT(conflictCols) DO UPDATE. Returns the row as
+// it now exists in the DB (matching Supabase's return=representation used by
+// the old merge-duplicates upserts for agreements).
+async function sbUpsert(table, row, conflictCols){
+  const withId = { ...row, id: row.id || crypto.randomUUID() };
+  const prepared = dehydrateRow(table, withId);
+  const cols = Object.keys(prepared);
+  const placeholders = cols.map(()=>'?').join(',');
+  const updateCols = cols.filter(c => !conflictCols.includes(c) && c !== 'id');
+  const updateClause = updateCols.map(c=>`"${c}"=excluded."${c}"`).join(', ');
+  const sql = `INSERT INTO "${table}" (${cols.map(c=>`"${c}"`).join(',')}) VALUES (${placeholders})
+    ON CONFLICT(${conflictCols.map(c=>`"${c}"`).join(',')}) DO UPDATE SET ${updateClause}`;
+  await tExec(sql, cols.map(c=>prepared[c]));
+  const whereClause = conflictCols.map(c=>`"${c}"=?`).join(' AND ');
+  const { rows } = await tExec(`SELECT * FROM "${table}" WHERE ${whereClause}`, conflictCols.map(c=>prepared[c]));
+  return rows.map(r => hydrateRow(table, r));
+}
 
 // ── LANGUAGE ──────────────────────────────────────────────────────────────────
 function setLang(l){
@@ -1241,22 +1438,15 @@ async function doStep2(){
     let res;
     if(studentData.alreadySigned && studentData.agreementId){
       // Already signed — just update signature and language, don't create new record
-      await fetch(`${SUPABASE_URL}/rest/v1/agreements?id=eq.${studentData.agreementId}`,{
-        method:'PATCH',
-        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify({signature:sigVal,language:lang,signed_at:new Date().toISOString()})
+      await sbPatch('agreements', '?id=eq.'+studentData.agreementId, {
+        signature:sigVal, language:lang, signed_at:new Date().toISOString()
       });
     } else {
-      // Use upsert to handle case where agreement already exists
-      const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/agreements`, {
-        method:'POST',
-        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,
-          'Content-Type':'application/json',
-          'Prefer':'resolution=merge-duplicates,return=representation'},
-        body:JSON.stringify([{student_id:studentData.student_id, semester:semesterCode,
-          signature:sigVal, signed_at:new Date().toISOString(), language:lang}])
-      });
-      const upsertData = await upsertRes.json();
+      // Upsert: insert new agreement, or update if one already exists for this student+semester
+      const upsertData = await sbUpsert('agreements', {
+        student_id:studentData.student_id, semester:semesterCode,
+        signature:sigVal, signed_at:new Date().toISOString(), language:lang
+      }, ['student_id','semester']);
       studentData.agreementId = upsertData?.[0]?.id;
     }
     goStep(3); renderDeviceGrid();
@@ -2689,66 +2879,57 @@ async function saveSemester(){
 async function doWipe(){
   const pw=document.getElementById('wipe-pw').value;
   if(pw!==STAFF_PASSWORD){ showAlert('wipe-result','Incorrect password.','danger'); return; }
-  if(!confirm(`Are you sure you want to archive and wipe all ${semesterLabel} data? This cannot be undone. Make sure you have exported your semester report first.`)) return;
-  showAlert('wipe-result','Archiving data — please wait, do not close this page...','info');
+  if(!confirm(`This will generate a full report export for ${semesterLabel} and then permanently wipe all live data. Continue?`)) return;
+
+  showAlert('wipe-result','Step 1/3 — Fetching current data...','info');
   try {
-    // Fetch ALL data (not just current semester code) to ensure nothing is missed
-    const [reqs,agrs]=await Promise.all([
-      sbGet('device_requests',`?select=*&order=requested_at.asc`),
-      sbGet('agreements',`?select=*&order=signed_at.asc`)
+    const [reqs, agrs] = await Promise.all([
+      sbGet('device_requests','?select=*&order=requested_at.asc'),
+      sbGet('agreements','?select=*&order=signed_at.asc')
     ]);
-    const byDevice={};
-    DEVICES.forEach(d=>{ byDevice[d.id]={total:0,waitlisted:0,pickedUp:0,almaCheckouts:0,almaReturned:0,almaOverdue:0}; });
-    reqs.forEach(r=>{
-      if(byDevice[r.device_type]){
-        byDevice[r.device_type].total++;
-        if(['waitlisted','notified','picked-up','expired'].includes(r.status)) byDevice[r.device_type].waitlisted++;
-        if(r.status==='picked-up') byDevice[r.device_type].pickedUp++;
-      }
-    });
-    // Include Alma checkout counts in summary
-    if(almaData){
-      almaData.forEach(l => {
-        if(byDevice[l.deviceType]){
-          byDevice[l.deviceType].almaCheckouts++;
-          if(l.isReturned) byDevice[l.deviceType].almaReturned++;
-          if(l.isOverdue) byDevice[l.deviceType].almaOverdue++;
-        }
-      });
-    }
-    // Build alma archive payload
-    const almaArchive = almaData ? almaData.map(l => ({
-      firstName: l.firstName, lastName: l.lastName, sid: l.sid,
-      deviceType: l.deviceType,
-      prefEmail: l.prefEmail || null,
-      prefPhone: l.prefPhone || null,
-      loanDate: l.loanDate ? l.loanDate.toISOString() : null,
-      dueDate: l.dueDate ? l.dueDate.toISOString() : null,
-      returnDate: l.returnDate ? l.returnDate.toISOString() : null,
-      isReturned: l.isReturned, isOverdue: l.isOverdue
-    })) : null;
-    // Save archive - store alma data separately if large to avoid payload limits
-    const archivePayload = {
-      semester_label:semesterLabel, semester_code:semesterCode,
-      archived_at:new Date().toISOString(),
-      agreements_data:agrs, requests_data:reqs, summary:byDevice,
-      alma_data:almaArchive
-    };
-    const archiveResult = await sbPost('archived_semesters',[archivePayload]);
-    if(!archiveResult || !archiveResult[0]){
-      // Try to get error details
-      const testFetch = await fetch(`${SUPABASE_URL}/rest/v1/archived_semesters?semester_code=eq.${semesterCode}&select=id`, {
-        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
-      });
-      const testData = await testFetch.json();
-      if(!testData.length){
-        throw new Error('Archive save failed — data was NOT saved. Delete aborted to protect your data. The payload may be too large; try exporting your Alma report first and clearing it before archiving.');
+    const reqCount = reqs.length;
+    const agrCount = agrs.length;
+
+    if(reqCount === 0 && agrCount === 0){
+      if(!confirm('No device requests or agreements currently exist. Continue anyway? (This will still reset semester settings, waitlists, and Alma data.)')){
+        showAlert('wipe-result','Cancelled — nothing was changed.','info');
+        return;
       }
     }
-    showAlert('wipe-result','Archive saved ✓ — now wiping data...','info');
-    // Wipe ALL device_requests and agreements (all semesters get cleared on wipe)
-    await sb('device_requests','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000');
-    await sb('agreements','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+
+    // ── Generate and download the full semester report (same format as the ──
+    // Semester Report page's export) — this file IS the archive going forward.
+    showAlert('wipe-result','Step 2/3 — Generating and downloading report...','info');
+    await generateReport();
+    exportReport();
+
+    // ── Require an explicit typed confirmation, showing exact counts, before deleting ──
+    const typed = prompt(
+      `A file named "CCL_Report_${semesterLabel.replace(/\s+/g,'_')}.csv" has been downloaded.\n\n` +
+      `It contains ${reqCount} device requests and ${agrCount} agreements. Please check your ` +
+      `Downloads folder now and save it to your stats folder.\n\n` +
+      `Once you've confirmed the file downloaded correctly, type WIPE (all caps) to permanently ` +
+      `delete this data from the live app. This cannot be undone — the file you just downloaded ` +
+      `will be the only remaining copy.`
+    );
+    if(typed !== 'WIPE'){
+      showAlert('wipe-result','Cancelled — the report was downloaded, but no data was deleted.','info');
+      return;
+    }
+
+    showAlert('wipe-result','Step 3/3 — Wiping live data...','info');
+    await sb('device_requests','DELETE',null,'?id=neq.__none__');
+    await sb('agreements','DELETE',null,'?id=neq.__none__');
+
+    // Final safety check: confirm the tables are actually empty now
+    const [checkReqs, checkAgrs] = await Promise.all([
+      sbGet('device_requests','?select=id&limit=1'),
+      sbGet('agreements','?select=id&limit=1')
+    ]);
+    if(checkReqs.length || checkAgrs.length){
+      throw new Error('Wipe did not fully complete — some rows may remain. Your exported file is safe. Please check your Turso connection and try again before re-running.');
+    }
+
     // Clear Alma upload data from semester_config
     try {
       const cfg = await sbGet('semester_config','?select=id&limit=1&order=created_at.desc');
@@ -2757,23 +2938,23 @@ async function doWipe(){
     almaData = null;
     window._savedAlmaData = null;
     window._overdueReqs = null;
+
     // Reset all waitlists to OFF
     try {
-      await sbPatch('waitlist_settings','?waitlist_on=eq.true',{
-        waitlist_on: false, turned_on_at: null
-      });
+      await sbPatch('waitlist_settings','?waitlist_on=eq.true',{ waitlist_on: false, turned_on_at: null });
       waitlistSettings = {};
     } catch(e){}
-    showAlert('wipe-result',`${semesterLabel} data archived and wiped successfully.`,'success');
+
+    showAlert('wipe-result',`✓ Done. ${reqCount} requests and ${agrCount} agreements exported to file and wiped from the live app.`,'success');
     document.getElementById('wipe-pw').value='';
-    loadArchiveNav();
     loadOverview();
     loadWaitlistCounts();
-    // Reload all currently visible waitlist panels
     document.querySelectorAll('.tab-panel.active[id^="panel-wl-"]').forEach(p => {
       loadWaitlistPanel(p.id.replace('panel-',''));
     });
-  } catch(e){ showAlert('wipe-result','Error: '+e.message,'danger'); }
+  } catch(e){
+    showAlert('wipe-result','⛔ '+e.message,'danger');
+  }
 }
 
 // ── ARCHIVE ───────────────────────────────────────────────────────────────────
@@ -2833,33 +3014,38 @@ async function loadArchivePanel(panelId){
 }
 
 async function restoreArchive(archiveId){
-  // Step 1: password check
-  const pw = prompt('Enter staff password to restore this semester data:');
+  const pw = prompt('Enter staff password to restore this semester:');
   if(pw !== STAFF_PASSWORD){ alert('Incorrect password.'); return; }
 
-  // Step 2: stern warning
-  const confirmed = confirm(
-    '⚠️ RESTORE WARNING\n\n' +
-    'Restoring this archived semester will PERMANENTLY WIPE all current semester data ' +
-    '(agreements, requests, and waitlists) and replace it with the archived data.\n\n' +
-    'If you have current semester data you want to keep, cancel now and go to ' +
-    'Settings → Archive & Wipe to save it first.\n\n' +
-    'Are you absolutely sure you want to proceed?'
-  );
-  if(!confirmed) return;
-
   try {
-    // Load archive data
     const data = await sbGet('archived_semesters', '?id=eq.' + archiveId + '&select=*');
     if(!data.length){ alert('Archive not found.'); return; }
     const arc = data[0];
     const reqs = arc.requests_data || [];
     const agrs = arc.agreements_data || [];
 
-    // Wipe ALL current data before restoring
-    await sb('device_requests', 'DELETE', null, '?id=neq.00000000-0000-0000-0000-000000000000');
-    await sb('agreements', 'DELETE', null, '?id=neq.00000000-0000-0000-0000-000000000000');
-    // Reset waitlists to OFF
+    // Show current live counts so staff know exactly what will be replaced
+    const [currentReqs, currentAgrs] = await Promise.all([
+      sbGet('device_requests', '?select=id'),
+      sbGet('agreements', '?select=id')
+    ]);
+
+    const typed = prompt(
+      `⚠️ RESTORE "${arc.semester_label}"\n\n` +
+      `This will PERMANENTLY DELETE the current live data:\n` +
+      `  • ${currentReqs.length} device requests\n` +
+      `  • ${currentAgrs.length} agreements\n\n` +
+      `...and replace it with the archived data from "${arc.semester_label}":\n` +
+      `  • ${reqs.length} device requests\n` +
+      `  • ${agrs.length} agreements\n\n` +
+      `If you want to keep the current live data, cancel now and run Archive & Wipe first.\n\n` +
+      `Type RESTORE (all caps) to proceed.`
+    );
+    if(typed !== 'RESTORE'){ alert('Cancelled — nothing was changed.'); return; }
+
+    // Wipe current live data
+    await sb('device_requests', 'DELETE', null, '?id=neq.__none__');
+    await sb('agreements', 'DELETE', null, '?id=neq.__none__');
     try {
       await sbPatch('waitlist_settings','?waitlist_on=eq.true',{waitlist_on:false,turned_on_at:null});
       waitlistSettings = {};
@@ -2893,6 +3079,19 @@ async function restoreArchive(archiveId){
       }
     }
 
+    // Verify the restore actually landed before declaring success
+    const [restoredReqs, restoredAgrs] = await Promise.all([
+      sbGet('device_requests', '?select=id'),
+      sbGet('agreements', '?select=id')
+    ]);
+    if(restoredReqs.length !== reqs.length || restoredAgrs.length !== agrs.length){
+      throw new Error(
+        `RESTORE VERIFICATION FAILED. Expected ${reqs.length} requests / ${agrs.length} agreements, ` +
+        `but found ${restoredReqs.length} requests / ${restoredAgrs.length} agreements after restoring. ` +
+        `The archive itself is untouched — please check your Turso connection and try again.`
+      );
+    }
+
     // Update semester config to match restored semester
     const existing = await sbGet('semester_config', '?select=id&limit=1&order=created_at.desc');
     if(existing.length){
@@ -2907,7 +3106,6 @@ async function restoreArchive(archiveId){
     semesterCode = arc.semester_code;
     document.getElementById('hero-semester').textContent = semesterLabel;
 
-    // Restore Alma data if available
     if(arc.alma_data && arc.alma_data.length){
       almaData = arc.alma_data.map(l => ({
         ...l,
@@ -2915,7 +3113,6 @@ async function restoreArchive(archiveId){
         dueDate: l.dueDate ? new Date(l.dueDate) : null,
         returnDate: l.returnDate ? new Date(l.returnDate) : null,
       }));
-      // Save restored Alma data back to semester_config
       await saveAlmaDataToSupabase(almaData);
     } else {
       almaData = null;
@@ -2923,16 +3120,15 @@ async function restoreArchive(archiveId){
     }
     window._overdueReqs = null;
 
-    alert('✓ ' + arc.semester_label + ' restored successfully — ' + agrs.length + ' agreements and ' + reqs.length + ' requests.');
+    alert('✓ ' + arc.semester_label + ' restored and verified — ' + agrs.length + ' agreements and ' + reqs.length + ' requests.');
 
-    // Refresh all panels
     loadOverview();
     loadWaitlistCounts();
     loadArchiveNav();
     showPanel('overview', document.getElementById('nav-overview') || document.querySelector('.sidebar-item'));
 
   } catch(e){
-    alert('Error during restore: ' + e.message);
+    alert('⛔ Error during restore: ' + e.message);
   }
 }
 
@@ -3224,6 +3420,30 @@ async function markOverdueNotified(sid, deviceType, dueDate, method){
   } catch(e){ alert('Error saving notification: ' + e.message); }
 }
 
+let overduePhoneTarget = null;
+
+function openOverduePhoneScript(firstName, lastName, deviceLabel, dueDateStr, phoneStr, sid, deviceType, dueIso, lang){
+  overduePhoneTarget = { sid, deviceType, dueIso };
+  const twoWeeks = fmtDate(new Date(Date.now() + 14*24*60*60*1000));
+  const tmpl = lang === 'es' ? OVERDUE_PHONE_SCRIPT.es : OVERDUE_PHONE_SCRIPT.en;
+  const script = tmpl
+    .replace(/{first_name}/g, firstName || 'there')
+    .replace(/{device}/g, deviceLabel)
+    .replace(/{due_date}/g, dueDateStr)
+    .replace(/{two_weeks}/g, twoWeeks)
+    .replace(/{phone}/g, phoneStr && phoneStr !== '—' ? phoneStr : 'the library');
+  document.getElementById('overdue-phone-sub').textContent = firstName + ' ' + lastName + (lang==='es' ? ' (Spanish)' : '');
+  document.getElementById('overdue-phone-body').textContent = script;
+  openModal('modal-overdue-phone-script');
+}
+
+async function confirmOverduePhoneCall(){
+  if(!overduePhoneTarget) return;
+  closeModal('modal-overdue-phone-script');
+  await markOverdueNotified(overduePhoneTarget.sid, overduePhoneTarget.deviceType, overduePhoneTarget.dueIso, 'phone');
+  overduePhoneTarget = null;
+}
+
 async function loadOverduePanel(){
   const el = document.getElementById('overdue-panel-content');
   if(!almaData || !almaData.length){
@@ -3313,7 +3533,8 @@ async function loadOverduePanel(){
         // Action buttons
         let actions = '';
         if(!rec.notified_phone){
-          actions += '<button class="btn btn-success btn-sm" onclick="markOverdueNotified(\'' + l.sid + '\',\'' + l.deviceType + '\',\'' + dueIso + '\',\'phone\')">✓ Notified by Phone</button> ';
+          const scriptArgs = "'"+(l.firstName||'')+"','"+(l.lastName||'')+"','"+devLabel(l.deviceType)+"','"+fmtDate(l.dueDate)+"','"+phone+"','"+l.sid+"','"+l.deviceType+"','"+dueIso+"','"+lang+"'";
+          actions += '<button class="btn btn-success btn-sm" onclick="openOverduePhoneScript('+scriptArgs+')">📞 Call Script</button> ';
         }
         if(canNotify() && !rec.notified_email){
           actions += '<button class="btn btn-outline btn-sm" onclick="openOverdueNotifyModalSingle(' + i + ',\'' + l.sid + '\',\'' + l.deviceType + '\',\'' + dueIso + '\')">✉️ Notify by Email</button>';
