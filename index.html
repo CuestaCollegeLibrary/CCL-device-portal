@@ -695,6 +695,8 @@ tr:hover td{background:#f8fbf8}
           <div class="card">
             <div class="card-title">Semester Configuration</div>
             <div class="card-sub">Update the semester label and code. The code is used to track agreements — changing it means all students must re-sign.</div>
+            <div class="alert alert-warning" style="margin-bottom:14px">⚠️ <strong>Before changing the semester:</strong> Make sure you have archived and wiped the current semester data first (see Archive & Wipe below). Changing the semester name without wiping will mix old and new data.</div>
+            <div class="alert alert-warning" style="margin-bottom:14px">⚠️ <strong>Before changing the semester name:</strong> Archive and wipe the current semester data first (see Archive &amp; Wipe section below). Changing the name without wiping will mix old and new data.</div>
             <div class="form-group"><label class="form-label">Semester Label (displayed on form)</label><input class="form-input" id="sem-label" placeholder="e.g. Fall 2026"></div>
             <div class="form-group"><label class="form-label">Semester Code (used for tracking, no spaces)</label><input class="form-input" id="sem-code" placeholder="e.g. Fall2026"></div>
 
@@ -2730,9 +2732,9 @@ async function doWipe(){
       agreements_data:agrs, requests_data:reqs, summary:byDevice,
       alma_data:almaArchive
     }]);
-    // Wipe device_requests and agreements for this semester
-    await sb('device_requests','DELETE',null,`?semester=eq.${semesterCode}`);
-    await sb('agreements','DELETE',null,`?semester=eq.${semesterCode}`);
+    // Wipe ALL device_requests and agreements (all semesters get cleared on wipe)
+    await sb('device_requests','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('agreements','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000');
     // Clear Alma upload data from semester_config
     try {
       const cfg = await sbGet('semester_config','?select=id&limit=1&order=created_at.desc');
@@ -2740,6 +2742,7 @@ async function doWipe(){
     } catch(e){}
     almaData = null;
     window._savedAlmaData = null;
+    window._overdueReqs = null;
     // Reset all waitlists to OFF
     try {
       await sbPatch('waitlist_settings','?waitlist_on=eq.true',{
@@ -2752,6 +2755,10 @@ async function doWipe(){
     loadArchiveNav();
     loadOverview();
     loadWaitlistCounts();
+    // Reload all currently visible waitlist panels
+    document.querySelectorAll('.tab-panel.active[id^="panel-wl-"]').forEach(p => {
+      loadWaitlistPanel(p.id.replace('panel-',''));
+    });
   } catch(e){ showAlert('wipe-result','Error: '+e.message,'danger'); }
 }
 
@@ -2835,9 +2842,14 @@ async function restoreArchive(archiveId){
     const reqs = arc.requests_data || [];
     const agrs = arc.agreements_data || [];
 
-    // Wipe current semester data
-    await sb('device_requests', 'DELETE', null, '?semester=eq.' + semesterCode);
-    await sb('agreements', 'DELETE', null, '?semester=eq.' + semesterCode);
+    // Wipe ALL current data before restoring
+    await sb('device_requests', 'DELETE', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('agreements', 'DELETE', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    // Reset waitlists to OFF
+    try {
+      await sbPatch('waitlist_settings','?waitlist_on=eq.true',{waitlist_on:false,turned_on_at:null});
+      waitlistSettings = {};
+    } catch(e){}
 
     // Restore agreements in batches
     if(agrs.length){
@@ -2858,6 +2870,8 @@ async function restoreArchive(archiveId){
           status: r.status, waitlist_position: r.waitlist_position,
           notification_pref: r.notification_pref, semester: arc.semester_code,
           language: r.language, notes: r.notes,
+          notified_email: r.notified_email || false,
+          notified_phone: r.notified_phone || false,
           requested_at: r.requested_at, notified_at: r.notified_at,
           expires_at: r.expires_at, picked_up_at: r.picked_up_at,
           updated_at: r.updated_at
@@ -2879,12 +2893,29 @@ async function restoreArchive(archiveId){
     semesterCode = arc.semester_code;
     document.getElementById('hero-semester').textContent = semesterLabel;
 
-    alert('✓ ' + arc.semester_label + ' has been restored successfully. ' + agrs.length + ' agreements and ' + reqs.length + ' requests restored.');
+    // Restore Alma data if available
+    if(arc.alma_data && arc.alma_data.length){
+      almaData = arc.alma_data.map(l => ({
+        ...l,
+        loanDate: l.loanDate ? new Date(l.loanDate) : null,
+        dueDate: l.dueDate ? new Date(l.dueDate) : null,
+        returnDate: l.returnDate ? new Date(l.returnDate) : null,
+      }));
+      // Save restored Alma data back to semester_config
+      await saveAlmaDataToSupabase(almaData);
+    } else {
+      almaData = null;
+      window._savedAlmaData = null;
+    }
+    window._overdueReqs = null;
 
-    // Refresh dashboard
+    alert('✓ ' + arc.semester_label + ' restored successfully — ' + agrs.length + ' agreements and ' + reqs.length + ' requests.');
+
+    // Refresh all panels
     loadOverview();
     loadWaitlistCounts();
-    showPanel('overview', document.querySelector('.sidebar-item'));
+    loadArchiveNav();
+    showPanel('overview', document.getElementById('nav-overview') || document.querySelector('.sidebar-item'));
 
   } catch(e){
     alert('Error during restore: ' + e.message);
