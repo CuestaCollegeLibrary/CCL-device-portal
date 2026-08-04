@@ -272,6 +272,13 @@ tr:hover td{background:#f8fbf8}
 
 <!-- STUDENT VIEW -->
 <div id="view-student" class="view active">
+  <div id="form-locked-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:linear-gradient(135deg,#0f2d1f,#1a4530);align-items:center;justify-content:center;padding:20px">
+    <div style="background:white;border-radius:16px;padding:40px 32px;max-width:440px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:48px;margin-bottom:16px">🚧</div>
+      <div style="font-size:20px;font-weight:700;color:var(--green);margin-bottom:10px" id="t-formlocked-title">This form is under construction.</div>
+      <div style="font-size:15px;color:var(--text-mid);line-height:1.6" id="t-formlocked-msg">Please come back on August 10th to fill out the form for the Fall 2026 semester.</div>
+    </div>
+  </div>
   <div class="portal-hero">
     <div class="semester-badge" id="hero-semester">Summer 2026</div>
     <h1 id="hero-title">Cuesta College Library</h1>
@@ -703,6 +710,25 @@ tr:hover td{background:#f8fbf8}
             <div id="sem-result"></div>
             <button class="btn btn-primary" onclick="saveSemester()">Save Semester Settings</button>
           </div>
+
+          <div class="card">
+            <div class="card-title">🚧 Student Form Lock</div>
+            <div class="card-sub">When ON, students see an "under construction" message instead of the request form. Staff login is unaffected.</div>
+            <div class="toggle-wrap" style="margin:14px 0">
+              <label class="toggle">
+                <input type="checkbox" id="form-lock-toggle" onchange="toggleFormLock(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label" id="form-lock-status" style="color:var(--text-light)">OFF</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Message shown to students</label>
+              <input class="form-input" id="form-lock-title" placeholder="This form is under construction.">
+              <textarea class="form-input" id="form-lock-msg" rows="2" style="margin-top:8px" placeholder="Please come back on August 10th to fill out the form for the Fall 2026 semester."></textarea>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="saveFormLockMessage()">Save Message</button>
+          </div>
+
           <div class="card">
             <div class="card-title" style="color:var(--danger)">⚠️ Export &amp; Wipe Semester</div>
             <div class="card-sub">Downloads a full CSV report of all current requests and agreements (same format as the Semester Report export), then permanently clears the live data. Save the downloaded file to your stats folder — it will be the only remaining copy.</div>
@@ -1668,6 +1694,39 @@ function resetPortal(){
   document.querySelectorAll('.campus-card').forEach(el=>el.classList.remove('selected'));
   const dc=document.getElementById('device-card'); if(dc) dc.style.display='none';
   goStep(1);
+}
+
+// ── FORM LOCK ("under construction") ────────────────────────────────────────
+function applyFormLock(isLocked, title, msg){
+  const overlay = document.getElementById('form-locked-overlay');
+  if(!overlay) return;
+  if(title) document.getElementById('t-formlocked-title').textContent = title;
+  if(msg) document.getElementById('t-formlocked-msg').textContent = msg;
+  overlay.style.display = isLocked ? 'flex' : 'none';
+}
+
+async function toggleFormLock(isLocked){
+  try {
+    const title = document.getElementById('form-lock-title').value.trim() || 'This form is under construction.';
+    const msg = document.getElementById('form-lock-msg').value.trim() || 'Please come back later to fill out the form.';
+    let id = window._semesterConfigId;
+    if(!id){
+      const existing = await sbGet('semester_config','?select=id&limit=1&order=created_at.desc');
+      id = existing.length ? existing[0].id : null;
+    }
+    if(id){
+      await sbPatch('semester_config', '?id=eq.'+id, { form_locked: isLocked, form_lock_title: title, form_lock_message: msg });
+    }
+    document.getElementById('form-lock-status').textContent = isLocked ? 'ON' : 'OFF';
+    document.getElementById('form-lock-status').style.color = isLocked ? 'var(--danger)' : 'var(--text-light)';
+    applyFormLock(isLocked, title, msg);
+  } catch(e){ alert('Error saving form lock: '+e.message); }
+}
+
+async function saveFormLockMessage(){
+  const toggle = document.getElementById('form-lock-toggle');
+  await toggleFormLock(toggle.checked);
+  alert('Message saved.');
 }
 
 // ── WAITLIST PANEL ────────────────────────────────────────────────────────────
@@ -3315,6 +3374,21 @@ async function loadDashboard(){
   const semCod = document.getElementById('sem-code');
   if(semLbl) semLbl.value=semesterLabel;
   if(semCod) semCod.value=semesterCode;
+  // pre-fill form lock fields from current config
+  try {
+    const cfg = await sbGet('semester_config','?select=*&limit=1&order=created_at.desc');
+    if(cfg.length){
+      const isLocked = !!cfg[0].form_locked;
+      const lockToggle = document.getElementById('form-lock-toggle');
+      const lockTitle = document.getElementById('form-lock-title');
+      const lockMsg = document.getElementById('form-lock-msg');
+      const lockStatus = document.getElementById('form-lock-status');
+      if(lockToggle) lockToggle.checked = isLocked;
+      if(lockTitle) lockTitle.value = cfg[0].form_lock_title || 'This form is under construction.';
+      if(lockMsg) lockMsg.value = cfg[0].form_lock_message || "Please come back on August 10th to fill out the form for the Fall 2026 semester.";
+      if(lockStatus){ lockStatus.textContent = isLocked ? 'ON' : 'OFF'; lockStatus.style.color = isLocked ? 'var(--danger)' : 'var(--text-light)'; }
+    }
+  } catch(e){}
   // pre-fill email template fields
   const er = document.getElementById('email-reply');
   const es = document.getElementById('email-subject');
@@ -4078,7 +4152,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       semesterCode=cfg[0].semester_code;
       window._savedAlmaData = cfg[0].alma_report_data || null;
       document.getElementById('hero-semester').textContent=semesterLabel;
-
+      window._semesterConfigId = cfg[0].id;
+      applyFormLock(cfg[0].form_locked, cfg[0].form_lock_title, cfg[0].form_lock_message);
     }
   } catch(e){}
   // Restore alma data immediately so overdue panel works on first load
