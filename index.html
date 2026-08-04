@@ -583,10 +583,6 @@ tr:hover td{background:#f8fbf8}
           <button class="sidebar-item" onclick="showPanel('email-settings',this)">✉️ Email Template</button>
           <button class="sidebar-item" onclick="showPanel('activity',this)" id="nav-activity">📋 Activity Log</button>
         </div>
-        <div class="sidebar-section">
-          <div class="sidebar-label">Past Semesters</div>
-          <div id="archive-nav"></div>
-        </div>
         <div class="sidebar-bottom">
           <button class="btn btn-outline btn-sm btn-full" onclick="staffLogout()" style="color:rgba(255,255,255,0.5);border-color:rgba(255,255,255,0.2)">Sign Out</button>
         </div>
@@ -789,8 +785,6 @@ Cuesta College Library</textarea>
 
 
 
-        <!-- Archive panels injected dynamically -->
-        <div id="archive-panels"></div>
       </main>
     </div>
 </div>
@@ -1626,7 +1620,6 @@ function showPanel(panel, btn){
     if(semCod) semCod.value=semesterCode;
   }
   else if(panel.startsWith('wl-')) loadWaitlistPanel(panel);
-  else if(panel.startsWith('archive-')) loadArchivePanel(panel);
 }
 
 // ── STEP 4 / SUBMIT ──────────────────────────────────────────────────────────
@@ -3017,273 +3010,6 @@ async function doWipe(){
 }
 
 // ── ARCHIVE ───────────────────────────────────────────────────────────────────
-async function loadArchiveNav(){
-  try {
-    const archives=await sbGet('archived_semesters','?order=archived_at.desc&select=id,semester_label,archived_at');
-    const nav=document.getElementById('archive-nav');
-    if(!archives.length){ nav.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,0.3);padding:4px 18px">No archived semesters</div>'; return; }
-    nav.innerHTML=archives.map(a=>`<button class="sidebar-item" onclick="showPanel('archive-${a.id}',this)" id="nav-archive-${a.id}">📁 ${a.semester_label}</button>`).join('');
-    // Inject archive panels into archive-panels div
-    const container=document.getElementById('archive-panels');
-    container.innerHTML=archives.map(a=>`<div id="panel-archive-${a.id}" class="tab-panel"></div>`).join('');
-  } catch(e){}
-}
-
-async function loadArchivePanel(panelId){
-  const archiveId=panelId.replace('archive-','');
-  const container=document.getElementById('panel-'+panelId);
-  try {
-    const data=await sbGet('archived_semesters',`?id=eq.${archiveId}&select=*`);
-    if(!data.length){ container.innerHTML='<div class="alert alert-danger">Archive not found.</div>'; return; }
-    const arc=data[0];
-    const reqs=arc.requests_data||[];
-    const agrs=arc.agreements_data||[];
-    container.innerHTML=`
-      <div class="page-header">
-        <div class="page-title">📁 ${arc.semester_label}</div>
-        <div class="page-sub">Archived ${fmtDate(arc.archived_at)} · ${agrs.length} agreements · ${reqs.length} requests</div>
-      </div>`;
-
-    const hasAlma = arc.alma_data && arc.alma_data.length > 0;
-    let html=`<div class="table-card" style="margin-bottom:14px">
-      <div class="table-header"><div class="table-title">Summary</div><div style="display:flex;gap:8px">
-        <button class="btn btn-outline btn-sm" onclick="exportArchiveFull('${archiveId}')">⬇ Export Full Report</button>
-        <button class="btn btn-danger btn-sm" onclick="restoreArchive('${archiveId}')">↩ Restore This Semester</button>
-      </div></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px">
-        <div class="stat-card gold"><div class="stat-val">${agrs.length}</div><div class="stat-label">Agreements Signed</div></div>
-        <div class="stat-card blue"><div class="stat-val">${reqs.length}</div><div class="stat-label">Total Requests</div></div>
-        <div class="stat-card green"><div class="stat-val">${reqs.filter(r=>r.status==='picked-up').length}</div><div class="stat-label">Picked Up</div></div>
-      </div>
-      <table><thead><tr><th>Device</th><th>Requests</th><th>Waitlisted</th><th>Picked Up</th>${hasAlma?'<th>Alma Checkouts</th><th>Returned</th><th>Overdue</th>':''}</tr></thead><tbody>`;
-    DEVICES.forEach(d=>{
-      const s=(arc.summary||{})[d.id]||{total:0,waitlisted:0,pickedUp:0,almaCheckouts:0,almaReturned:0,almaOverdue:0};
-      html+=`<tr><td>${d.icon} ${d.label}</td><td>${s.total}</td><td>${s.waitlisted}</td><td>${s.pickedUp}</td>${hasAlma?`<td><strong>${s.almaCheckouts||0}</strong></td><td>${s.almaReturned||0}</td><td style="color:${(s.almaOverdue||0)>0?'var(--danger)':'inherit'}">${s.almaOverdue||0}</td>`:''}`;
-      html+=`</tr>`;
-    });
-    html+='</tbody></table></div>';
-
-    html+=`<div class="table-card">
-      <div class="table-header"><div class="table-title">All Requests (${reqs.length})</div></div>
-      <table><thead><tr><th>Student ID</th><th>Device</th><th>Campus</th><th>Status</th><th>Requested</th></tr></thead><tbody>`;
-    reqs.forEach(r=>{ html+=`<tr><td class="td-id">${r.student_id}</td><td>${devLabel(r.device_type)}</td><td>${r.campus==='shared'?'Any':r.campus}</td><td>${statusBadge(r.status)}</td><td>${fmtDT(r.requested_at)}</td></tr>`; });
-    html+='</tbody></table></div>';
-    container.innerHTML+=html;
-  } catch(e){ container.innerHTML+=`<div class="alert alert-danger">Error: ${e.message}</div>`; }
-}
-
-async function restoreArchive(archiveId){
-  const pw = prompt('Enter staff password to restore this semester:');
-  if(pw !== STAFF_PASSWORD){ alert('Incorrect password.'); return; }
-
-  try {
-    const data = await sbGet('archived_semesters', '?id=eq.' + archiveId + '&select=*');
-    if(!data.length){ alert('Archive not found.'); return; }
-    const arc = data[0];
-    const reqs = arc.requests_data || [];
-    const agrs = arc.agreements_data || [];
-
-    // Show current live counts so staff know exactly what will be replaced
-    const [currentReqs, currentAgrs] = await Promise.all([
-      sbGet('device_requests', '?select=id'),
-      sbGet('agreements', '?select=id')
-    ]);
-
-    const typed = prompt(
-      `⚠️ RESTORE "${arc.semester_label}"\n\n` +
-      `This will PERMANENTLY DELETE the current live data:\n` +
-      `  • ${currentReqs.length} device requests\n` +
-      `  • ${currentAgrs.length} agreements\n\n` +
-      `...and replace it with the archived data from "${arc.semester_label}":\n` +
-      `  • ${reqs.length} device requests\n` +
-      `  • ${agrs.length} agreements\n\n` +
-      `If you want to keep the current live data, cancel now and run Archive & Wipe first.\n\n` +
-      `Type RESTORE (all caps) to proceed.`
-    );
-    if(typed !== 'RESTORE'){ alert('Cancelled — nothing was changed.'); return; }
-
-    // Wipe current live data
-    await sb('device_requests', 'DELETE', null, '?id=neq.__none__');
-    await sb('agreements', 'DELETE', null, '?id=neq.__none__');
-    try {
-      await sbPatch('waitlist_settings','?waitlist_on=eq.true',{waitlist_on:false,turned_on_at:null});
-      waitlistSettings = {};
-    } catch(e){}
-
-    // Restore agreements in batches
-    if(agrs.length){
-      for(let i=0; i<agrs.length; i+=50){
-        await sbPost('agreements', agrs.slice(i,i+50).map(a => ({
-          student_id: a.student_id, semester: arc.semester_code,
-          signature: a.signature, signed_at: a.signed_at, language: a.language
-        })));
-      }
-    }
-
-    // Restore device requests in batches
-    if(reqs.length){
-      for(let i=0; i<reqs.length; i+=50){
-        await sbPost('device_requests', reqs.slice(i,i+50).map(r => ({
-          student_id: r.student_id, first_name: r.first_name, last_name: r.last_name,
-          email: r.email, phone: r.phone, device_type: r.device_type, campus: r.campus,
-          status: r.status, waitlist_position: r.waitlist_position,
-          notification_pref: r.notification_pref, semester: arc.semester_code,
-          language: r.language, notes: r.notes,
-          notified_email: r.notified_email || false,
-          notified_phone: r.notified_phone || false,
-          requested_at: r.requested_at, notified_at: r.notified_at,
-          expires_at: r.expires_at, picked_up_at: r.picked_up_at,
-          updated_at: r.updated_at
-        })));
-      }
-    }
-
-    // Verify the restore actually landed before declaring success
-    const [restoredReqs, restoredAgrs] = await Promise.all([
-      sbGet('device_requests', '?select=id'),
-      sbGet('agreements', '?select=id')
-    ]);
-    if(restoredReqs.length !== reqs.length || restoredAgrs.length !== agrs.length){
-      throw new Error(
-        `RESTORE VERIFICATION FAILED. Expected ${reqs.length} requests / ${agrs.length} agreements, ` +
-        `but found ${restoredReqs.length} requests / ${restoredAgrs.length} agreements after restoring. ` +
-        `The archive itself is untouched — please check your Turso connection and try again.`
-      );
-    }
-
-    // Update semester config to match restored semester
-    const existing = await sbGet('semester_config', '?select=id&limit=1&order=created_at.desc');
-    if(existing.length){
-      await sbPatch('semester_config', '?id=eq.' + existing[0].id, {
-        semester_label: arc.semester_label,
-        semester_code: arc.semester_code,
-        updated_at: new Date().toISOString()
-      });
-    }
-
-    semesterLabel = arc.semester_label;
-    semesterCode = arc.semester_code;
-    document.getElementById('hero-semester').textContent = semesterLabel;
-
-    if(arc.alma_data && arc.alma_data.length){
-      almaData = arc.alma_data.map(l => ({
-        ...l,
-        loanDate: l.loanDate ? new Date(l.loanDate) : null,
-        dueDate: l.dueDate ? new Date(l.dueDate) : null,
-        returnDate: l.returnDate ? new Date(l.returnDate) : null,
-      }));
-      await saveAlmaDataToSupabase(almaData);
-    } else {
-      almaData = null;
-      window._savedAlmaData = null;
-    }
-    window._overdueReqs = null;
-
-    alert('✓ ' + arc.semester_label + ' restored and verified — ' + agrs.length + ' agreements and ' + reqs.length + ' requests.');
-
-    loadOverview();
-    loadWaitlistCounts();
-    loadArchiveNav();
-    showPanel('overview', document.getElementById('nav-overview') || document.querySelector('.sidebar-item'));
-
-  } catch(e){
-    alert('⛔ Error during restore: ' + e.message);
-  }
-}
-
-async function exportArchive(archiveId){ exportArchiveFull(archiveId); }
-
-async function exportArchiveFull(archiveId){
-  const data = await sbGet('archived_semesters', `?id=eq.${archiveId}&select=*`);
-  if(!data.length) return;
-  const arc = data[0];
-  const reqs = arc.requests_data || [];
-  const agrs = arc.agreements_data || [];
-  const alma = arc.alma_data || [];
-  const summary = arc.summary || {};
-  const today = new Date();
-
-  const sections = [];
-
-  // Summary
-  const totalPickedUp = reqs.filter(r=>r.status==='picked-up').length;
-  const totalWaitlisted = reqs.filter(r=>r.waitlist_position).length;
-  const waitTimes = reqs.filter(r=>r.notified_at&&r.requested_at).map(r=>(new Date(r.notified_at)-new Date(r.requested_at))/(1000*60*60*24));
-  const avgWait = waitTimes.length ? Math.round(waitTimes.reduce((a,b)=>a+b,0)/waitTimes.length*10)/10 : '—';
-
-  sections.push([
-    ['CCL DEVICE PORTAL — ARCHIVED SEMESTER REPORT'],
-    ['Semester', arc.semester_label],
-    ['Archived', arc.archived_at ? new Date(arc.archived_at).toLocaleDateString() : ''],
-    ['Export Generated', today.toLocaleDateString()],
-    [],
-    ['SUMMARY'],
-    ['Agreements Signed', agrs.length],
-    ['Total Device Requests', reqs.length],
-    ['Total Picked Up', totalPickedUp],
-    ['Total Waitlisted', totalWaitlisted],
-    ['Average Wait Time (days)', avgWait],
-    ['Total Alma Checkouts', alma.length],
-    ['Already Returned (Alma)', alma.filter(l=>l.isReturned).length],
-    ['Overdue (Alma)', alma.filter(l=>l.isOverdue).length],
-    [],
-    ['BY DEVICE TYPE','Requests','Waitlisted','Picked Up','Alma Checkouts','Alma Returned','Alma Overdue'],
-  ]);
-  DEVICES.forEach(d => {
-    const s = summary[d.id] || {total:0,waitlisted:0,pickedUp:0,almaCheckouts:0,almaReturned:0,almaOverdue:0};
-    sections[0].push([d.label, s.total, s.waitlisted, s.pickedUp, s.almaCheckouts||0, s.almaReturned||0, s.almaOverdue||0]);
-  });
-
-  // Agreements
-  sections.push([
-    [],
-    ['SIGNED AGREEMENTS (' + agrs.length + ')'],
-    ['Student ID','Signature','Language','Signed At'],
-  ]);
-  agrs.forEach(a => sections[1].push([a.student_id||'', a.signature||'', a.language||'en', a.signed_at ? new Date(a.signed_at).toLocaleString() : '']));
-
-  // Requests
-  sections.push([
-    [],
-    ['ALL DEVICE REQUESTS (' + reqs.length + ')'],
-    ['Student ID','First Name','Last Name','Device','Campus','Status','Waitlist Position','Notes','Requested At','Notified At','Picked Up At'],
-  ]);
-  reqs.forEach(r => sections[2].push([
-    r.student_id||'', r.first_name||'', r.last_name||'', devLabel(r.device_type), r.campus||'',
-    r.status||'', r.waitlist_position||'', r.notes||'',
-    r.requested_at ? new Date(r.requested_at).toLocaleString() : '',
-    r.notified_at ? new Date(r.notified_at).toLocaleString() : '',
-    r.picked_up_at ? new Date(r.picked_up_at).toLocaleString() : ''
-  ]));
-
-  // Overdue from Alma
-  const overdueAlma = alma.filter(l=>l.isOverdue);
-  if(overdueAlma.length){
-    sections.push([
-      [],
-      ['OVERDUE DEVICES (' + overdueAlma.length + ')'],
-      ['Student ID','First Name','Last Name','Device','Loan Date','Due Date','Email (Alma)','Phone (Alma)'],
-    ]);
-    overdueAlma.forEach(l => sections[3].push([
-      l.sid||'', l.firstName||'', l.lastName||'', devLabel(l.deviceType),
-      l.loanDate ? new Date(l.loanDate).toLocaleDateString() : '',
-      l.dueDate ? new Date(l.dueDate).toLocaleDateString() : '',
-      l.prefEmail||'', l.prefPhone||''
-    ]));
-  }
-
-  const allRows = sections.flat();
-  const csv = allRows.map(row => {
-    if(!Array.isArray(row)) return '';
-    return row.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',');
-  }).join('\n');
-
-  const dlB = document.createElement('a');
-  dlB.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  dlB.download = 'CCL_Report_' + arc.semester_label.replace(/\s+/g,'_') + '.csv';
-  dlB.click();
-}
-
 // ── EMAIL TEMPLATE ────────────────────────────────────────────────────────────
 function updateEmailPreview(){
   const subj=(document.getElementById('email-subject')?.value||emailTemplate.subject)
@@ -3359,7 +3085,6 @@ async function loadDashboard(){
   updateEmailPreview();
   applyRolePermissions();
   loadWaitlistCounts();
-  loadArchiveNav();
   restoreAlmaDisplay();
   await loadOverdueNotifRecords();
   if(userRole !== 'student_worker'){
