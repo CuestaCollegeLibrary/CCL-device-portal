@@ -620,9 +620,6 @@ tr:hover td{background:#f8fbf8}
             <div class="page-title">Signed Agreements</div>
             <div class="page-sub" id="agree-sub">Students who have signed the loan agreement this semester.</div>
           </div>
-          <div style="margin-bottom:12px">
-            <input type="text" id="search-agreements" class="form-input" placeholder="🔍 Search by name, student ID, or language..." oninput="filterAgreements()" style="max-width:340px">
-          </div>
           <div class="table-card">
             <div class="table-header">
               <div class="table-title" id="agree-table-title">Agreements</div>
@@ -813,6 +810,20 @@ Cuesta College Library</textarea>
     <div class="modal-actions" id="notify-actions-phone" style="display:none">
       <button class="btn btn-outline" onclick="closeModal('modal-notify')">Cancel</button>
       <button class="btn btn-success" onclick="confirmNotifyPhone()">✓ Mark Notified by Phone</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-note">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">📝 Note</div>
+    <div class="modal-sub" id="edit-note-sub"></div>
+    <div class="form-group" style="margin-top:12px">
+      <textarea class="form-input" id="edit-note-text" rows="4" placeholder="Add a note about this student or request..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-note')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmEditNote()">✓ Save Note</button>
     </div>
   </div>
 </div>
@@ -1401,6 +1412,10 @@ function showAlert(cid, msg, type='info'){
   const el=document.getElementById(cid); if(el) el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
 }
 function clearAlert(cid){ const el=document.getElementById(cid); if(el) el.innerHTML=''; }
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function fmtPhone(p){
   if(!p) return '—';
   const digits = String(p).replace(/[^0-9]/g,'');
@@ -1788,12 +1803,13 @@ async function loadWaitlistPanel(panelId){
     if(notified.length){
       html+=`<div class="table-card" style="margin-bottom:16px">
         <div class="table-header"><div class="table-title">⏰ Notified — Awaiting Pickup (${notified.length})</div></div>
-        <table><thead><tr><th>Student</th><th>Contact</th><th>Notified</th><th>Expires</th><th>Actions</th></tr></thead><tbody>`;
+        <table><thead><tr><th>Student</th><th>Contact</th><th>Notes</th><th>Notified</th><th>Expires</th><th>Actions</th></tr></thead><tbody>`;
       notified.forEach(r=>{
         const exp=r.expires_at&&new Date(r.expires_at)<new Date();
         html+=`<tr>
-          <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div></td>
+          <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${r.student_id}</div></td>
           <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
+          <td style="font-size:12px;color:var(--text-mid);max-width:140px">${r.notes||'—'} <span onclick="openEditNoteModal(this,'${r.id}','${panelId}')" data-note="${escapeHtml(r.notes||'')}" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>
           <td>${fmtDT(r.notified_at)}</td>
           <td style="color:${exp?'var(--danger)':'inherit'}">${fmtDT(r.expires_at)}${exp?' ⚠️':''}</td>
           <td>
@@ -1836,10 +1852,10 @@ async function loadWaitlistPanel(panelId){
           html+=`<tr>
             <td><input type="checkbox" class="wl-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
             <td><span class="pos-num">${r.waitlist_position}</span></td>
-            <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id">${r.student_id}</div>${dbCampus==='shared'?`<div style="font-size:11px;color:var(--text-light)">${r.campus} Campus</div>`:''}</td>
+            <td><div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div><div class="td-id" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${r.student_id}</div>${dbCampus==='shared'?`<div style="font-size:11px;color:var(--text-light)">${r.campus} Campus</div>`:''}</td>
             <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
             <td>${fmtDT(r.requested_at)}</td>
-            <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'}</td>
+            <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'} <span onclick="openEditNoteModal(this,'${r.id}','${panelId}')" data-note="${escapeHtml(r.notes||'')}" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>
             <td style="display:flex;gap:6px">
               <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email||''}','${r.language||"en"}','${r.phone||''}')">Notify</button>
               <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
@@ -1867,17 +1883,8 @@ async function loadWaitlistPanel(panelId){
             ${dbCampus==='shared'?`<div style="font-size:11px;color:var(--text-light)">${r.campus} Campus</div>`:''}
           </td>
           <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
-          <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'}</td>
+          <td style="font-size:12px;color:var(--text-mid);max-width:160px">${r.notes||'—'} <span onclick="openEditNoteModal(this,'${r.id}','${panelId}')" data-note="${escapeHtml(r.notes||'')}" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>
           <td>${fmtDT(r.requested_at)}</td>
-          <td>
-            ${r.notified_email && r.notified_phone
-              ? '<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">✓ Email + Phone</span>'
-              : r.notified_email
-              ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">✉️ Email</span>'
-              : r.notified_phone
-              ? '<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px">📞 Phone</span>'
-              : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 8px;border-radius:10px">Not notified</span>'}
-          </td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-gold btn-sm" onclick="directPickup('${r.id}','${panelId}')">Picked Up</button>
             <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
@@ -1898,7 +1905,7 @@ async function loadWaitlistPanel(panelId){
         <div class="table-header">
           <div class="table-title" style="color:var(--text-light)">📁 Past Entries (${past.length})</div>
         </div>
-        <table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Requested</th><th>Notified</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
+        <table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Notes</th><th>Requested</th><th>Notified</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
       past.forEach(r=>{
         const isPickedUp = r.status==='picked-up';
         const canRequeue = !isPickedUp; // picked-up already has the device — doesn't make sense to re-queue
@@ -1909,6 +1916,7 @@ async function loadWaitlistPanel(panelId){
             <div class="td-id" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${r.student_id}</div>
           </td>
           <td><div style="font-size:12px">${r.email||'—'}</div><div style="font-size:12px;color:var(--text-light)">${fmtPhone(r.phone)}</div></td>
+          <td style="font-size:12px;color:var(--text-mid);max-width:140px">${r.notes||'—'} <span onclick="openEditNoteModal(this,'${r.id}','${panelId}')" data-note="${escapeHtml(r.notes||'')}" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>
           <td style="font-size:12px">${fmtDT(r.requested_at)}</td>
           <td style="font-size:12px">${r.notified_at ? fmtDT(r.notified_at) : '—'}</td>
           <td>
@@ -2164,6 +2172,31 @@ function openEmailDraft(){
 // Move a single entry from Past Entries back into the active waitlist queue,
 // assigning it the next available position at the bottom. Only ever touches
 // the ONE entry being moved — no other entries' statuses or positions change.
+let editNoteTarget = null; // {id, panelId, refreshFn}
+
+function openEditNoteModal(btnEl, id, panelId, refreshFn){
+  const currentNote = btnEl && btnEl.dataset ? btnEl.dataset.note : '';
+  editNoteTarget = { id, panelId, refreshFn: refreshFn || null };
+  document.getElementById('edit-note-sub').textContent = 'Visible to staff and student workers on this entry.';
+  document.getElementById('edit-note-text').value = currentNote || '';
+  openModal('modal-edit-note');
+  document.getElementById('edit-note-text').focus();
+}
+
+async function confirmEditNote(){
+  if(!editNoteTarget) return;
+  const noteText = document.getElementById('edit-note-text').value.trim();
+  try {
+    await sbPatch('device_requests', `?id=eq.${editNoteTarget.id}`, { notes: noteText || null });
+    await logActivity('note_edited', editNoteTarget.id, noteText ? 'Note updated' : 'Note cleared');
+    closeModal('modal-edit-note');
+    if(editNoteTarget.refreshFn){ editNoteTarget.refreshFn(); }
+    else if(editNoteTarget.panelId === 'aghs'){ loadAGHS(); }
+    else if(editNoteTarget.panelId){ loadWaitlistPanel(editNoteTarget.panelId); }
+    editNoteTarget = null;
+  } catch(e){ alert('Error saving note: ' + e.message); }
+}
+
 async function moveBackToWaitlist(id, deviceType, campus, panelId){
   if(!confirm('Move this student back onto the waitlist queue? They will be added at the bottom of the current queue.')) return;
   try {
@@ -2286,13 +2319,6 @@ async function removeRequest(id, panelId){
 }
 
 // ── AGREEMENTS ────────────────────────────────────────────────────────────────
-function filterAgreements(){
-  const q = (document.getElementById('search-agreements')?.value || '').toLowerCase();
-  document.querySelectorAll('#agree-table-wrap tbody tr').forEach(row => {
-    row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
-}
-
 async function loadAgreements(){
   try {
     const data=await sbGet('agreements',`?semester=eq.${semesterCode}&order=signed_at.desc&select=*`);
@@ -2304,7 +2330,7 @@ async function loadAgreements(){
 function renderAgreements(data){
   if(!data.length){ document.getElementById('agreements-table').innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No agreements signed yet</div></div>`; return; }
   let html=`<table><thead><tr><th>Student ID</th><th>Signature</th><th>Language</th><th>Signed</th></tr></thead><tbody>`;
-  data.forEach(a=>{ html+=`<tr><td class="td-id">${a.student_id}</td><td>${a.signature||'—'}</td><td>${a.language||'en'}</td><td>${fmtDT(a.signed_at)}</td></tr>`; });
+  data.forEach(a=>{ html+=`<tr><td class="td-id" onclick="openStudentHistory('${a.student_id}','${(a.signature||a.student_id).replace(/'/g,"\\'")}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${a.student_id}</td><td>${a.signature||'—'}</td><td>${a.language||'en'}</td><td>${fmtDT(a.signed_at)}</td></tr>`; });
   html+='</tbody></table>';
   document.getElementById('agreements-table').innerHTML=html;
 }
@@ -2332,7 +2358,7 @@ async function loadAGHS(){
       card.style.marginBottom = '16px';
       card.innerHTML = '<div class="table-header"><div class="table-title">⏰ Notified — Awaiting Pickup (' + notified.length + ')</div></div>';
       const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Notified</th><th>Expires</th><th>Method</th><th>Actions</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Notes</th><th>Notified</th><th>Expires</th><th>Method</th><th>Actions</th></tr></thead>';
       const tbody = document.createElement('tbody');
       notified.forEach(r => {
         const exp = r.expires_at && new Date(r.expires_at) < new Date();
@@ -2348,6 +2374,7 @@ async function loadAGHS(){
           '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id" onclick="openStudentHistory(\'' + r.student_id + '\',\'' + r.first_name + ' ' + r.last_name + '\')" style="cursor:pointer;color:var(--green);text-decoration:underline">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + fmtPhone(r.phone) + '</div></td>' +
+          '<td style="font-size:12px;color:var(--text-mid);max-width:140px">' + (r.notes||'—') + ' <span onclick="openEditNoteModal(this,\'' + r.id + '\',\'aghs\')" data-note="' + escapeHtml(r.notes||'') + '" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>' +
           '<td style="font-size:12px">' + fmtDT(r.notified_at) + '</td>' +
           '<td style="font-size:12px;color:' + (exp?'var(--danger)':'inherit') + '">' + fmtDate(r.expires_at) + (exp?' ⚠️':'') + '</td>' +
           '<td>' + methodBadge + '</td>' +
@@ -2406,7 +2433,7 @@ async function loadAGHS(){
           '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + esBadge + '</div><div class="td-id" onclick="openStudentHistory(\'' + r.student_id + '\',\'' + r.first_name + ' ' + r.last_name + '\')" style="cursor:pointer;color:var(--green);text-decoration:underline">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div><div style="font-size:12px;color:var(--text-light)">' + fmtPhone(r.phone) + '</div></td>' +
-          '<td style="font-size:12px;color:var(--text-mid);max-width:140px">' + (r.notes||'—') + '</td>' +
+          '<td style="font-size:12px;color:var(--text-mid);max-width:140px">' + (r.notes||'—') + ' <span onclick="openEditNoteModal(this,\'' + r.id + '\',\'aghs\')" data-note="' + escapeHtml(r.notes||'') + '" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>' +
           '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
           '<td>' + methodBadge + '</td>' +
           '<td style="display:flex;gap:6px;flex-wrap:wrap"></td>';
@@ -2448,7 +2475,7 @@ async function loadAGHS(){
       pastBody.id = 'aghs-past-body';
       pastBody.style.display = 'none';
       const ptable = document.createElement('table');
-      ptable.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Requested</th><th>Notified</th><th>Method</th><th>Status</th></tr></thead>';
+      ptable.innerHTML = '<thead><tr><th>Student</th><th>Device</th><th>Contact</th><th>Notes</th><th>Requested</th><th>Notified</th><th>Method</th><th>Status</th></tr></thead>';
       const ptbody = document.createElement('tbody');
       past.forEach(r => {
         const badge = r.status==='picked-up'
@@ -2467,6 +2494,7 @@ async function loadAGHS(){
           '<td><div class="td-name">' + r.first_name + ' ' + r.last_name + '</div><div class="td-id" onclick="openStudentHistory(\'' + r.student_id + '\',\'' + r.first_name + ' ' + r.last_name + '\')" style="cursor:pointer;color:var(--green);text-decoration:underline">' + r.student_id + '</div></td>' +
           '<td>' + devLabel(r.device_type) + '</td>' +
           '<td><div style="font-size:12px">' + (r.email||'—') + '</div></td>' +
+          '<td style="font-size:12px;color:var(--text-mid);max-width:140px">' + (r.notes||'—') + ' <span onclick="openEditNoteModal(this,\'' + r.id + '\',\'aghs\')" data-note="' + escapeHtml(r.notes||'') + '" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>' +
           '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
           '<td style="font-size:12px">' + (r.notified_at?fmtDT(r.notified_at):'—') + '</td>' +
           '<td>' + methodBadge + '</td>' +
@@ -3756,7 +3784,20 @@ async function openStudentHistory(studentId, studentName){
           dueDate: l.dueDate, loanDate: l.loanDate });
       });
     }
+
+    // Best contact info across their requests (most recent non-empty)
+    const contactSource = reqs.find(r => r.email || r.phone) || {};
+    const contactEmail = contactSource.email || '—';
+    const contactPhone = contactSource.phone ? fmtPhone(contactSource.phone) : '—';
+
     let html = '';
+
+    // Contact info card
+    html += '<div class="table-card" style="margin-bottom:16px"><div style="padding:14px 16px;display:flex;gap:24px;flex-wrap:wrap">' +
+      '<div><div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em">Email</div><div style="font-size:14px;font-weight:500">' + contactEmail + '</div></div>' +
+      '<div><div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em">Phone</div><div style="font-size:14px;font-weight:500">' + contactPhone + '</div></div>' +
+      '</div></div>';
+
     // Overdue warning
     if(overdueHistory.length){
       html += '<div class="alert alert-danger" style="margin-bottom:16px">⚠️ <strong>Overdue History:</strong> This student has ' + overdueHistory.length + ' overdue device' + (overdueHistory.length>1?'s':'') + ' on record across ' + [...new Set(overdueHistory.map(o=>o.semester))].length + ' semester(s).</div>';
@@ -3769,16 +3810,37 @@ async function openStudentHistory(studentId, studentName){
       });
       html += '</tbody></table></div>';
     }
-    // Current semester requests
+
+    // Current semester requests — device, campus, live status (with waitlist position / awaiting pickup), notes
     html += '<div class="table-card"><div class="table-header"><div class="table-title">Current Semester Requests (' + reqs.length + ')</div></div>';
     if(!reqs.length){
       html += '<div class="empty-state"><div class="empty-text">No requests this semester</div></div>';
     } else {
-      html += '<table><thead><tr><th>Device</th><th>Campus</th><th>Status</th><th>Requested</th><th>Notified</th><th>Picked Up</th></tr></thead><tbody>';
+      html += '<table><thead><tr><th>Device</th><th>Campus</th><th>Status</th><th>Notes</th><th>Requested</th><th>Notified</th><th>Picked Up</th></tr></thead><tbody>';
       reqs.forEach(r => {
-        const statusColor = r.status==='picked-up'?'var(--success)':r.status==='expired'?'var(--danger)':r.status==='waitlisted'||r.status==='notified'?'var(--gold)':'inherit';
-        html += '<tr><td>' + devLabel(r.device_type) + '</td><td>' + (r.campus||'—') + '</td>' +
-          '<td style="color:'+statusColor+';font-weight:600">' + r.status + '</td>' +
+        let statusLabel, statusColor;
+        if(r.status === 'waitlisted'){
+          statusLabel = '⏳ Waitlisted' + (r.waitlist_position ? ' (#' + r.waitlist_position + ')' : '');
+          statusColor = 'var(--gold)';
+        } else if(r.status === 'notified'){
+          const exp = r.expires_at && new Date(r.expires_at) < new Date();
+          statusLabel = '⏰ Awaiting Pickup' + (exp ? ' ⚠️ Expired' : '');
+          statusColor = exp ? 'var(--danger)' : 'var(--gold)';
+        } else if(r.status === 'picked-up'){
+          statusLabel = '✓ Picked Up'; statusColor = 'var(--success)';
+        } else if(r.status === 'expired'){
+          statusLabel = '✗ Expired'; statusColor = 'var(--danger)';
+        } else if(r.status === 'cancelled'){
+          statusLabel = '✗ No Longer Needed'; statusColor = 'var(--text-light)';
+        } else if(r.status === 'requested'){
+          statusLabel = '📋 First Come First Served'; statusColor = 'inherit';
+        } else {
+          statusLabel = r.status; statusColor = 'inherit';
+        }
+        html += '<tr><td>' + devLabel(r.device_type) + '</td><td>' + (r.campus==='shared'?'SLO/NCC':(r.campus||'—')) + '</td>' +
+          '<td style="color:'+statusColor+';font-weight:600;white-space:nowrap">' + statusLabel + '</td>' +
+          '<td style="font-size:12px;color:var(--text-mid);max-width:140px">' + (r.notes||'—') +
+            ' <span onclick="openEditNoteModal(this,\'' + r.id + '\',null,function(){openStudentHistory(\'' + studentId + '\',\'' + studentName.replace(/'/g,"\\'") + '\')})" data-note="' + escapeHtml(r.notes||'') + '" style="cursor:pointer;color:var(--green)" title="Add/edit note">✏️</span></td>' +
           '<td style="font-size:12px">' + fmtDT(r.requested_at) + '</td>' +
           '<td style="font-size:12px">' + (r.notified_at?fmtDT(r.notified_at):'—') + '</td>' +
           '<td style="font-size:12px">' + (r.picked_up_at?fmtDT(r.picked_up_at):'—') + '</td></tr>';
