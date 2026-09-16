@@ -153,6 +153,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--white)}
 .sidebar-item.active{background:rgba(201,168,76,0.2);color:var(--gold);border-right:3px solid var(--gold)}
 .sidebar-count{margin-left:auto;background:rgba(255,255,255,0.15);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600}
+.wl-active-badge{font-size:10px;margin-left:6px;animation:wlPulse 2s ease-in-out infinite}
+.wl-active-badge.wl-open{color:#4ade80}
+.wl-active-badge.wl-waiting{color:#fbbf24}
+@keyframes wlPulse{0%,100%{opacity:1}50%{opacity:0.35}}
 .sidebar-item.active .sidebar-count{background:var(--gold);color:var(--green)}
 .sidebar-bottom{margin-top:auto;padding:16px 18px;border-top:1px solid rgba(255,255,255,0.1)}
 
@@ -561,20 +565,20 @@ tr:hover td{background:#f8fbf8}
           <button class="sidebar-item" onclick="showPanel('overdue',this)" id="nav-overdue">⚠️ Overdue Devices</button>
         </div>
         <div class="sidebar-section">
-          <div class="sidebar-label">SLO Waitlists</div>
-          <button class="sidebar-item" onclick="showPanel('wl-hotspot-SLO',this)" id="nav-hotspot-SLO">📶 Hotspots <span class="sidebar-count" id="cnt-hotspot-SLO">0</span></button>
-          <button class="sidebar-item" onclick="showPanel('wl-chromebook-SLO',this)" id="nav-chromebook-SLO">💻 Chromebooks <span class="sidebar-count" id="cnt-chromebook-SLO">0</span></button>
-          <button class="sidebar-item" onclick="showPanel('wl-calculator-SLO',this)" id="nav-calculator-SLO">🧮 Calculators <span class="sidebar-count" id="cnt-calculator-SLO">0</span></button>
+          <div class="sidebar-label">SLO Request Lists</div>
+          <button class="sidebar-item" onclick="showPanel('wl-hotspot-SLO',this)" id="nav-hotspot-SLO">📶 Hotspots <span class="wl-active-badge" id="badge-hotspot-SLO" style="display:none">●</span> <span class="sidebar-count" id="cnt-hotspot-SLO">0</span></button>
+          <button class="sidebar-item" onclick="showPanel('wl-chromebook-SLO',this)" id="nav-chromebook-SLO">💻 Chromebooks <span class="wl-active-badge" id="badge-chromebook-SLO" style="display:none">●</span> <span class="sidebar-count" id="cnt-chromebook-SLO">0</span></button>
+          <button class="sidebar-item" onclick="showPanel('wl-calculator-SLO',this)" id="nav-calculator-SLO">🧮 Calculators <span class="wl-active-badge" id="badge-calculator-SLO" style="display:none">●</span> <span class="sidebar-count" id="cnt-calculator-SLO">0</span></button>
         </div>
         <div class="sidebar-section">
-          <div class="sidebar-label">NCC Waitlists</div>
-          <button class="sidebar-item" onclick="showPanel('wl-hotspot-NCC',this)" id="nav-hotspot-NCC">📶 Hotspots <span class="sidebar-count" id="cnt-hotspot-NCC">0</span></button>
-          <button class="sidebar-item" onclick="showPanel('wl-chromebook-NCC',this)" id="nav-chromebook-NCC">💻 Chromebooks <span class="sidebar-count" id="cnt-chromebook-NCC">0</span></button>
-          <button class="sidebar-item" onclick="showPanel('wl-calculator-NCC',this)" id="nav-calculator-NCC">🧮 Calculators <span class="sidebar-count" id="cnt-calculator-NCC">0</span></button>
+          <div class="sidebar-label">NCC Request Lists</div>
+          <button class="sidebar-item" onclick="showPanel('wl-hotspot-NCC',this)" id="nav-hotspot-NCC">📶 Hotspots <span class="wl-active-badge" id="badge-hotspot-NCC" style="display:none">●</span> <span class="sidebar-count" id="cnt-hotspot-NCC">0</span></button>
+          <button class="sidebar-item" onclick="showPanel('wl-chromebook-NCC',this)" id="nav-chromebook-NCC">💻 Chromebooks <span class="wl-active-badge" id="badge-chromebook-NCC" style="display:none">●</span> <span class="sidebar-count" id="cnt-chromebook-NCC">0</span></button>
+          <button class="sidebar-item" onclick="showPanel('wl-calculator-NCC',this)" id="nav-calculator-NCC">🧮 Calculators <span class="wl-active-badge" id="badge-calculator-NCC" style="display:none">●</span> <span class="sidebar-count" id="cnt-calculator-NCC">0</span></button>
         </div>
         <div class="sidebar-section">
           <div class="sidebar-label">Other</div>
-          <button class="sidebar-item" onclick="showPanel('wl-laptop-shared',this)" id="nav-laptop-shared">🖥️ Spec. Laptops <span class="sidebar-count" id="cnt-laptop-shared">0</span></button>
+          <button class="sidebar-item" onclick="showPanel('wl-laptop-shared',this)" id="nav-laptop-shared">🖥️ Spec. Laptops <span class="wl-active-badge" id="badge-laptop-shared" style="display:none">●</span> <span class="sidebar-count" id="cnt-laptop-shared">0</span></button>
 
         </div>
         <div class="sidebar-section">
@@ -1597,6 +1601,13 @@ async function loadWaitlistCounts(){
     ['hotspot-SLO','hotspot-NCC','chromebook-SLO','chromebook-NCC','calculator-SLO','calculator-NCC','laptop-shared'].forEach(k=>{
       const el=document.getElementById('cnt-'+k);
       if(el) el.textContent=map[k.replace('-','_')]||0;
+      const badge=document.getElementById('badge-'+k);
+      if(badge){
+        const isOn = waitlistSettings[k.replace('-','_')];
+        badge.style.display = 'inline';
+        badge.className = 'wl-active-badge ' + (isOn ? 'wl-waiting' : 'wl-open');
+        badge.title = isOn ? 'Waitlist active' : 'First come first served — no waitlist';
+      }
     });
   } catch(e){}
 }
@@ -1758,14 +1769,14 @@ async function loadWaitlistPanel(panelId){
       <div class="wl-toggle-row">
         <div>
           <div style="font-size:14px;font-weight:600;color:var(--green)">Waitlist Status</div>
-          <div style="font-size:12px;color:var(--text-light);margin-top:2px">${isOn?'Waitlist is ON — new requests join the queue (turn off only when queue is empty)':'Waitlist is OFF — first come first served'}</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:2px">${isOn?'Waitlist is ON — locked until the form is wiped for a new semester':'Waitlist is OFF — first come first served'}</div>
         </div>
         <div class="toggle-wrap">
-          <label class="toggle">
-            <input type="checkbox" ${isOn?'checked':''} onchange="toggleWaitlist('${deviceId}','${dbCampus}',this.checked)">
-            <span class="toggle-slider"></span>
+          <label class="toggle" ${isOn?'title="Locked — resets automatically when the semester is wiped"':''}>
+            <input type="checkbox" ${isOn?'checked disabled':''} onchange="toggleWaitlist('${deviceId}','${dbCampus}',this.checked)">
+            <span class="toggle-slider" ${isOn?'style="opacity:0.7"':''}></span>
           </label>
-          <span class="toggle-label" style="color:${isOn?'var(--success)':'var(--text-light)'}">${isOn?'ON':'OFF'}</span>
+          <span class="toggle-label" style="color:${isOn?'var(--success)':'var(--text-light)'}">${isOn?'ON 🔒':'OFF'}</span>
         </div>
       </div>
       <div style="padding:0 16px 14px">
@@ -1847,15 +1858,9 @@ async function loadWaitlistPanel(panelId){
           <div class="table-title">📋 First Come First Served (${requested.length})</div>
           <div style="font-size:12px;color:var(--text-light)">Entries expire when waitlist is turned on</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f5f9f6;border-bottom:1px solid var(--cream-dark)">
-          <input type="checkbox" id="sel-all-req-${panelId}" onchange="toggleSelectAllReq('${panelId}')" style="width:15px;height:15px;accent-color:var(--green)">
-          <label for="sel-all-req-${panelId}" style="font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer">Select All</label>
-          <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="notifySelectedReq('${panelId}','${devLabel(deviceId).toUpperCase()}','${shortCampus(dbCampus)}')">✉️ Notify Selected</button>
-        </div>
-        <table><thead><tr><th style="width:36px"></th><th>Student</th><th>Contact</th><th>Notes</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
+        <table><thead><tr><th>Student</th><th>Contact</th><th>Notes</th><th>Requested</th><th>Actions</th></tr></thead><tbody>`;
       requested.forEach(r=>{
         html+=`<tr>
-          <td><input type="checkbox" class="req-cb-${panelId}" data-id="${r.id}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email||''}" data-language="${r.language||'en'}" style="width:15px;height:15px;accent-color:var(--green)"></td>
           <td>
             <div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div>
             <div class="td-id" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')" style="cursor:pointer;color:var(--green);text-decoration:underline">${r.student_id}</div>
@@ -1874,7 +1879,6 @@ async function loadWaitlistPanel(panelId){
               : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;padding:2px 8px;border-radius:10px">Not notified</span>'}
           </td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" onclick="openNotifyModal('${r.id}','${r.first_name} ${r.last_name}','${devLabel(r.device_type).toUpperCase()}','${shortCampus(dbCampus)}','${r.email||''}','${r.language||"en"}','${r.phone||''}')">Notify</button>
             <button class="btn btn-gold btn-sm" onclick="directPickup('${r.id}','${panelId}')">Picked Up</button>
             <button class="btn btn-warning btn-sm" onclick="markNoLongerNeeded('${r.id}','${panelId}')">No Longer Needs</button>
             <button class="btn btn-danger btn-sm" onclick="deleteRequest('${r.id}','${panelId}')">🗑 Delete</button>
@@ -1929,24 +1933,14 @@ async function loadWaitlistPanel(panelId){
 
 async function toggleWaitlist(deviceId, campus, on){
   try {
-    // Turning OFF: not allowed for student workers
-    if(!on && userRole === 'student_worker'){
-      alert('Student workers can turn the waitlist on but cannot turn it off. Please ask a staff member to turn off the waitlist.');
+    // Once turned ON, a waitlist can never be turned off by anyone (staff or
+    // student worker). The only way to reset it is wiping the form for a new
+    // semester, which resets every waitlist to OFF automatically.
+    if(!on && waitlistSettings[wlKey(deviceId,campus)]){
+      alert('Once a waitlist is turned on, it cannot be turned off. It will automatically reset to OFF the next time the form is wiped for a new semester.');
       const panelId = 'wl-'+deviceId+'-'+campus.toLowerCase();
       loadWaitlistPanel(panelId);
       return;
-    }
-    // Turning OFF: only allowed if waitlist queue is empty
-    if(!on && waitlistSettings[wlKey(deviceId,campus)]){
-      const queued = await sbGet('device_requests',
-        `?device_type=eq.${deviceId}&campus=eq.${campus}&status=in.(waitlisted,notified)&select=id`);
-      if(queued.length > 0){
-        alert('The waitlist cannot be turned off while there are still ' + queued.length + ' student' + (queued.length>1?'s':'') + ' in the queue. Please resolve all waitlisted and notified entries first.');
-        // Reset toggle visually
-        const panelId = 'wl-'+deviceId+'-'+campus.toLowerCase();
-        loadWaitlistPanel(panelId);
-        return;
-      }
     }
 
     // Check if row exists, then update or insert
