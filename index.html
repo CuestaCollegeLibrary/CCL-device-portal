@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob:; connect-src https://eda-form-api.cuestabook.workers.dev; base-uri 'none'; form-action 'none'; object-src 'none'">
 <title>CCL Device Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -921,11 +923,9 @@ window.onerror = function(msg, src, line, col, err) {
   return false;
 };
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-// ── TURSO CONNECTION ─────────────────────────────────────────────────────────
-const TURSO_URL = 'https://eda-form-cuestacollegelibrary.aws-us-west-2.turso.io';
-const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODU3OTM1ODksImlkIjoiMDE5ZmM5OTQtZjcwMS03YWVjLTkzZTktODJhODRhYmRjOTFmIiwia2lkIjoiMktaRFFnQUt0ZEo5MXZvRURuZER6N2laTktYUDNUUnRfYXhKY0EzcEdZMCIsInJpZCI6ImViNGM5ZjliLTY5ZmMtNGJhMS05MmUyLWJkMzE0NTA3YTdhYyJ9.HocUfYW74pda1dMijFhaiId7hOHT7KGMyVAWmQG2azQ0F-QgfUs5wM62kz2jA1Fr1oodWSDjyg50wbGb9xj8Cg';
-const STAFF_PASSWORD = 'Cougar007@';
-const SW_PASSWORDS = ['slocirc1', 'Nccirc01'];
+// This page contains NO database token and NO passwords. All data goes through
+// the library's secure Cloudflare Worker, which holds the secrets.
+const API_URL = 'https://eda-form-api.cuestabook.workers.dev';
 
 const OVERDUE_PHONE_SCRIPT = {
   en: "Hi {first_name}, this is Cuesta College Library calling about a {device} checked out on your account. It was due back on {due_date} and is now overdue. Please return it as soon as possible — there's no grace period for late fees, and devices need to come back in clean, working condition. If it isn't returned by {two_weeks}, it will be disabled and a hold may be placed on your library account, which could prevent you from checking out other items. Please bring it back in person during library hours — not in the book drop. If you have any questions, feel free to call us back at {phone}. Thank you!",
@@ -1055,197 +1055,103 @@ const TR = {
 };
 function t(k){ return (TR[lang][k] || TR.en[k] || k); }
 
-// ── SUPABASE ──────────────────────────────────────────────────────────────────
-// ── TURSO CLIENT ─────────────────────────────────────────────────────────────
-// Drop-in replacement for the old Supabase/PostgREST layer. Every call in this
-// app goes through sb()/sbGet()/sbPost()/sbPatch(), so this is the ONLY place
-// that talks to the database. Query strings use the same PostgREST-style
-// syntax as before (?col=eq.val&order=col.asc&limit=N) and are translated to
-// parameterized SQL here — no other code in the app had to change.
+// ── SECURE API CLIENT ────────────────────────────────────────────────────────
+// Every database call in this app goes through sb()/sbGet()/sbPost()/sbPatch().
+// They now talk to the Worker (API_URL) with a login session token, instead of
+// talking to the database directly. Query strings use the same PostgREST-style
+// syntax as before (?col=eq.val&order=col.asc&limit=N); the Worker translates
+// them to parameterized SQL and enforces who is allowed to do what.
 
-const JSON_COLUMNS = {
-  semester_config: ['alma_report_data'],
-  archived_semesters: ['agreements_data','requests_data','summary','alma_data'],
+let authToken = null;
+try { authToken = sessionStorage.getItem('ccl_token'); } catch(e){}
+
+class ApiError extends Error { constructor(msg, status){ super(msg); this.status = status; } }
+
+let _sessionExpiredShown = false;
+function handleSessionExpired(){
+  if(_sessionExpiredShown) return;
+  _sessionExpiredShown = true;
+  staffLogout();
+  showAlert('a-gate','Your session has ended. Please sign in again.','danger');
+  setTimeout(function(){ _sessionExpiredShown = false; }, 3000);
+}
+
+async function apiCall(path, payload, withAuth){
+  const headers = { 'Content-Type': 'application/json' };
+  if(withAuth){
+    if(!authToken){ handleSessionExpired(); throw new ApiError('Please sign in again.', 401); }
+    headers['Authorization'] = 'Bearer ' + authToken;
+  }
+  let res;
+  try {
+    res = await fetch(API_URL + path, { method:'POST', headers: headers, body: JSON.stringify(payload || {}) });
+  } catch(e){
+    throw new ApiError('Could not reach the server. Please check your internet connection and try again.', 0);
+  }
+  let data = null;
+  try { data = await res.json(); } catch(e){}
+  if(!res.ok){
+    if(res.status === 401 && withAuth) handleSessionExpired();
+    throw new ApiError((data && data.error) || ('Server error (' + res.status + ')'), res.status);
+  }
+  return data;
+}
+
+async function apiGetPublic(path){
+  let res;
+  try { res = await fetch(API_URL + path, { method:'GET' }); }
+  catch(e){ throw new ApiError('Could not reach the server.', 0); }
+  let data = null;
+  try { data = await res.json(); } catch(e){}
+  if(!res.ok) throw new ApiError((data && data.error) || ('Server error (' + res.status + ')'), res.status);
+  return data;
+}
+
+// Student-typed text is shown in many places on the staff screens. Anything that
+// could be misread as code is swapped for a harmless look-alike character at the
+// moment data is read (display only — nothing is changed in the database).
+const NEUTRALIZE_FIELDS = {
+  device_requests: ['first_name','last_name','email','phone','student_id'],
+  agreements: ['signature','student_id'],
+  students: ['first_name','last_name','email','phone','student_id'],
+  overdue_notifications: ['student_id','barcode'],
 };
-
-function tVal(v){
-  if(v === null || v === undefined) return {type:'null'};
-  if(typeof v === 'boolean') return {type:'integer', value: v ? '1':'0'};
-  if(typeof v === 'number') return Number.isInteger(v) ? {type:'integer', value:String(v)} : {type:'float', value:v};
-  return {type:'text', value:String(v)};
-}
-
-async function tExec(sql, args=[]){
-  const res = await fetch(`${TURSO_URL}/v2/pipeline`, {
-    method:'POST',
-    headers:{'Authorization':`Bearer ${TURSO_TOKEN}`,'Content-Type':'application/json'},
-    body: JSON.stringify({ requests: [
-      { type:'execute', stmt: { sql, args: args.map(tVal) } },
-      { type:'close' }
-    ]})
-  });
-  if(!res.ok){ const e = await res.text(); throw new Error('Turso request failed: '+e); }
-  const data = await res.json();
-  const execResult = data.results[0];
-  if(execResult.type === 'error'){ throw new Error('Turso SQL error: ' + execResult.error.message); }
-  const r = execResult.response.result;
-  const cols = r.cols.map(c=>c.name);
-  const rows = r.rows.map(row => {
-    const obj = {};
-    row.forEach((cell,i) => {
-      obj[cols[i]] = cell.type === 'null' ? null : (cell.type==='integer' ? parseInt(cell.value) : cell.value);
-    });
-    return obj;
-  });
-  return { rows, affected: r.affected_row_count };
-}
-
-function parseOperator(raw){
-  if(raw.startsWith('not.in.')) return { sql:'NOT IN', list: raw.slice(7).replace(/^\(|\)$/g,'').split(',') };
-  if(raw.startsWith('in.'))     return { sql:'IN',     list: raw.slice(3).replace(/^\(|\)$/g,'').split(',') };
-  if(raw.startsWith('eq.'))  return { sql:'=',  val: raw.slice(3) };
-  if(raw.startsWith('neq.')) return { sql:'!=', val: raw.slice(4) };
-  if(raw.startsWith('lte.')) return { sql:'<=', val: raw.slice(4) };
-  if(raw.startsWith('gte.')) return { sql:'>=', val: raw.slice(4) };
-  if(raw.startsWith('lt.'))  return { sql:'<',  val: raw.slice(3) };
-  if(raw.startsWith('gt.'))  return { sql:'>',  val: raw.slice(3) };
-  if(raw.startsWith('is.')){
-    const v = raw.slice(3);
-    return { sql: v==='null' ? 'IS NULL':'IS NOT NULL', noArg:true };
-  }
-  return { sql:'=', val: raw };
-}
-
-function coerceFilterValue(v){
-  if(v === 'true') return true;
-  if(v === 'false') return false;
-  return v;
-}
-
-function parseQueryString(qs){
-  const result = { where: [], args: [], order: null, limit: null };
-  if(!qs) return result;
-  const q = qs.startsWith('?') ? qs.slice(1) : qs;
-  if(!q) return result;
-  for(const part of q.split('&')){
-    if(!part) continue;
-    const eqIdx = part.indexOf('=');
-    if(eqIdx === -1) continue;
-    const rawKey = part.slice(0, eqIdx);
-    const rawVal = part.slice(eqIdx+1);
-    if(rawKey === 'select') continue;
-    if(rawKey === 'order'){ result.order = rawVal; continue; }
-    if(rawKey === 'limit'){ result.limit = parseInt(rawVal); continue; }
-    const opInfo = parseOperator(rawVal);
-    if(opInfo.list){
-      const placeholders = opInfo.list.map(()=>'?').join(',');
-      result.where.push(`"${rawKey}" ${opInfo.sql} (${placeholders})`);
-      opInfo.list.forEach(v => result.args.push(coerceFilterValue(v)));
-    } else if(opInfo.noArg){
-      result.where.push(`"${rawKey}" ${opInfo.sql}`);
-    } else {
-      result.where.push(`"${rawKey}" ${opInfo.sql} ?`);
-      result.args.push(coerceFilterValue(opInfo.val));
-    }
-  }
-  return result;
-}
-
-function buildOrderClause(orderStr){
-  if(!orderStr) return '';
-  const cols = orderStr.split(',').map(part => {
-    const [col, dir] = part.split('.');
-    const d = (dir||'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
-    return `"${col}" ${d}`;
-  });
-  return ' ORDER BY ' + cols.join(', ');
-}
-
-function dehydrateRow(table, row){
-  const jsonCols = JSON_COLUMNS[table] || [];
-  const out = {};
-  for(const [k,v] of Object.entries(row)){
-    out[k] = (jsonCols.includes(k) && v !== null && typeof v === 'object') ? JSON.stringify(v) : v;
-  }
-  return out;
-}
-
-function hydrateRow(table, row){
-  const jsonCols = JSON_COLUMNS[table] || [];
+const NEUTRAL_MAP = { '<':'‹', '>':'›', '"':'″', '`':'´', '\\':'∖', "'":'’' };
+function neutralizeRow(table, row){
+  const fields = NEUTRALIZE_FIELDS[table];
+  if(!fields) return row;
   const out = { ...row };
-  for(const k of jsonCols){
-    if(out[k] && typeof out[k] === 'string'){
-      try { out[k] = JSON.parse(out[k]); } catch(e){}
-    }
+  for(const f of fields){
+    if(typeof out[f] === 'string') out[f] = out[f].replace(/[<>"`\\']/g, function(c){ return NEUTRAL_MAP[c]; });
   }
   return out;
 }
 
 async function sb(table, method='GET', body=null, params=''){
-  const { where, args, order, limit } = parseQueryString(params);
-  const whereClause = where.length ? ' WHERE ' + where.join(' AND ') : '';
-  const orderClause = buildOrderClause(order);
-  const limitClause = limit ? ` LIMIT ${limit}` : '';
-
-  if(method === 'GET'){
-    const sql = `SELECT * FROM "${table}"${whereClause}${orderClause}${limitClause}`;
-    const { rows } = await tExec(sql, args);
-    return rows.map(row => hydrateRow(table, row));
-  }
-
-  if(method === 'POST'){
-    const rowsIn = Array.isArray(body) ? body : [body];
-    const inserted = [];
-    for(const row of rowsIn){
-      const r = { ...row };
-      if(!r.id) r.id = crypto.randomUUID();
-      const prepared = dehydrateRow(table, r);
-      const cols = Object.keys(prepared);
-      const placeholders = cols.map(()=>'?').join(',');
-      const sql = `INSERT INTO "${table}" (${cols.map(c=>`"${c}"`).join(',')}) VALUES (${placeholders})`;
-      await tExec(sql, cols.map(c=>prepared[c]));
-      inserted.push(r);
-    }
-    return inserted;
-  }
-
-  if(method === 'PATCH'){
-    const prepared = dehydrateRow(table, body);
-    const setCols = Object.keys(prepared);
-    if(!setCols.length) return [];
-    const setClause = setCols.map(c=>`"${c}" = ?`).join(', ');
-    const sql = `UPDATE "${table}" SET ${setClause}${whereClause}`;
-    await tExec(sql, [...setCols.map(c=>prepared[c]), ...args]);
-    return [body];
-  }
-
-  if(method === 'DELETE'){
-    const sql = `DELETE FROM "${table}"${whereClause}`;
-    const result = await tExec(sql, args);
-    return { affected: result.affected };
-  }
+  const out = await apiCall('/api/db', { table: table, method: method, params: params, body: body }, true);
+  if(method === 'GET' && Array.isArray(out)) return out.map(function(r){ return neutralizeRow(table, r); });
+  return out;
 }
 
 const sbGet = (t,p='') => sb(t,'GET',null,p);
 const sbPost = (t,b) => sb(t,'POST',b);
 const sbPatch = (t,p,b) => sb(t,'PATCH',b,p);
 
-// Upsert: INSERT ... ON CONFLICT(conflictCols) DO UPDATE. Returns the row as
-// it now exists in the DB (matching Supabase's return=representation used by
-// the old merge-duplicates upserts for agreements).
-async function sbUpsert(table, row, conflictCols){
-  const withId = { ...row, id: row.id || crypto.randomUUID() };
-  const prepared = dehydrateRow(table, withId);
-  const cols = Object.keys(prepared);
-  const placeholders = cols.map(()=>'?').join(',');
-  const updateCols = cols.filter(c => !conflictCols.includes(c) && c !== 'id');
-  const updateClause = updateCols.map(c=>`"${c}"=excluded."${c}"`).join(', ');
-  const sql = `INSERT INTO "${table}" (${cols.map(c=>`"${c}"`).join(',')}) VALUES (${placeholders})
-    ON CONFLICT(${conflictCols.map(c=>`"${c}"`).join(',')}) DO UPDATE SET ${updateClause}`;
-  await tExec(sql, cols.map(c=>prepared[c]));
-  const whereClause = conflictCols.map(c=>`"${c}"=?`).join(' AND ');
-  const { rows } = await tExec(`SELECT * FROM "${table}" WHERE ${whereClause}`, conflictCols.map(c=>prepared[c]));
-  return rows.map(r => hydrateRow(table, r));
+// Public (student-side) settings: semester name, form lock, which waitlists are on.
+async function loadPublicConfig(){
+  const data = await apiGetPublic('/public/config');
+  if(data.config){
+    semesterLabel = data.config.semester_label;
+    semesterCode  = data.config.semester_code;
+    window._semesterConfigId = data.config.id;
+    const hs = document.getElementById('hero-semester');
+    if(hs) hs.textContent = (lang === 'es')
+      ? semesterLabel.replace('Summer','verano del').replace('Fall','otoño del').replace('Spring','primavera del')
+      : semesterLabel;
+    applyFormLock(data.config.form_locked, data.config.form_lock_title, data.config.form_lock_message);
+  }
+  waitlistSettings = {};
+  (data.waitlist || []).forEach(function(r){ waitlistSettings[wlKey(r.device_type, r.campus)] = r.waitlist_on; });
 }
 
 // ── LANGUAGE ──────────────────────────────────────────────────────────────────
@@ -1300,7 +1206,7 @@ function showView(v){
   document.getElementById('nav-student').classList.toggle('active', v==='student');
   document.getElementById('nav-staff').classList.toggle('active', v==='staff');
   if(v==='staff'){
-    if(sessionStorage.getItem('ccl_auth')==='yes'){
+    if(authToken && tokenStillValid(authToken) && sessionStorage.getItem('ccl_role')){
       userRole = sessionStorage.getItem('ccl_role') || 'staff';
       document.getElementById('staff-gate').style.display='none';
       document.getElementById('staff-dash').style.display='block';
@@ -1346,32 +1252,38 @@ function backToProfiles(){
   window._selectedProfile = null;
 }
 
-function checkPw(){
+function tokenStillValid(tok){
+  try {
+    const p = JSON.parse(atob(tok.split('.')[0].replace(/-/g,'+').replace(/_/g,'/')));
+    return typeof p.exp === 'number' && p.exp > Math.floor(Date.now()/1000);
+  } catch(e){ return false; }
+}
+
+async function checkPw(){
   const pw = document.getElementById('staff-pw').value;
   const selectedProfile = window._selectedProfile;
-
-  if(selectedProfile === 'staff' && pw === STAFF_PASSWORD){
-    userRole = 'staff';
-    sessionStorage.setItem('ccl_auth','yes');
-    sessionStorage.setItem('ccl_role','staff');
+  if(!selectedProfile) return;
+  clearAlert('a-gate');
+  try {
+    const res = await apiCall('/auth/login', { profile: selectedProfile, password: pw }, false);
+    authToken = res.token;
+    userRole = res.role;
+    try {
+      sessionStorage.setItem('ccl_token', res.token);
+      sessionStorage.setItem('ccl_role', res.role);
+    } catch(e){}
+    document.getElementById('staff-pw').value = '';
     document.getElementById('staff-gate').style.display='none';
     document.getElementById('staff-dash').style.display='block';
     loadDashboard();
-  } else if(selectedProfile === 'student_worker' && SW_PASSWORDS.includes(pw)){
-    userRole = 'student_worker';
-    sessionStorage.setItem('ccl_auth','yes');
-    sessionStorage.setItem('ccl_role','student_worker');
-    document.getElementById('staff-gate').style.display='none';
-    document.getElementById('staff-dash').style.display='block';
-    loadDashboard();
-  } else {
-    showAlert('a-gate','Incorrect password for this profile.','danger');
+  } catch(e){
+    showAlert('a-gate', e.message || 'Incorrect password for this profile.', 'danger');
   }
 }
 
 function staffLogout(){
-  sessionStorage.removeItem('ccl_auth');
-  sessionStorage.removeItem('ccl_role');
+  try { sessionStorage.removeItem('ccl_token'); sessionStorage.removeItem('ccl_role'); } catch(e){}
+  authToken = null;
   userRole = null;
   window._selectedProfile = null;
   window._overdueReqs = null;
@@ -1441,7 +1353,13 @@ function statusBadge(s){
 }
 
 // ── STEP 1 ────────────────────────────────────────────────────────────────────
-async function doStep1(){
+const NAME_OK = /^[\p{L}\p{M}][\p{L}\p{M}\s.\-’']{0,59}$/u;
+const EMAIL_OK = /^[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,190}\.[A-Za-z]{2,24}$/;
+const PHONE_OK = /^[0-9 ()+.\-]{0,25}$/;
+const SIG_OK = /^[\p{L}\p{M}][\p{L}\p{M}\s.\-’']{0,99}$/u;
+const CLASS_OK = /^[\p{L}\p{M}0-9\s.,\-’'&#()\/:]{1,80}$/u;
+
+function doStep1(){
   clearAlert('a-step1');
   const fn=document.getElementById('s-fn').value.trim();
   const ln=document.getElementById('s-ln').value.trim();
@@ -1450,22 +1368,11 @@ async function doStep1(){
   const phone=document.getElementById('s-phone').value.trim();
   if(!fn||!ln||!sid||!email){ showAlert('a-step1','Please fill in all required fields.','danger'); return; }
   if(!/^\d{9}$/.test(sid)){ showAlert('a-step1','Student ID must be 9 digits (e.g. 900123456).','danger'); return; }
+  if(!NAME_OK.test(fn.replace(/\s+/g,' ')) || !NAME_OK.test(ln.replace(/\s+/g,' '))){ showAlert('a-step1','Names can only contain letters, spaces, hyphens, apostrophes and periods.','danger'); return; }
+  if(email.length>254 || !EMAIL_OK.test(email)){ showAlert('a-step1','Please enter a valid email address.','danger'); return; }
+  if(!PHONE_OK.test(phone)){ showAlert('a-step1','Phone numbers can only contain digits, spaces, dashes, dots, parentheses and +.','danger'); return; }
   studentData = {first_name:fn, last_name:ln, student_id:sid, email, phone};
-  const btn = document.getElementById('btn-s1');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
-  try {
-    const existing = await sbGet('agreements',`?student_id=eq.${sid}&semester=eq.${semesterCode}&select=*`);
-    if(existing.length>0){
-      // Already signed this semester — show agreement step with note, pre-fill signature
-      studentData.agreementId=existing[0].id;
-      studentData.alreadySigned=true;
-      const sigEl=document.getElementById('s-sig');
-      if(sigEl && existing[0].signature) sigEl.value=existing[0].signature;
-      showAlert('a-step2',`You have already signed the agreement for ${semesterCode}. You may re-confirm below to submit another device request.`,'info');
-    }
-    goStep(2);
-  } catch(e){ showAlert('a-step1','Error checking records. Please try again.','danger'); }
-  finally{ btn.disabled=false; btn.innerHTML=`<span id="t-continue">${t('continue')}</span>`; }
+  goStep(2);
 }
 
 // ── STEP 2 ────────────────────────────────────────────────────────────────────
@@ -1474,24 +1381,12 @@ async function doStep2(){
   if(!document.getElementById('agree-cb').checked){ showAlert('a-step2','You must check the acknowledgment box.','danger'); return; }
   const sigVal = document.getElementById('s-sig').value.trim();
   if(!sigVal){ showAlert('a-step2','Please type your full name as a signature.','danger'); return; }
+  if(!SIG_OK.test(sigVal.replace(/\s+/g,' '))){ showAlert('a-step2','Please type your full name (letters only) as your signature.','danger'); return; }
   const btn=document.getElementById('btn-s2'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
-    let res;
-    if(studentData.alreadySigned && studentData.agreementId){
-      // Already signed — just update signature and language, don't create new record
-      await sbPatch('agreements', '?id=eq.'+studentData.agreementId, {
-        signature:sigVal, language:lang, signed_at:new Date().toISOString()
-      });
-    } else {
-      // Upsert: insert new agreement, or update if one already exists for this student+semester
-      const upsertData = await sbUpsert('agreements', {
-        student_id:studentData.student_id, semester:semesterCode,
-        signature:sigVal, signed_at:new Date().toISOString(), language:lang
-      }, ['student_id','semester']);
-      studentData.agreementId = upsertData?.[0]?.id;
-    }
+    await apiCall('/public/sign-agreement', { student_id: studentData.student_id, signature: sigVal, language: lang }, false);
     goStep(3); renderDeviceGrid();
-  } catch(e){ showAlert('a-step2','Error saving agreement: '+e.message,'danger'); }
+  } catch(e){ showAlert('a-step2', e.message, 'danger'); }
   finally{ btn.disabled=false; btn.innerHTML=`<span id="t-signbtn">${t('signbtn')}</span>`; }
 }
 
@@ -1511,11 +1406,7 @@ async function renderDeviceGrid(){
   const grid=document.getElementById('device-grid');
   selectedDevices=[];
   // Load waitlist settings
-  try {
-    const ws=await sbGet('waitlist_settings','?select=*');
-    waitlistSettings={};
-    ws.forEach(r=>{ waitlistSettings[wlKey(r.device_type,r.campus)]=r.waitlist_on; });
-  } catch(e){}
+  try { await loadPublicConfig(); } catch(e){}
 
   let html='';
   DEVICES.forEach(dt=>{
@@ -1565,6 +1456,10 @@ function doStep3(){
     const prof = document.getElementById('laptop-prof').value.trim();
     if(!crn || !prof){
       showAlert('a-step3','Please enter your CRN/Class and Professor for the Specialty Laptop request.','danger');
+      return;
+    }
+    if(!CLASS_OK.test(crn.replace(/\s+/g,' ')) || !CLASS_OK.test(prof.replace(/\s+/g,' '))){
+      showAlert('a-step3','Class and professor can only contain letters, numbers, spaces and basic punctuation.','danger');
       return;
     }
     studentData.laptopCRN = crn;
@@ -1655,40 +1550,22 @@ async function doSubmit(){
   clearAlert('a-step4');
   const notifEmail=document.getElementById('notif-email').checked;
   const notifPhone=document.getElementById('notif-phone').checked;
-  const notif=[notifEmail?'email':null, notifPhone?'phone':null].filter(Boolean).join(',') || 'email';
   const btn=document.getElementById('btn-submit'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   try {
-    // Refresh waitlist settings right before submitting
-    try {
-      const ws = await sbGet('waitlist_settings','?select=*');
-      waitlistSettings = {};
-      ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
-    } catch(e){}
-    const now = new Date().toISOString();
-    for(const did of selectedDevices){
-      const dt = DEVICES.find(x=>x.id===did);
-      const campus = selectedCampus;
-      const key = dt.shared?'laptop_shared':wlKey(did, campus);
-      const onWL = waitlistSettings[key]||false;
-      let status = onWL?'waitlisted':'requested';
-      let pos = null;
-      if(onWL){
-        const existing = await sbGet('device_requests',
-          `?device_type=eq.${did}&campus=eq.${campus}&status=eq.waitlisted&select=waitlist_position&order=waitlist_position.desc&limit=1`);
-        pos = existing.length ? (existing[0].waitlist_position||0)+1 : 1;
-      }
-      const notes = (did==='laptop' && studentData.laptopCRN)
-        ? ('CRN/Class: ' + studentData.laptopCRN + ' | Professor: ' + studentData.laptopProf)
-        : null;
-      await sbPost('device_requests',[{
-        student_id:studentData.student_id, first_name:studentData.first_name,
-        last_name:studentData.last_name, email:studentData.email, phone:studentData.phone,
-        device_type:did, campus, status, waitlist_position:pos,
-        notification_pref:notif, semester:semesterCode, language:lang,
-        notes: notes,
-        requested_at:now
-      }]);
-    }
+    // The server decides first-come-first-served vs. waitlist (and the waitlist position)
+    // using the settings as they are at this exact moment.
+    await apiCall('/public/submit-request', {
+      student: {
+        first_name: studentData.first_name, last_name: studentData.last_name,
+        student_id: studentData.student_id, email: studentData.email, phone: studentData.phone
+      },
+      campus: selectedCampus,
+      devices: selectedDevices,
+      notification: { email: notifEmail, phone: notifPhone },
+      language: lang,
+      laptop_crn: studentData.laptopCRN || '',
+      laptop_prof: studentData.laptopProf || ''
+    }, false);
     goStep(5);
   } catch(e){
     showAlert('a-step4','Submission error: '+e.message,'danger');
@@ -1765,7 +1642,12 @@ async function loadWaitlistPanel(panelId){
     ws.forEach(r => { waitlistSettings[wlKey(r.device_type,r.campus)] = r.waitlist_on; });
   } catch(e){}
   const isOn=waitlistSettings[key]||false;
-  const container=document.getElementById('panel-'+panelId);
+  let container=document.getElementById('panel-'+panelId);
+  if(!container){
+    const want=('panel-'+panelId).toLowerCase();
+    container=Array.from(document.querySelectorAll('.tab-panel')).find(function(el){ return el.id.toLowerCase()===want; }) || null;
+  }
+  if(!container) return;
 
   container.innerHTML=`
     <div class="page-header">
@@ -2622,6 +2504,7 @@ async function markNoLongerNeeded(id, panelId){
 
 // ── AUTO-EXPIRE ────────────────────────────────────────────────────────────────
 async function checkAutoExpire(){
+  if(!authToken) return;
   try {
     const now = new Date();
     // Expire notified entries past their expires_at date
@@ -3054,7 +2937,8 @@ async function saveSemester(){
 
 async function doWipe(){
   const pw=document.getElementById('wipe-pw').value;
-  if(pw!==STAFF_PASSWORD){ showAlert('wipe-result','Incorrect password.','danger'); return; }
+  try { await apiCall('/auth/verify-staff-password', { password: pw }, true); }
+  catch(e){ showAlert('wipe-result', (e.status===0||e.status===429) ? e.message : 'Incorrect password.', 'danger'); return; }
   if(!confirm(`This will generate a full report export for ${semesterLabel} and then permanently wipe all live data. Continue?`)) return;
 
   showAlert('wipe-result','Step 1/3 — Fetching current data...','info');
@@ -3094,8 +2978,8 @@ async function doWipe(){
     }
 
     showAlert('wipe-result','Step 3/3 — Wiping live data...','info');
-    await sb('device_requests','DELETE',null,'?id=neq.__none__');
-    await sb('agreements','DELETE',null,'?id=neq.__none__');
+    await sb('device_requests','DELETE',{password:pw},'?id=neq.__none__');
+    await sb('agreements','DELETE',{password:pw},'?id=neq.__none__');
 
     // Final safety check: confirm the tables are actually empty now
     const [checkReqs, checkAgrs] = await Promise.all([
@@ -4033,34 +3917,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   if(saved){ try{ emailTemplate=JSON.parse(saved); }catch(e){} }
   const savedES=localStorage.getItem('ccl_email_template_es');
   if(savedES){ try{ emailTemplateES=JSON.parse(savedES); }catch(e){} }
-  // Load semester config for student portal
-  try {
-    const cfg=await sbGet('semester_config','?select=*&limit=1&order=created_at.desc');
-    if(cfg.length){
-      semesterLabel=cfg[0].semester_label;
-      semesterCode=cfg[0].semester_code;
-      window._savedAlmaData = cfg[0].alma_report_data || null;
-      document.getElementById('hero-semester').textContent=semesterLabel;
-      window._semesterConfigId = cfg[0].id;
-      applyFormLock(cfg[0].form_locked, cfg[0].form_lock_title, cfg[0].form_lock_message);
-    }
-  } catch(e){}
-  // Restore alma data immediately so overdue panel works on first load
-  if(window._savedAlmaData && window._savedAlmaData.length){
-    almaData = window._savedAlmaData.map(l => ({
-      ...l,
-      loanDate: l.loanDate ? new Date(l.loanDate) : null,
-      dueDate: l.dueDate ? new Date(l.dueDate) : null,
-      returnDate: l.returnDate ? new Date(l.returnDate) : null,
-    }));
-  }
-  // Load waitlist settings for student portal
-  try {
-    const ws=await sbGet('waitlist_settings','?select=*');
-    waitlistSettings={};
-    ws.forEach(r=>{ waitlistSettings[wlKey(r.device_type,r.campus)]=r.waitlist_on; });
-  } catch(e){}
-  // Auto-expire check every 5 minutes
+  // Public settings for the student form (semester, form lock, waitlists)
+  try { await loadPublicConfig(); } catch(e){}
+  // Auto-expire check every 5 minutes (only runs while staff are signed in)
   checkAutoExpire();
   setInterval(checkAutoExpire, 5*60*1000);
   updateEmailPreview();
