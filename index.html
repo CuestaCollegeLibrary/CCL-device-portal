@@ -259,6 +259,75 @@ tr:hover td{background:#f8fbf8}
   .form-row{grid-template-columns:1fr}
   .device-grid{grid-template-columns:1fr}
 }
+
+/* ══ ACCESSIBILITY LAYER (WCAG 2.1 AA) ══════════════════════════════════════ */
+:root{ --text-light:#54695c; --gold-text:#7d6216; --focus-ring:#1d4ed8; --focus-ring-dark:#f5d97a; }
+html{scroll-padding-top:88px}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip-link{position:absolute;left:8px;top:-80px;z-index:2000;background:#fff;color:#0f2d1f;padding:10px 16px;border-radius:6px;font-weight:600;font-size:14px;text-decoration:none;border:2px solid #0f2d1f}
+.skip-link:focus{top:8px}
+
+/* visible keyboard focus */
+:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
+.site-header :focus-visible,.sidebar :focus-visible,.portal-hero :focus-visible,.password-card .btn-primary:focus-visible{outline-color:var(--focus-ring-dark)}
+.form-input:focus-visible,.btn:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
+.site-header .nav-btn:focus-visible,.site-header .lang-btn:focus-visible{outline:3px solid var(--focus-ring-dark);outline-offset:1px}
+.modal :focus-visible{outline-color:var(--focus-ring)}
+[tabindex="-1"]:focus{outline:none}
+.toggle input:focus-visible + .toggle-slider{outline:3px solid var(--focus-ring);outline-offset:2px}
+
+/* contrast */
+.sidebar-label{color:#a9bdb1}
+#role-badge{color:#a9bdb1!important}
+.sidebar-item.active{color:var(--gold-light)}
+.td-id{color:var(--text-light)}
+.row-done td{background:#f4f7f5}
+[style*="color:#9ca3af"]{color:#4b5563!important}
+[style*="color:#9bafa4"]{color:var(--text-light)!important}
+.sidebar-bottom .btn-outline{color:#c8d6ce!important;border-color:rgba(255,255,255,0.45)!important}
+
+/* touch/click target size (WCAG 2.2 AA 2.5.8, harmless under 2.1) */
+td input[type=checkbox],th input[type=checkbox]{width:24px!important;height:24px!important}
+.btn-sm{min-height:28px}
+
+/* sidebar auto-refresh control */
+.a11y-refresh{display:flex;align-items:center;gap:8px;font-size:12px;color:#c8d6ce;margin:0 0 10px;padding:0 4px;cursor:pointer}
+.a11y-refresh input{width:18px;height:18px;accent-color:var(--gold)}
+.a11y-help{margin:22px auto 8px;max-width:640px;text-align:center;font-size:13px;color:var(--text-mid);line-height:1.6}
+.a11y-help a{color:var(--green-light);text-decoration:underline}
+.a11y-help a:focus-visible{outline:3px solid var(--focus-ring)}
+[role=button][tabindex="0"]{cursor:pointer}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:0.001ms!important;animation-iteration-count:1!important;transition-duration:0.001ms!important;scroll-behavior:auto!important}
+}
+@media (forced-colors: active){
+  .toggle-slider,.device-card.selected,.campus-card.selected{forced-color-adjust:auto;border:2px solid ButtonText}
+}
+
+/* small screens / 400% zoom: nothing may be cut off (WCAG 1.4.10) */
+@media (max-width: 520px){
+  .site-header{height:auto;min-height:64px;flex-wrap:wrap;padding:8px 12px;row-gap:6px}
+  .header-right{flex-wrap:wrap;gap:6px}
+  .nav-btn{padding:8px 10px}
+  html{scroll-padding-top:120px}
+  #form-locked-overlay{top:0!important;padding-top:120px!important}
+  .steps{gap:4px}
+  .step{gap:4px;flex:0 1 auto}
+  .step-line{min-width:8px}
+  .step:not(.active) .step-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+}
+
+/* staff menu on narrow screens / high zoom: the sidebar becomes a collapsible menu instead of vanishing */
+.a11y-menu-btn{display:none}
+@media (max-width: 768px){
+  .a11y-menu-btn{display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;background:var(--green);color:#fff;border:0;border-bottom:1px solid rgba(255,255,255,0.2);font:600 14px 'DM Sans',sans-serif;cursor:pointer;text-align:left}
+  .a11y-menu-btn[aria-expanded="true"] .a11y-menu-caret{transform:rotate(90deg)}
+  .a11y-menu-caret{display:inline-block;transition:transform .15s}
+  .sidebar.a11y-menu-open{display:flex!important;position:static;height:auto;max-height:70vh}
+  .main-content{padding:16px}
+}
+
 </style>
 </head>
 <body>
@@ -1793,7 +1862,7 @@ async function loadWaitlistPanel(panelId){
       past.forEach(r=>{
         const isPickedUp = r.status==='picked-up';
         const canRequeue = !isPickedUp; // picked-up already has the device — doesn't make sense to re-queue
-        html+=`<tr class="clickable-row" style="opacity:0.75" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')">
+        html+=`<tr class="clickable-row row-done" onclick="openStudentHistory('${r.student_id}','${r.first_name} ${r.last_name}')">
           <td>${r.waitlist_position ? `<span class="pos-num">${r.waitlist_position}</span>` : '—'}</td>
           <td>
             <div class="td-name">${r.first_name} ${r.last_name} ${r.language==='es'?'<span style="font-size:10px;background:#f5f3ff;color:#6d28d9;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px">ES</span>':''}</div>
@@ -3371,7 +3440,7 @@ async function loadOverduePanel(){
       '</div><div id="fully-notified-body" style="display:none">' +
       '<table><thead><tr><th>Student</th><th>ID</th><th>Device</th><th>Due Date</th><th>Email Notified</th><th>Phone Notified</th></tr></thead><tbody>';
     fullyNotified.forEach(({l, rec}) => {
-      html += '<tr style="opacity:0.8">' +
+      html += '<tr class="row-done">' +
         '<td class="td-name">' + (l.firstName||'') + ' ' + (l.lastName||'') + '</td>' +
         '<td class="td-id">' + (l.sid||'—') + '</td>' +
         '<td>' + devLabel(l.deviceType) + '</td>' +
@@ -3714,11 +3783,11 @@ async function openStudentHistory(studentId, studentName){
         let statusLabel, statusColor;
         if(r.status === 'waitlisted'){
           statusLabel = '⏳ Waitlisted' + (r.waitlist_position ? ' (#' + r.waitlist_position + ')' : '');
-          statusColor = 'var(--gold)';
+          statusColor = 'var(--gold-text)';
         } else if(r.status === 'notified'){
           const exp = r.expires_at && new Date(r.expires_at) < new Date();
           statusLabel = '⏰ Awaiting Pickup' + (exp ? ' ⚠️ Expired' : '');
-          statusColor = exp ? 'var(--danger)' : 'var(--gold)';
+          statusColor = exp ? 'var(--danger)' : 'var(--gold-text)';
         } else if(r.status === 'picked-up'){
           statusLabel = '✓ Picked Up'; statusColor = 'var(--success)';
         } else if(r.status === 'expired'){
@@ -3847,16 +3916,20 @@ function startAutoRefresh(){
   if(autoRefreshInterval) clearInterval(autoRefreshInterval);
   autoRefreshInterval = setInterval(async () => {
     if(document.hidden) return; // don't refresh if tab is not visible
+    if(window.__a11yRefreshPaused) return;
+    if(window.__a11yShouldSkipRefresh && window.__a11yShouldSkipRefresh()) return;
+    const __focusSnap = window.__a11ySnap ? window.__a11ySnap() : null;
     await loadWaitlistCounts();
     // Also refresh the currently visible panel silently
     const active = document.querySelector('.tab-panel.active');
     if(!active) return;
     const id = active.id.replace('panel-','');
-    if(id.startsWith('wl-')) loadWaitlistPanel(id);
-    else if(id === 'overview') loadOverview();
-    else if(id === 'aghs') loadAGHS();
-    else if(id === 'overdue') loadOverduePanel();
-    else if(id === 'activity') loadActivityLog();
+    if(id.startsWith('wl-')) await loadWaitlistPanel(id);
+    else if(id === 'overview') await loadOverview();
+    else if(id === 'aghs') await loadAGHS();
+    else if(id === 'overdue') await loadOverduePanel();
+    else if(id === 'activity') await loadActivityLog();
+    if(window.__a11yRestore) window.__a11yRestore(__focusSnap);
   }, 2 * 60 * 1000); // every 2 minutes
 }
 
@@ -3924,6 +3997,395 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   setInterval(checkAutoExpire, 5*60*1000);
   updateEmailPreview();
 });
+</script>
+<script>
+/* ══ ACCESSIBILITY LAYER ═════════════════════════════════════════════════════
+   Adds keyboard access, names/roles/states, dialog behavior, live regions and
+   focus management on top of the existing page without changing its behavior.
+   Everything here is additive and idempotent. */
+(function(){
+  'use strict';
+  var $  = function(s, r){ return (r||document).querySelector(s); };
+  var $$ = function(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+  var NATIVE = /^(A|BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY|OPTION)$/;
+  var uid = 0, lastUserAction = 0, openOverlay = null, lastOpener = null;
+
+  function isEs(){ try { return document.documentElement.lang === 'es'; } catch(e){ return false; } }
+  document.addEventListener('click',   function(){ lastUserAction = Date.now(); }, true);
+  document.addEventListener('keydown', function(){ lastUserAction = Date.now(); }, true);
+  function userDriven(){ return Date.now() - lastUserAction < 10000; }
+
+  function focusable(root){
+    return $$('a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])', root).filter(function(e){
+      return !e.disabled && e.type !== 'hidden' && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+    });
+  }
+  function textOf(e){ return (e.textContent || '').replace(/\s+/g, ' ').trim(); }
+  function onlyEmoji(s){ return !s.replace(/[\p{Extended_Pictographic}️‍\s←→↻⬇✓✕×]/gu, ''); }
+
+  /* 1 ── keyboard-operable "clickable" elements that aren't native controls */
+  function rowButton(tr){
+    if (tr.getAttribute('data-a11y-row')) return;
+    var target = $('.td-name', tr);
+    if (!target) {
+      var cell = $$('td', tr).filter(function(td){ return !td.querySelector('input') && !td.getAttribute('onclick') && /[A-Za-z\u00C0-\u024F]/.test(textOf(td)); })[0];
+      if (!cell) return;
+      target = cell.firstElementChild && !NATIVE.test(cell.firstElementChild.tagName) && !cell.firstElementChild.getAttribute('onclick') ? cell.firstElementChild : null;
+      if (!target) {
+        var sp = document.createElement('span');
+        while (cell.firstChild) sp.appendChild(cell.firstChild);
+        cell.appendChild(sp); target = sp;
+      }
+    }
+    tr.setAttribute('data-a11y-row', '1');
+    target.setAttribute('role', 'button');
+    target.tabIndex = 0;
+    target.setAttribute('aria-haspopup', 'dialog');
+    target.addEventListener('keydown', function(e){
+      if (e.target !== target) return;
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); target.click(); }
+    });
+  }
+  function enhanceClickable(root){
+    $$('[onclick]', root).forEach(function(el){
+      if (NATIVE.test(el.tagName) || el.getAttribute('data-a11y')) return;
+      if (el.tagName === 'TD' || el.tagName === 'TH') return;
+      if (el.tagName === 'TR') { rowButton(el); return; }
+      var oc = el.getAttribute('onclick') || '';
+      if (/^\s*event\.stopPropagation\(\)\s*;?\s*$/.test(oc)) return;
+      el.setAttribute('data-a11y', '1');
+      el.setAttribute('role', 'button');
+      el.tabIndex = 0;
+      if (!el.getAttribute('aria-label') && el.title && onlyEmoji(textOf(el))) el.setAttribute('aria-label', el.title);
+      el.addEventListener('keydown', function(e){
+        if (e.target !== el) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+      });
+    });
+    var zone = $('.upload-zone');
+    if (zone && !zone.getAttribute('aria-label')) zone.setAttribute('aria-label', 'Upload Alma report (.xlsx). Press Enter to choose a file.');
+  }
+
+  /* 2 ── labels, required state, autocomplete, group names */
+  function ensureId(el){ if (!el.id) el.id = 'a11y-' + (++uid); return el.id; }
+  function enhanceForms(root){
+    $$('label:not([for])', root).forEach(function(l){
+      if (l.querySelector('input,select,textarea')) return;
+      var c = null, s = l.nextElementSibling;
+      if (s) c = s.matches('input,select,textarea') ? s : $('input,select,textarea', s);
+      if (!c && l.parentElement) c = $('input,select,textarea', l.parentElement);
+      if (c && c.type !== 'checkbox') l.setAttribute('for', ensureId(c));
+    });
+    $$('label[for]', root).forEach(function(l){
+      var c = document.getElementById(l.getAttribute('for'));
+      if (c && /\*\s*$/.test(textOf(l)) && !c.getAttribute('aria-required')) c.setAttribute('aria-required', 'true');
+    });
+    // unlabeled checkboxes
+    $$('input[type=checkbox]:not([aria-label]):not([aria-labelledby])', root).forEach(function(cb){
+      if (cb.id && $('label[for="' + cb.id + '"]')) return;
+      if (cb.closest('label') && textOf(cb.closest('label')).length > 1) return;
+      var name = '';
+      if (cb.id === 'form-lock-toggle') name = 'Student form lock';
+      else if (cb.closest('.wl-toggle-row')) {
+        var pt = cb.closest('.tab-panel') && $('.page-title', cb.closest('.tab-panel'));
+        name = 'Waitlist on' + (pt ? ' for ' + textOf(pt) : '');
+      }
+      else if (/^sel-all|sel-all/.test(cb.id)) name = 'Select all';
+      else if (cb.getAttribute('data-name')) name = 'Select ' + cb.getAttribute('data-name').trim();
+      else if (cb.title) name = cb.title;
+      else name = 'Select';
+      cb.setAttribute('aria-label', name);
+    });
+    $$('input:not([type=checkbox]):not([type=hidden]):not([aria-label]):not([aria-labelledby]), textarea:not([aria-label]):not([aria-labelledby])', root).forEach(function(c){
+      if (c.id && $('label[for="' + c.id + '"]')) return;
+      if (c.closest('label')) return;
+      var n = c.getAttribute('placeholder') || c.title;
+      if (n) c.setAttribute('aria-label', n);
+    });
+    // fixed attributes on known student fields
+    var ac = { 's-fn':'given-name', 's-ln':'family-name', 's-email':'email', 's-phone':'tel', 's-sig':'name' };
+    Object.keys(ac).forEach(function(id){ var e = document.getElementById(id); if (e && !e.getAttribute('autocomplete')) e.setAttribute('autocomplete', ac[id]); });
+    var sid = document.getElementById('s-sid'); if (sid && !sid.getAttribute('autocomplete')) { sid.setAttribute('autocomplete', 'off'); sid.setAttribute('inputmode', 'numeric'); }
+    // status/alert containers announce changes
+    $$('[id^="a-"]', root).forEach(function(c){
+      if (/^a-/.test(c.id) && !c.getAttribute('aria-live')) { c.setAttribute('aria-live', 'polite'); c.setAttribute('aria-atomic', 'true'); }
+    });
+  }
+
+  /* 3 ── structure: headings, table headers, decorative icons */
+  function setHeading(e, level){ if (!textOf(e)) { if (e.getAttribute('role') === 'heading') { e.removeAttribute('role'); e.removeAttribute('aria-level'); } return; } if (!e.getAttribute('role')) { e.setAttribute('role', 'heading'); e.setAttribute('aria-level', String(level)); } }
+  function enhanceStructure(root){
+    $$('.page-title, .modal-title, .pw-title', root).forEach(function(e){ setHeading(e, 2); });
+    $$('.card-title', root).forEach(function(e){ setHeading(e, e.closest('#view-student') ? 2 : 3); });
+    $$('.table-title', root).forEach(function(e){ setHeading(e, 3); });
+    var lt = document.getElementById('t-formlocked-title'); if (lt) setHeading(lt, 2);
+    $$('th', root).forEach(function(th){
+      if (!th.hasAttribute('scope')) th.setAttribute('scope', 'col');
+      if (!textOf(th) && !$('.sr-only', th)) {
+        var s = document.createElement('span'); s.className = 'sr-only';
+        s.textContent = $('input[type=checkbox]', th) ? 'Select' : 'Actions';
+        th.appendChild(s);
+      }
+    });
+    $$('.wl-active-badge', root).forEach(function(b){ if (!b.getAttribute('role')) { b.setAttribute('role', 'img'); b.setAttribute('aria-label', 'Waitlist is on'); } });
+    $$('.device-icon, .spinner', root).forEach(function(b){ b.setAttribute('aria-hidden', 'true'); });
+    $$('.agreement-scroll', root).forEach(function(box){
+      if (box.getAttribute('data-a11y')) return;
+      box.setAttribute('data-a11y', '1'); box.tabIndex = 0; box.setAttribute('role', 'region');
+      box.setAttribute('aria-label', box.id === 'agreement-text-es' ? 'Términos del acuerdo de préstamo' : 'Loan agreement terms');
+      if (box.id === 'agreement-text-es') box.setAttribute('lang', 'es');
+    });
+  }
+
+  /* 4 ── landmarks, skip link, one-time insertions */
+  function oneTime(){
+    var body = document.body;
+    if (!$('.skip-link')) {
+      var a = document.createElement('a'); a.className = 'skip-link'; a.href = '#view-student'; a.textContent = isEs() ? 'Saltar al contenido principal' : 'Skip to main content';
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var t = ($('#view-student.active')) || $('#staff-dash:not([style*="none"]) .main-content') || $('#staff-gate:not([style*="none"])') || $('#view-student');
+        if (t) { t.tabIndex = -1; t.focus(); }
+      });
+      body.insertBefore(a, body.firstChild);
+    }
+    var nav = $('.header-right'); if (nav) { nav.setAttribute('role', 'navigation'); nav.setAttribute('aria-label', 'Main'); }
+    var vs = document.getElementById('view-student'); if (vs) { vs.setAttribute('role', 'main'); vs.setAttribute('aria-label', 'Device request form'); }
+    var sg = document.getElementById('staff-gate'); if (sg) { sg.setAttribute('role', 'main'); sg.setAttribute('aria-label', 'Staff sign in'); }
+    var mc = $('.main-content'); if (mc && mc.tagName === 'MAIN') mc.setAttribute('aria-label', 'Staff portal');
+    var sb = $('.sidebar'); if (sb) sb.setAttribute('aria-label', 'Staff navigation');
+    [sg, $('.main-content')].forEach(function(host, i){
+      if (host && !$('.a11y-h1', host)) { var h = document.createElement('h1'); h.className = 'sr-only a11y-h1'; h.textContent = i ? 'Cuesta College Library Device Portal — Staff dashboard' : 'Cuesta College Library Device Portal — Staff sign in'; host.insertBefore(h, host.firstChild); }
+    });
+    // notification preference: group the two checkboxes under their legend
+    var nl = document.getElementById('t-notiflabel');
+    if (nl && nl.tagName === 'LABEL') {
+      var d = document.createElement('div'); d.className = nl.className; d.id = 't-notiflabel'; d.textContent = nl.textContent;
+      nl.parentNode.replaceChild(d, nl);
+      if (d.nextElementSibling) { d.nextElementSibling.setAttribute('role', 'group'); d.nextElementSibling.setAttribute('aria-labelledby', 't-notiflabel'); }
+    }
+    var side = $('.sidebar');
+    if (side && !$('.a11y-menu-btn')) {
+      var mb = document.createElement('button'); mb.type = 'button'; mb.className = 'a11y-menu-btn'; mb.setAttribute('aria-expanded', 'false');
+      if (!side.id) side.id = 'staff-sidebar'; mb.setAttribute('aria-controls', side.id);
+      mb.innerHTML = '<span class="a11y-menu-caret" aria-hidden="true">▶</span><span>Menu</span>';
+      side.parentNode.insertBefore(mb, side);
+      function setMenu(open){ side.classList.toggle('a11y-menu-open', open); mb.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+      mb.addEventListener('click', function(){ setMenu(mb.getAttribute('aria-expanded') !== 'true'); });
+      side.addEventListener('click', function(e){ if (e.target.closest('.sidebar-item') && matchMedia('(max-width: 768px)').matches) setMenu(false); });
+      side.addEventListener('keydown', function(e){ if (e.key === 'Escape' && mb.getAttribute('aria-expanded') === 'true') { setMenu(false); mb.focus(); } });
+    }
+    var step = document.getElementById('step-indicator'); if (step) { step.setAttribute('role', 'group'); step.setAttribute('aria-label', 'Form progress'); }
+    var en = document.getElementById('lang-en'), es = document.getElementById('lang-es');
+    if (en) { en.setAttribute('lang', 'en'); en.setAttribute('aria-label', 'English'); }
+    if (es) { es.setAttribute('lang', 'es'); es.setAttribute('aria-label', 'Español'); }
+    var pb = $('#view-student .portal-body');
+    if (pb && !$('.a11y-help')) {
+      var p = document.createElement('p'); p.className = 'a11y-help'; p.id = 'a11y-help';
+      pb.appendChild(p); helpText();
+    }
+    var bottom = $('.sidebar-bottom');
+    if (bottom && !$('.a11y-refresh')) {
+      var l = document.createElement('label'); l.className = 'a11y-refresh';
+      l.innerHTML = '<input type="checkbox" id="a11y-autorefresh" checked><span>Auto-refresh lists every 2 minutes</span>';
+      bottom.insertBefore(l, bottom.firstChild);
+      $('input', l).addEventListener('change', function(e){ window.__a11yRefreshPaused = !e.target.checked; });
+    }
+  }
+  function helpText(){
+    var p = document.getElementById('a11y-help'); if (!p) return;
+    if (isEs()) p.innerHTML = '¿Necesita este formulario en otro formato o tiene problemas para usarlo? Escriba a <a href="mailto:circulation@cuesta.edu">circulation@cuesta.edu</a>. <a href="https://www.cuesta.edu/about/human-resources/policy/Accessibility-Statement.html" target="_blank" rel="noopener">Declaración de accesibilidad de Cuesta<span class="sr-only"> (se abre en una pestaña nueva)</span></a>';
+    else p.innerHTML = 'Need this form in another format, or having trouble using it? Email <a href="mailto:circulation@cuesta.edu">circulation@cuesta.edu</a>. <a href="https://www.cuesta.edu/about/human-resources/policy/Accessibility-Statement.html" target="_blank" rel="noopener">Cuesta Accessibility Statement<span class="sr-only"> (opens in a new tab)</span></a>';
+    p.setAttribute('lang', isEs() ? 'es' : 'en');
+  }
+
+  /* 5 ── live state: pressed / current / progress */
+  function syncState(){
+    $$('.lang-btn').forEach(function(b){ b.setAttribute('aria-pressed', b.classList.contains('active') ? 'true' : 'false'); });
+    $$('.nav-btn, .sidebar-item').forEach(function(b){ if (b.classList.contains('active')) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    $$('.device-card, .campus-card').forEach(function(b){ b.setAttribute('aria-pressed', b.classList.contains('selected') ? 'true' : 'false'); });
+    $$('.step').forEach(function(s){ if (s.classList.contains('active')) s.setAttribute('aria-current', 'step'); else s.removeAttribute('aria-current'); });
+    var ov = document.getElementById('form-locked-overlay');
+    if (ov) {
+      var locked = getComputedStyle(ov).display !== 'none';
+      ['.portal-hero', '.portal-body'].forEach(function(sel){ var e = $('#view-student ' + sel); if (e) { if (locked) e.setAttribute('inert', ''); else e.removeAttribute('inert'); } });
+    }
+    $$('.toggle input[disabled]').forEach(function(i){ i.setAttribute('aria-disabled', 'true'); });
+  }
+
+  /* 6 ── dialogs: role, label, focus move, trap, Esc, return focus, inert background */
+  function dialogSetup(ov){
+    var m = $('.modal', ov); if (!m) return null;
+    m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.tabIndex = -1;
+    var t = $('.modal-title', m);
+    if (t && textOf(t)) { if (!t.id) t.id = 'a11y-mt-' + (++uid); m.setAttribute('aria-labelledby', t.id); m.removeAttribute('aria-label'); }
+    else { m.removeAttribute('aria-labelledby'); m.setAttribute('aria-label', 'Details'); }
+    return m;
+  }
+  function setBackgroundInert(on){
+    ['.site-header', '#view-student', '#view-staff', '.skip-link'].forEach(function(sel){
+      $$(sel).forEach(function(e){ if (on) e.setAttribute('inert', ''); else e.removeAttribute('inert'); });
+    });
+    if (!on) syncState();   // re-apply the form-lock inert state
+  }
+  function modalsSync(){
+    var open = $$('.modal-overlay.open'), top = open[open.length - 1] || null;
+    if (top && top !== openOverlay) {
+      var wasNone = !openOverlay;
+      openOverlay = top;
+      if (wasNone) lastOpener = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : null;
+      var m = dialogSetup(top);
+      setBackgroundInert(true);
+      var f = m ? focusable(m).filter(function(e){ return !e.closest('.modal-actions') || true; }) : [];
+      var first = f.filter(function(e){ return /^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName); })[0] || f[0] || m;
+      if (first) first.focus();
+    } else if (!top && openOverlay) {
+      openOverlay = null;
+      setBackgroundInert(false);
+      var back = lastOpener && document.contains(lastOpener) && lastOpener.getClientRects().length ? lastOpener : null;
+      lastOpener = null;
+      if (back) back.focus();
+      else { var mn = $('#view-student.active') || $('#staff-dash .main-content') || document.body; if (mn.focus) { mn.tabIndex = -1; mn.focus(); } }
+    }
+  }
+  document.addEventListener('keydown', function(e){
+    if (!openOverlay) return;
+    if (e.key === 'Escape') { e.preventDefault(); if (typeof closeModal === 'function') closeModal(openOverlay.id); return; }
+    if (e.key === 'Tab') {
+      var m = $('.modal', openOverlay), f = m ? focusable(m) : [];
+      if (!f.length) { e.preventDefault(); if (m) m.focus(); return; }
+      var first = f[0], last = f[f.length - 1], a = document.activeElement;
+      if (e.shiftKey && (a === first || a === m)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+    }
+  }, true);
+
+  /* 7 ── single observer keeps everything above applied to dynamic content */
+  var pending = false, lastFocus = null;
+  document.addEventListener('focusin', function(e){
+    var el = e.target, panel = el.closest && el.closest('.main-content');
+    if (!panel) { lastFocus = null; return; }
+    lastFocus = { el:el, id:el.id || '', role:el.getAttribute('role') || '', txt:textOf(el).slice(0, 40), idx:focusable(panel).indexOf(el), t:Date.now() };
+  }, true);
+  // When the page rebuilds a list and the focused control disappears, put focus on its replacement
+  function restoreLost(){
+    var s = lastFocus; if (!s) return;
+    var cur = document.activeElement;
+    if (cur && cur !== document.body) return;
+    if (document.contains(s.el)) return;
+    if (Date.now() - s.t > 4000) { lastFocus = null; return; }
+    var panel = $('.tab-panel.active') || $('.main-content'); if (!panel) return;
+    var list = focusable(panel), el = null;
+    if (s.id) el = document.getElementById(s.id);
+    if (!el && s.role === 'heading') el = $('[role=heading]', panel);
+    if (!el && s.txt) el = list.filter(function(e){ return textOf(e).slice(0, 40) === s.txt; })[0];
+    if (!el) el = list[Math.min(Math.max(s.idx, 0), list.length - 1)];
+    if (el) { try { el.focus({ preventScroll:true }); } catch(e){} }
+  }
+  function pass(){
+    pending = false;
+    enhanceClickable(document); enhanceForms(document); enhanceStructure(document);
+    syncState(); modalsSync(); restoreLost();
+  }
+  function schedule(){ if (!pending) { pending = true; setTimeout(pass, 30); } }
+  new MutationObserver(schedule).observe(document.body, { subtree:true, childList:true, attributes:true, attributeFilter:['class', 'style'] });
+
+  /* 8 ── wrap navigation functions: page language, title, focus management */
+  var STEP_NAMES = { en:['Your info','Agreement','Choose devices','Review','Request submitted'], es:['Su información','Acuerdo','Elija dispositivos','Revisar','Solicitud enviada'] };
+  function setTitle(t){ document.title = t + ' – CCL Device Portal'; }
+  function focusHeading(scope){
+    var h = $('[role=heading], h1, h2', scope);
+    if (h) { h.tabIndex = -1; try { h.focus({ preventScroll:true }); } catch(e){ h.focus(); } return true; }
+    return false;
+  }
+  // Panels fill in asynchronously: wait (up to 5 s) for the heading to exist, and only move
+  // focus if the person hasn't already moved on from the control they used.
+  function focusHeadingWhenReady(scope, origin){
+    if (!scope) return;
+    var done = false, t0 = Date.now();
+    function stillHere(){ var a = document.activeElement; return !a || a === document.body || a === origin; }
+    function attempt(){
+      if (done) return;
+      if (!stillHere()) { done = true; return; }
+      pass();
+      if (focusHeading(scope)) { done = true; return; }
+      if (Date.now() - t0 < 5000) setTimeout(attempt, 150); else done = true;
+    }
+    attempt();
+  }
+  if (typeof window.goStep === 'function') {
+    var _goStep = window.goStep;
+    window.goStep = function(n){
+      var r = _goStep.apply(this, arguments);
+      var names = STEP_NAMES[isEs() ? 'es' : 'en'];
+      setTitle(names[n-1] + (n < 5 ? ' (' + (isEs() ? 'paso ' : 'step ') + n + (isEs() ? ' de 4)' : ' of 4)') : ''));
+      pass();
+      if (userDriven()) focusHeading(document.getElementById('ps-' + n));
+      return r;
+    };
+  }
+  if (typeof window.setLang === 'function') {
+    var _setLang = window.setLang;
+    window.setLang = function(l){
+      var r = _setLang.apply(this, arguments);
+      document.documentElement.setAttribute('lang', l === 'es' ? 'es' : 'en');
+      var sk = $('.skip-link'); if (sk) sk.textContent = l === 'es' ? 'Saltar al contenido principal' : 'Skip to main content';
+      helpText(); pass();
+      return r;
+    };
+  }
+  if (typeof window.showView === 'function') {
+    var _showView = window.showView;
+    window.showView = function(v){
+      var r = _showView.apply(this, arguments);
+      setTitle(v === 'staff' ? 'Staff portal' : 'Request a device');
+      pass();
+      if (userDriven()) { var t = v === 'staff' ? ($('#staff-gate:not([style*="none"])') || $('#staff-dash')) : $('#view-student'); if (t) focusHeadingWhenReady(t, document.activeElement); }
+      return r;
+    };
+  }
+  if (typeof window.showPanel === 'function') {
+    var _showPanel = window.showPanel;
+    window.showPanel = function(panel, btn){
+      var origin = document.activeElement;
+      var r = _showPanel.apply(this, arguments);
+      pass();
+      if (userDriven()) focusHeadingWhenReady(document.getElementById('panel-' + panel), origin);
+      return r;
+    };
+  }
+
+  /* 9 ── auto-refresh safety: don't rebuild the page under someone who is typing,
+          and put keyboard focus back where it was after a refresh */
+  window.__a11yShouldSkipRefresh = function(){
+    if (openOverlay) return true;
+    var a = document.activeElement;
+    return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox' && a.closest('.main-content'));
+  };
+  window.__a11ySnap = function(){
+    var a = document.activeElement, panel = $('.tab-panel.active');
+    if (!a || !panel || !panel.contains(a)) return null;
+    var list = focusable(panel);
+    return { idx:list.indexOf(a), count:list.length, id:a.id || '', txt:textOf(a).slice(0, 40), panelId:panel.id };
+  };
+  window.__a11yRestore = function(s){
+    if (!s) return;
+    var cur = document.activeElement;
+    if (cur && cur !== document.body && document.contains(cur)) return;
+    pass();
+    var panel = document.getElementById(s.panelId); if (!panel) return;
+    var el = s.id && document.getElementById(s.id);
+    if (!el) {
+      var list = focusable(panel);
+      var same = s.txt ? list.filter(function(e){ return textOf(e).slice(0, 40) === s.txt; }) : [];
+      el = same[0] || list[Math.min(Math.max(s.idx, 0), list.length - 1)];
+    }
+    if (el) el.focus();
+  };
+
+  function init(){ oneTime(); pass(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script>
 </body>
 </html>
